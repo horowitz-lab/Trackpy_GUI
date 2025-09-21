@@ -31,7 +31,34 @@ class MainWindow(QMainWindow):
         # --- Left Panel (Video Player) ---
         self.left_panel = QWidget()
         self.left_layout = QVBoxLayout(self.left_panel)
+        self.init_video()
+        self.splitter.addWidget(self.left_panel)
+        
 
+        # --- Right Panel (Sliders) ---
+        self.right_panel = QWidget()
+        self.right_layout = QVBoxLayout(self.right_panel)
+        self.init_param_controls()
+        self.splitter.addWidget(self.right_panel)
+
+        # Set initial sizes for the splitter
+        self.splitter.setSizes([700, 300])
+
+        # --- Media Player Setup ---
+        self.player = QMediaPlayer()
+        self.player.setVideoOutput(self.video_widget)
+
+        # --- Menu Bar ---
+        menu_bar = self.menuBar()
+        file_menu = menu_bar.addMenu("File")
+        import_action = QAction("Import...", self)
+        import_action.triggered.connect(self.open_file_dialog)
+        file_menu.addAction(import_action)
+
+        # --- Status Bar ---
+        self.statusBar().showMessage("Ready")
+
+    def init_video(self):
         self.video_widget = QVideoWidget()
         self.left_layout.addWidget(self.video_widget)
 
@@ -39,12 +66,7 @@ class MainWindow(QMainWindow):
         self.play_pause_button.clicked.connect(self.toggle_play_pause)
         self.left_layout.addWidget(self.play_pause_button)
 
-        self.splitter.addWidget(self.left_panel)
-
-        # --- Right Panel (Sliders) ---
-        self.right_panel = QWidget()
-        self.right_layout = QVBoxLayout(self.right_panel)
-
+    def init_param_controls(self):
         # Mass Slider
         self.mass_label = QLabel("Mass")
         self.mass_slider = QSlider(Qt.Horizontal)
@@ -64,31 +86,10 @@ class MainWindow(QMainWindow):
         self.right_layout.addWidget(self.size_slider)
 
         self.right_layout.addStretch() # Pushes sliders to the top
-        self.splitter.addWidget(self.right_panel)
 
-        # Set initial sizes for the splitter
-        self.splitter.setSizes([700, 300])
-
-
-        # --- Media Player Setup ---
-        self.player = QMediaPlayer()
-        self.player.setVideoOutput(self.video_widget)
-        self.player.playbackStateChanged.connect(self.update_button_text)
-
-        # --- Menu Bar ---
-        menu_bar = self.menuBar()
-        file_menu = menu_bar.addMenu("File")
-        import_action = QAction("Import...", self)
-        import_action.triggered.connect(self.open_file_dialog)
-        file_menu.addAction(import_action)
-
-        # --- Status Bar ---
-        self.statusBar().showMessage("Ready")
-
+    
     def open_file_dialog(self):
-        file_name, _ = QFileDialog.getOpenFileName(
-            self, "Open Video", "", "Video Files (*.mp4 *.avi *.mov)"
-        )
+        file_name, _ = QFileDialog.getOpenFileName(self, "Open Video", "", "Video Files (*.mp4 *.avi *.mov)")
         if file_name:
             self.player.setSource(QUrl.fromLocalFile(file_name))
             self.player.play()
@@ -97,13 +98,9 @@ class MainWindow(QMainWindow):
     def toggle_play_pause(self):
         if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
             self.player.pause()
-        else:
-            self.player.play()
-
-    def update_button_text(self, state):
-        if state == QMediaPlayer.PlaybackState.PlayingState:
             self.play_pause_button.setText("Pause")
         else:
+            self.player.play()
             self.play_pause_button.setText("Play")
 
 
