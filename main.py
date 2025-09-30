@@ -19,19 +19,54 @@ from PySide6.QtGui import QAction
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6 import QtWidgets
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qtagg import FigureCanvas
+from matplotlib.figure import Figure
+
+# class ParticleDetectionWindow(QMainWindow):
+
+# class ParticleTrackingWindow(QMainWindow):
         
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, page):
         super().__init__()
+        self.page = page
+
+        self.determine_page()
+        
+        
+
+    def determine_page(self):
+        if self.page == "particle detection":
+            self.particle_detection_window()
+        elif self.page == "trajectory tracking":
+            self.trajectory_tracking_window()
+
+    def particle_detection_window(self):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.main_layout = QHBoxLayout(self.central_widget)
+        self.resize(1200, 500)
 
+        # --- Right Panel (Graphing) ---
+        self.main_layout.graph_panel = QWidget()
+        self.graph_layout = QVBoxLayout(self.main_layout.graph_panel)
+        self.main_layout.addWidget(self.main_layout.graph_panel)
+        self.filler_plot()
+        self.canvas = FigureCanvas(self.fig)
+        self.canvas.setFixedSize(300, 400)
+        self.canvas.hide()
+        self.graph_layout.addWidget(self.canvas)
+        self.sb_button = QPushButton(text="Plot Subpixel Bias", parent=self)
+        self.sb_button.setFixedSize(150, 40)
+        self.sb_button.clicked.connect(self.show_graph)
+        self.graph_layout.addWidget(self.sb_button)
+        
         # --- Main splitter ---
         self.splitter = QSplitter(Qt.Horizontal)
         self.main_layout.addWidget(self.splitter)
 
-        # --- Left Panel (Video Player) ---
+        # --- Middle Panel (Video Player) ---
         self.main_layout.left_panel = QWidget()
         self.left_layout = QVBoxLayout(self.main_layout.left_panel)
         self.init_video()
@@ -42,11 +77,7 @@ class MainWindow(QMainWindow):
         self.player.setVideoOutput(self.video_widget)
 
         # --- Menu Bar ---
-        menu_bar = self.menuBar()
-        file_menu = menu_bar.addMenu("File")
-        import_action = QAction("Import...", self)
-        import_action.triggered.connect(self.open_file_dialog)
-        file_menu.addAction(import_action)
+        self.create_menu_bar()
 
         # --- Status Bar ---
         self.statusBar().showMessage("Ready")
@@ -54,67 +85,101 @@ class MainWindow(QMainWindow):
         # --- Right Panel (Tabs) ---
         self.main_layout.right_panel = QWidget()
         self.right_layout = QVBoxLayout(self.main_layout.right_panel)
-        self.tab_widget = QTabWidget(self.main_layout.right_panel)
+        self.detection_parameters()
+        self.splitter.addWidget(self.main_layout.right_panel)
 
-        self.tab1 = QWidget()
-        self.tab2 = QWidget()
+    def trajectory_tracking_window(self):
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        self.main_layout = QHBoxLayout(self.central_widget)
+        self.resize(1200, 500)
 
-        self.tab_widget.addTab(self.tab1, "Particle Detection")
-        self.tab_widget.addTab(self.tab2, "Trajectory Detection")
+        # --- Left Panel (Graphing) ---
+        self.main_layout.graph_panel = QWidget()
+        self.graph_layout = QVBoxLayout(self.main_layout.graph_panel)
+        self.main_layout.addWidget(self.main_layout.graph_panel)
+        self.filler_plot()
+        self.canvas = FigureCanvas(self.fig)
+        self.canvas.setFixedSize(300, 400)
+        self.graph_layout.addWidget(self.canvas)
+        self.canvas.hide()
+        self.sb_button = QPushButton(text="Plot Subpixel Bias", parent=self)
+        self.sb_button.setFixedSize(150, 40)
+        self.sb_button.clicked.connect(self.show_graph)
+        self.graph_layout.addWidget(self.sb_button)
 
-        self.splitter.addWidget(self.tab_widget)
+        # --- Main splitter ---
+        self.splitter = QSplitter(Qt.Horizontal)
+        self.main_layout.addWidget(self.splitter)
 
-        self.initTab1()
-        self.initTab2()
+        # --- Middle Panel (Video Player) ---
+        self.main_layout.left_panel = QWidget()
+        self.left_layout = QVBoxLayout(self.main_layout.left_panel)
+        self.init_video()
+        self.splitter.addWidget(self.main_layout.left_panel)
 
-        self.splitter.setSizes([700, 300])
+        # --- Media Player Setup ---
+        self.player = QMediaPlayer()
+        self.player.setVideoOutput(self.video_widget)
 
-    def initTab1(self):
-        self.tab1_layout = QVBoxLayout(self.tab1)
+        # --- Menu Bar ---
+        self.create_menu_bar()
+
+        # --- Status Bar ---
+        self.statusBar().showMessage("Ready")
+
+        # --- Right Panel (Parameters) ---
+        self.main_layout.right_panel = QWidget()
+        self.right_layout = QVBoxLayout(self.main_layout.right_panel)
+        self.trajectory_parameters()
+        self.splitter.addWidget(self.main_layout.right_panel)
+
+    def detection_parameters(self):
+        self.detection_layout = self.right_layout
 
         # Mass Slider
         self.mass_label = QLabel("Mass")
         self.mass_slider = QSlider(Qt.Horizontal)
-        self.tab1_layout.addWidget(self.mass_label)
-        self.tab1_layout.addWidget(self.mass_slider)
+        self.detection_layout.addWidget(self.mass_label)
+        self.detection_layout.addWidget(self.mass_slider)
 
         # Eccentricity Slider
         self.ecc_label = QLabel("Eccentricity")
         self.ecc_slider = QSlider(Qt.Horizontal)
-        self.tab1_layout.addWidget(self.ecc_label)
-        self.tab1_layout.addWidget(self.ecc_slider)
+        self.detection_layout.addWidget(self.ecc_label)
+        self.detection_layout.addWidget(self.ecc_slider)
 
         # Size Slider
         self.size_label = QLabel("Size")
         self.size_slider = QSlider(Qt.Horizontal)
-        self.tab1_layout.addWidget(self.size_label)
-        self.tab1_layout.addWidget(self.size_slider)
+        self.detection_layout.addWidget(self.size_label)
+        self.detection_layout.addWidget(self.size_slider)
 
-        self.tab1_layout.addStretch() # Pushes sliders to the top
+        self.detection_layout.addStretch() # Pushes sliders to the top
 
-    def initTab2(self):
-        self.tab2_layout = QVBoxLayout(self.tab2)
+    def trajectory_parameters(self):
+        self.trajectory_layout = self.right_layout
 
         # Whatever We Want Slider
         self.mass_label = QLabel("Trajectory things")
         self.mass_slider = QSlider(Qt.Horizontal)
-        self.tab2_layout.addWidget(self.mass_label)
-        self.tab2_layout.addWidget(self.mass_slider)
+        self.trajectory_layout.addWidget(self.mass_label)
+        self.trajectory_layout.addWidget(self.mass_slider)
 
         # Slider
         self.ecc_label = QLabel("idk")
         self.ecc_slider = QSlider(Qt.Horizontal)
-        self.tab2_layout.addWidget(self.ecc_label)
-        self.tab2_layout.addWidget(self.ecc_slider)
+        self.trajectory_layout.addWidget(self.ecc_label)
+        self.trajectory_layout.addWidget(self.ecc_slider)
 
         # Slider
         self.size_label = QLabel("what varibles go here")
         self.size_slider = QSlider(Qt.Horizontal)
-        self.tab2_layout.addWidget(self.size_label)
-        self.tab2_layout.addWidget(self.size_slider)
+        self.trajectory_layout.addWidget(self.size_label)
+        self.trajectory_layout.addWidget(self.size_slider)
 
-        self.tab2_layout.addStretch() # Pushes sliders to the top
- 
+        self.trajectory_layout.addStretch() # Pushes sliders to the top
+
     def init_video(self):
         self.video_widget = QVideoWidget(self)
         self.left_layout.addWidget(self.video_widget)
@@ -138,11 +203,56 @@ class MainWindow(QMainWindow):
             self.player.play()
             self.play_pause_button.setText("Play")
 
+    def create_menu_bar(self):
+        # import 
+        menu_bar = self.menuBar()
+        file_menu = menu_bar.addMenu("File")
+        import_action = QAction("Import...", self)
+        import_action.triggered.connect(self.open_file_dialog)
+        file_menu.addAction(import_action)
+        # save parameters (doesnt actually work)
+        particle_menu = menu_bar.addMenu("Particles")
+        save_action = QAction("Save Particle Parameters", self)
+        save_action.triggered.connect(self.save_parameters)
+        particle_menu.addAction(save_action)
+        # reopen parameters
+        open_detection_action = QAction("Change Particle Parameters", self)
+        open_detection_action.triggered.connect(self.open_detection_page)
+        particle_menu.addAction(open_detection_action)
+        # go to trajetories
+        open_trajectories_action = QAction("Go to Trajectory Tracking", self)
+        open_trajectories_action.triggered.connect(self.open_trajectories_page)
+        particle_menu.addAction(open_trajectories_action)
+
+    def save_parameters(self):
+        pass
+
+    def open_detection_page(self):
+        if detection_win.isHidden():
+            trajectory_win.hide()
+            detection_win.show()
+
+    def open_trajectories_page(self):
+        if trajectory_win.isHidden():
+            detection_win.hide()
+            trajectory_win.show()
+
+    def filler_plot(self):
+        self.fig = Figure()
+        x = [1, 2, 3, 4, 5]
+        y = [1, 4, 9, 16, 25]
+        ax = self.fig.add_subplot()
+        ax.plot(x, y)
+
+    def show_graph(self):
+        self.canvas.show()
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     # Sets the style of the gui
     app.setStyle(QtWidgets.QStyleFactory.create("Windows"))
-    main_win = MainWindow()
-    main_win.show()
+    detection_win = MainWindow("particle detection")
+    trajectory_win = MainWindow("trajectory tracking")
+    detection_win.show()
     sys.exit(app.exec())
