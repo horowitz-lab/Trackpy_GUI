@@ -72,6 +72,16 @@ class ErrantParticleGalleryWidget(QWidget):
         # show initial particle if available
         self._display_particle(self.curr_particle_idx)
 
+    def refresh_particles(self):
+        """Reload the list of particle image files and refresh display."""
+        self.particle_files = self._load_particle_files(self.particles_dir)
+        # clamp current index within bounds
+        if self.particle_files:
+            self.curr_particle_idx = min(self.curr_particle_idx, len(self.particle_files) - 1)
+        else:
+            self.curr_particle_idx = 0
+        self._display_particle(self.curr_particle_idx)
+
     def _load_particle_files(self, directory_path):
         """Return a sorted list of image file paths in the particles directory."""
         if not os.path.isdir(directory_path):
