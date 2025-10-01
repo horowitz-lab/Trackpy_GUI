@@ -44,7 +44,7 @@ class ErrantParticleGalleryWidget(QWidget):
             "background-color: #222; color: #ccc; border: 1px solid #555;"
         )
         self.photo_label.setMinimumHeight(200)
-        self.photo_label.setScaledContents(True)
+        self.photo_label.setScaledContents(False)
         self.layout.addWidget(self.photo_label)
 
         # --- Frame Navigation ---
@@ -65,6 +65,7 @@ class ErrantParticleGalleryWidget(QWidget):
         # particles directory and files
         self.particles_dir = os.path.join(os.path.dirname(__file__), "particles")
         self.particle_files = self._load_particle_files(self.particles_dir)
+        self.current_pixmap = None
 
         # show initial particle if available
         self._display_particle(self.curr_particle_idx)
@@ -91,8 +92,9 @@ class ErrantParticleGalleryWidget(QWidget):
             file_path = self.particle_files[index]
             pixmap = QPixmap(file_path)
             if not pixmap.isNull():
+                self.current_pixmap = pixmap
                 # scale to fit while keeping aspect ratio
-                scaled = pixmap.scaled(self.photo_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                scaled = self.current_pixmap.scaled(self.photo_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 self.photo_label.setPixmap(scaled)
             else:
                 self.photo_label.setText("Failed to load image")
@@ -102,6 +104,17 @@ class ErrantParticleGalleryWidget(QWidget):
             if not self.particle_files:
                 self.photo_label.setText("No particle images found")
             self.frame_number_display.setText(str(self.curr_particle_idx))
+
+    def resizeEvent(self, event):
+        """Ensure the currently shown image keeps aspect ratio on resize."""
+        super().resizeEvent(event)
+        if self.current_pixmap is not None and not self.current_pixmap.isNull():
+            scaled = self.current_pixmap.scaled(
+                self.photo_label.size(),
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation,
+            )
+            self.photo_label.setPixmap(scaled)
 
     def next_particle(self):
         """Advance to the next particle and update display."""
