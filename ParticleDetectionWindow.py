@@ -127,15 +127,15 @@ class ParticleDetectionWindow(QMainWindow):
 # clean up temp folders on exit for now
 def cleanup_temp_folders():
     """Delete all files in frames and particles folders on app shutdown."""
-    pass
-    # try:
-    #     particle_processing.delete_all_files_in_folder(PARTICLES_FOLDER)
-    # except Exception:
-    #     pass
-    # try:
-    #     particle_processing.delete_all_files_in_folder(FRAMES_FOLDER)
-    # except Exception:
-    #     pass
+    # pass
+    try:
+        particle_processing.delete_all_files_in_folder(PARTICLES_FOLDER)
+    except Exception:
+        pass
+    try:
+        particle_processing.delete_all_files_in_folder(FRAMES_FOLDER)
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
