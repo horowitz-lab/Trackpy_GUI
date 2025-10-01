@@ -30,6 +30,7 @@ def get_detection_params():
         'min_mass': 100.0,
         'invert': False,
         'threshold': 0.0,
+        'frame_idx': 0,
     }
 
     if config.has_section('Detection'):
@@ -53,6 +54,11 @@ def get_detection_params():
         if 'threshold' in section:
             try:
                 params['threshold'] = float(section.get('threshold'))
+            except Exception:
+                pass
+        if 'frame_idx' in section:
+            try:
+                params['frame_idx'] = int(section.get('frame_idx'))
             except Exception:
                 pass
 
