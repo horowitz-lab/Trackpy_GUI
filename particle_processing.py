@@ -2,7 +2,7 @@ import cv2
 import os
 import numpy as np
 import particle_tracking
-from config_parser import get_config
+from config_parser import get_config, get_detection_params
 
 config = get_config()
 PARTICLES_FOLDER = config.get('particles_folder', 'particles/')
@@ -27,7 +27,7 @@ def delete_all_files_in_folder(folder_path):
             except OSError as e:
                 print(f"Error deleting {file_path}: {e}")
 
-def find_and_save_particles(image_path):
+def find_and_save_particles(image_path, params=None):
     """
     Finds particles in an image and saves cropped images of them.
 
@@ -51,14 +51,24 @@ def find_and_save_particles(image_path):
     # Convert to grayscale
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    # Locate particles
-    # Using random parameters for now
+    # Locate particles using provided or configured parameters
+    if params is None:
+        params = get_detection_params()
+    feature_size = int(params.get('feature_size', 15))
+    min_mass = float(params.get('min_mass', 100.0))
+    invert = bool(params.get('invert', False))
+    threshold = float(params.get('threshold', 0.0))
+
+    # ensure odd feature size as required by trackpy
+    if feature_size % 2 == 0:
+        feature_size += 1
+
     features = particle_tracking.locate_particles(
         gray_image,
-        feature_size=51,
-        min_mass=100,
-        invert=False,
-        threshold=0
+        feature_size=feature_size,
+        min_mass=min_mass,
+        invert=invert,
+        threshold=threshold
     )
 
     # Crop and save images of each particle

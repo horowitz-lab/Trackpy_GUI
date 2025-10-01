@@ -1,8 +1,11 @@
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QFormLayout, QSpinBox, QDoubleSpinBox, QCheckBox, QPushButton
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from config_parser import *
+import os
+import particle_processing
 
 class DetectionParametersWidget(QWidget):
+    particlesUpdated = Signal()
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -86,5 +89,18 @@ class DetectionParametersWidget(QWidget):
         save_detection_params(params)
 
     def find_particles(self):
-        # Will implement later
-        pass
+        # Ensure latest values are saved
+        self.save_params()
+        params = get_detection_params()
+        config = get_config()
+        frames_folder = config.get('frames_folder', 'frames/')
+        # construct frame path
+        idx = int(params.get('frame_idx', 0))
+        frame_filename = f"frame_{idx:05d}.jpg"
+        frame_path = os.path.join(frames_folder, frame_filename)
+        if not os.path.isfile(frame_path):
+            return
+        # run detection and save particles
+        particle_processing.find_and_save_particles(frame_path, params=params)
+        # emit update so gallery can refresh
+        self.particlesUpdated.emit()
