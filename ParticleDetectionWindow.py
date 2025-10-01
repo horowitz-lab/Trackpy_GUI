@@ -29,10 +29,10 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.figure import Figure
 
-import ErrantParticleGalleryWidget
-import FramePlayerWidget
-import GraphingPanelWidget
-import TrackingParametersWidget
+from ErrantParticleGalleryWidget import *
+from FramePlayerWidget import *
+from GraphingPanelWidget import *
+from DetectionParametersWidget import *
 
 
 import particle_processing
@@ -73,9 +73,9 @@ def save_video_frames(video_path: str, output_folder: str):
 class ParticleDetectionWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.show()
+        self.setup_ui()
 
-    def show(self):
+    def setup_ui(self):
         # Main Widget
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -98,16 +98,15 @@ class ParticleDetectionWindow(QMainWindow):
         self.main_layout.addWidget(self.main_layout.middle_panel)
 
         # Right Panel
-        self.main_layout.right_panel = TrackingParametersWidget()
+        self.main_layout.right_panel = DetectionParametersWidget()
         self.right_layout = QVBoxLayout(self.main_layout.right_panel)
-        self.main_layout.addWidget(self.right_layout)
+        self.main_layout.addWidget(self.main_layout.right_panel)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
     # Sets the style of the gui
-    app.setStyle(QtWidgets.QStyleFactory.create("Linux"))
+    app.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
     detection_win = ParticleDetectionWindow()
     detection_win.show()
     sys.exit(app.exec())
-
