@@ -31,6 +31,7 @@ from ErrantTrajectoryGalleryWidget import *
 from TrajectoryPlayerWidget import *
 from TrajectoryPlottingWidget import *
 from LinkingParametersWidget import *
+from ParticleDetectionWindow import *
 
 
 import particle_processing
@@ -99,6 +100,27 @@ class TrajectoryLinkingWindow(QMainWindow):
         self.main_layout.right_panel = LinkingParametersWidget()
         self.right_layout = QVBoxLayout(self.main_layout.right_panel)
         self.main_layout.addWidget(self.main_layout.right_panel)
+        
+        # Connect trajectory visualization signal to display in trajectory player
+        self.main_layout.right_panel.trajectoryVisualizationCreated.connect(
+            self.frame_player.display_trajectory_image
+        )
+        
+        # Connect back button signal to return to detection window
+        self.main_layout.right_panel.goBackToDetection.connect(self.go_back_to_detection)
+        
+        # Connect RB gallery creation signal to refresh the trajectory gallery
+        self.main_layout.right_panel.rbGalleryCreated.connect(
+            self.errant_particle_gallery.refresh_rb_gallery
+        )
+
+    def go_back_to_detection(self):
+        """Close trajectory linking window and open particle detection window."""
+        # Close current window
+        self.close()
+        # Open particle detection window
+        self.detection_window = ParticleDetectionWindow()
+        self.detection_window.show()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
