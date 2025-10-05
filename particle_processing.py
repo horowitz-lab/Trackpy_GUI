@@ -204,12 +204,22 @@ def create_rb_gallery(trajectories_file, frames_folder, output_folder=None):
             crop1 = cv2.resize(crop1, target_size)
             crop2 = cv2.resize(crop2, target_size)
             
-            # Create red and blue scaled versions
-            # Red channel: frame1, Blue channel: frame2, Green channel: average
+            # Create red and blue overlay at 50% opacity each
+            # Convert to grayscale for better color overlay effect
+            gray1 = cv2.cvtColor(crop1, cv2.COLOR_BGR2GRAY)
+            gray2 = cv2.cvtColor(crop2, cv2.COLOR_BGR2GRAY)
+            
+            # Create RGB overlay with better color separation
             rb_overlay = np.zeros((crop_size, crop_size, 3), dtype=np.uint8)
-            rb_overlay[:, :, 0] = crop1[:, :, 2]  # Red channel from frame1
-            rb_overlay[:, :, 1] = (crop1[:, :, 1].astype(np.uint16) + crop2[:, :, 1].astype(np.uint16)) // 2  # Average green
-            rb_overlay[:, :, 2] = crop2[:, :, 0]  # Blue channel from frame2
+            
+            # Red channel: frame1 grayscale (will appear red)
+            rb_overlay[:, :, 0] = gray1
+            
+            # Green channel: minimal to avoid washing out colors
+            rb_overlay[:, :, 1] = np.minimum(gray1, gray2) // 4  # Very low green
+            
+            # Blue channel: frame2 grayscale (will appear blue)
+            rb_overlay[:, :, 2] = gray2
             
             # Draw particle centers
             center = crop_size // 2
