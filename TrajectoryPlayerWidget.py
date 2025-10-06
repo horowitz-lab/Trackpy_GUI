@@ -1,3 +1,11 @@
+"""
+Trajectory linking plot
+
+Description: Displays trajectory linking plot based on trajectory linking parameters.
+
+"""
+
+
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap

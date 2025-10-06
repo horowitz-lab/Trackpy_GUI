@@ -1,3 +1,10 @@
+"""
+Trajectory Linking Window
+
+Description: Main window for Trajectory Linkning. Imports trajectory linking widgets.
+             Generated boiler plate code using Cursor.
+"""
+
 import os
 import sys
 import cv2

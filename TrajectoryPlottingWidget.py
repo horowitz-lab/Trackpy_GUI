@@ -2,7 +2,7 @@
 Trajectory Plotting Widget
 
 Description: GUI widget for displaying trajectory plots and analysis visualizations.
-             Built using Cursor AI since it's all esssnetially boiler plate / dummy code
+             Built using Cursor fully since it's all esssnetially boiler plate / dummy code right now
 
 """
 

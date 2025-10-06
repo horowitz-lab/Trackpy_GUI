@@ -1,3 +1,10 @@
+"""
+Graphing Panel showing subpixel bias
+
+Description: Graphing panel showing the subpixel bias of all particles based on current tracking parameters.
+
+"""
+
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton
 from PySide6.QtCore import Qt
 import matplotlib.pyplot as plt

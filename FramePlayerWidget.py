@@ -1,3 +1,10 @@
+"""
+Video Frame display window for particle detection window
+
+Description: Widget displaying frames of the video with frame controls. Shows the particles tracked.
+             Generated boiler plate code using Cursor.
+"""
+
 import sys
 import cv2
 from PySide6.QtCore import Qt, Signal, QThread

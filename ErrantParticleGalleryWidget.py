@@ -1,3 +1,10 @@
+"""
+Errant particle gallery widget
+
+Description: Widget displaying errant particles to inform user if particle tracking parameters need adjustment.
+             Generated boiler plate code using Cursor AI.
+"""
+
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout
 import os
 import sys

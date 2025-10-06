@@ -1,3 +1,10 @@
+"""
+Particle Detection Window
+
+Description: Main window for Particle detection. Imports particle detection widgets.
+             Generated boiler plate code using Cursor.
+"""
+
 import os
 import sys
 import cv2

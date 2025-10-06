@@ -1,10 +1,8 @@
 """
 Linking Parameters Widget
 
-Author: [Your Name]
-Date: 2024-12-19
-Description: GUI widget for configuring trajectory linking parameters and managing trajectory analysis workflows.
-             Built using Cursor AI for rapid development and prototyping.
+Description: GUI widget for configuring trajectory linking parameters.
+             Boiler plate code generated wit Cursor.
 
 This widget provides user interface controls for adjusting trackpy linking
 parameters and managing the trajectory linking and visualization workflow.

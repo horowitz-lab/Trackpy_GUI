@@ -1,11 +1,8 @@
 """
 Main Application Controller
 
-Description: Main application controller for particle tracking GUI with trajectory analysis.
-             Built boiler plate codeusing Cursor AI
-
-This file contains the main application controller that manages window switching
-and navigation between particle detection and trajectory linking workflows.
+Description: Main application controller to faciliate going between particle detection window and trajectory linking window.
+             Built boiler plate code using Cursor.
 """
 
 import sys
