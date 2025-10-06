@@ -16,13 +16,13 @@ def generate_uml_diagram():
     dot.node('TrajectoryLinkingWindow', '{TrajectoryLinkingWindow|+ setup_ui()\l}')
 
     # --- Widgets (Particle Detection) ---
-    dot.node('GraphingPanelWidget', '{GraphingPanelWidget|}')
+    dot.node('GraphingPanelWidget', '{GraphingPanelWidget|+ get_subpixel_bias()\l+ plot_sb()}')
     dot.node('FramePlayerWidget', '{FramePlayerWidget|+ go_to_frame()\l+ display_frame()\l+ load_video()\l}')
     dot.node('ErrantParticleGalleryWidget', '{ErrantParticleGalleryWidget|+ load_particle_files()\l+ next_particle()\l+ prev_particle()\l}')
     dot.node('DetectionParametersWidget', '{DetectionParametersWidget|+ save_params()\l+ find_particles()\l}')
 
     # --- Widgets (Trajectory Linking) ---
-    dot.node('TrajectoryPlottingWidget', '{TrajectoryPlottingWidget|}')
+    dot.node('TrajectoryPlottingWidget', '{TrajectoryPlottingWidget|+ create_dummy_scatter_plot()}')
     dot.node('TrajectoryPlayerWidget', '{TrajectoryPlayerWidget|+ display_trajectory_image()}')
     dot.node('ErrantTrajectoryGalleryWidget', '{ErrantTrajectoryGalleryWidget|+ load_rb_gallery_files()\l+ next_trajectory()\l+ prev_trajectory()\l}')
     dot.node('LinkingParametersWidget', '{LinkingParametersWidget|+ save_params()\l+ find_trajectories()\l}')
