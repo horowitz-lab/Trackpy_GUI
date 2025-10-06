@@ -226,12 +226,9 @@ class ParticleDetectionWindow(QMainWindow):
         return
     
     def open_trajectory_linking_window(self):
-        """Close particle detection window and open trajectory linking window."""
-        # Close current window
-        self.close()
-        # Open trajectory linking window
-        self.trajectory_window = TrajectoryLinkingWindow()
-        self.trajectory_window.show()
+        """Emit signal to switch to trajectory linking window."""
+        # The controller will handle the actual window switching
+        pass
 
 # clean up temp folders on exit for now
 def cleanup_temp_folders():

@@ -267,12 +267,13 @@ class LinkingParametersWidget(QWidget):
             import particle_processing
             config = get_config()
             frames_folder = config.get('frames_folder', 'frames/')
+            rb_gallery_folder = config.get('rb_gallery_folder', 'rb_gallery')
             
             # Call the RB gallery creation function
             particle_processing.create_rb_gallery(
                 trajectories_file=trajectories_file,
                 frames_folder=frames_folder,
-                output_folder=os.path.join(particles_folder, 'rb_gallery')
+                output_folder=rb_gallery_folder
             )
             
         except Exception as e:

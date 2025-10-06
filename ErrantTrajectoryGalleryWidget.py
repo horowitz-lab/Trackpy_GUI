@@ -39,8 +39,7 @@ class ErrantTrajectoryGalleryWidget(QWidget):
 
         # RB gallery directory and files
         config = get_config()
-        particles_folder = config.get('particles_folder', 'particles/')
-        self.rb_gallery_dir = os.path.join(particles_folder, "rb_gallery")
+        self.rb_gallery_dir = config.get('rb_gallery_folder', 'rb_gallery')
         self.rb_gallery_files = self._load_rb_gallery_files(self.rb_gallery_dir)
         self.current_pixmap = None
 

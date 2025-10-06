@@ -17,6 +17,9 @@ def get_config():
             # Prepend the project root directory to make paths absolute
             config_dict[key] = os.path.join(os.path.dirname(__file__), value)
     
+    # Add rb_gallery folder path
+    config_dict['rb_gallery_folder'] = os.path.join(os.path.dirname(__file__), 'rb_gallery')
+    
     return config_dict
 
 def get_detection_params():

@@ -1,0 +1,133 @@
+import sys
+import os
+from PySide6.QtWidgets import QApplication, QMainWindow
+from PySide6 import QtWidgets
+from ParticleDetectionWindow import ParticleDetectionWindow
+from TrajectoryLinkingWindow import TrajectoryLinkingWindow
+import particle_processing
+from config_parser import get_config
+
+config = get_config()
+PARTICLES_FOLDER = config.get('particles_folder', 'particles/')
+FRAMES_FOLDER = config.get('frames_folder', 'frames/')
+RB_GALLERY_FOLDER = config.get('rb_gallery_folder', 'rb_gallery')
+
+
+class ParticleTrackingAppController(QMainWindow):
+    """Main application controller that manages window switching and navigation."""
+    
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Particle Tracking GUI")
+        
+        # Initialize windows (but don't show them yet)
+        self.particle_detection_window = None
+        self.trajectory_linking_window = None
+        
+        # Start with particle detection window
+        self.show_particle_detection_window()
+    
+    def show_particle_detection_window(self):
+        """Show the particle detection window and hide others."""
+        # Clean up any existing windows
+        self.cleanup_windows()
+        
+        # Create and show particle detection window
+        self.particle_detection_window = ParticleDetectionWindow()
+        
+        # Connect signals from particle detection window
+        self.particle_detection_window.main_layout.right_panel.openTrajectoryLinking.connect(
+            self.on_next_to_trajectory_linking
+        )
+        
+        # Show the window
+        self.particle_detection_window.show()
+    
+    def show_trajectory_linking_window(self):
+        """Show the trajectory linking window and hide others."""
+        # Clean up any existing windows
+        self.cleanup_windows()
+        
+        # Create and show trajectory linking window
+        self.trajectory_linking_window = TrajectoryLinkingWindow()
+        
+        # Connect signals from trajectory linking window
+        self.trajectory_linking_window.main_layout.right_panel.goBackToDetection.connect(
+            self.on_back_to_particle_detection
+        )
+        
+        # Show the window
+        self.trajectory_linking_window.show()
+    
+    def on_next_to_trajectory_linking(self):
+        """Handle signal to switch from particle detection to trajectory linking."""
+        # The particle detection window will handle the "Next" button logic
+        # (detecting particles in all frames), then we switch windows
+        self.show_trajectory_linking_window()
+    
+    def on_back_to_particle_detection(self):
+        """Handle signal to switch from trajectory linking back to particle detection."""
+        self.show_particle_detection_window()
+    
+    def cleanup_windows(self):
+        """Clean up existing windows and RB gallery."""
+        # Clean up RB gallery
+        self.cleanup_rb_gallery()
+        
+        # Close existing windows
+        if self.particle_detection_window:
+            self.particle_detection_window.close()
+            self.particle_detection_window = None
+        
+        if self.trajectory_linking_window:
+            self.trajectory_linking_window.close()
+            self.trajectory_linking_window = None
+    
+    def cleanup_rb_gallery(self):
+        """Delete all files in the rb_gallery folder."""
+        try:
+            if os.path.exists(RB_GALLERY_FOLDER):
+                particle_processing.delete_all_files_in_folder(RB_GALLERY_FOLDER)
+                print("Cleaned up RB gallery folder")
+        except Exception as e:
+            print(f"Error cleaning up RB gallery: {e}")
+    
+    def closeEvent(self, event):
+        """Handle application close event."""
+        # Clean up all windows and folders
+        self.cleanup_windows()
+        
+        # Clean up all temp folders
+        self.cleanup_all_temp_folders()
+        
+        super().closeEvent(event)
+    
+    def cleanup_all_temp_folders(self):
+        """Delete all files in temporary folders."""
+        temp_folders = [PARTICLES_FOLDER, FRAMES_FOLDER, RB_GALLERY_FOLDER]
+        
+        for folder in temp_folders:
+            try:
+                if os.path.exists(folder):
+                    particle_processing.delete_all_files_in_folder(folder)
+                    print(f"Cleaned up {folder}")
+            except Exception as e:
+                print(f"Error cleaning up {folder}: {e}")
+
+
+def main():
+    """Main application entry point."""
+    app = QApplication(sys.argv)
+    
+    # Set the application style
+    app.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
+    
+    # Create and show the main controller
+    controller = ParticleTrackingAppController()
+    
+    # Run the application
+    sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()

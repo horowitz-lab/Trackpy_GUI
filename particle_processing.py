@@ -109,12 +109,14 @@ def create_rb_gallery(trajectories_file, frames_folder, output_folder=None):
     frames_folder : str
         Path to the folder containing frame images
     output_folder : str, optional
-        Path to save the RB gallery images. If None, uses particles/rb_gallery/
+        Path to save the RB gallery images. If None, uses rb_gallery/
     """
     import pandas as pd
+    from config_parser import get_config
     
     if output_folder is None:
-        output_folder = os.path.join(PARTICLES_FOLDER, 'rb_gallery')
+        config = get_config()
+        output_folder = config.get('rb_gallery_folder', 'rb_gallery')
     
     # Create output directory
     if not os.path.exists(output_folder):
