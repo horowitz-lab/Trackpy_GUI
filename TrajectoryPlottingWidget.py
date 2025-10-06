@@ -1,9 +1,57 @@
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout
+from PySide6.QtWidgets import QWidget, QVBoxLayout
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPixmap
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.backends.backend_qtagg import FigureCanvas
+from matplotlib.figure import Figure
+import io
 
 class TrajectoryPlottingWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
         self.layout = QVBoxLayout(self)
-        self.label = QLabel("Graphing Panel Widget")
-        self.layout.addWidget(self.label)
+        
+        # Create matplotlib figure and canvas
+        self.figure = Figure(figsize=(6, 4), dpi=100)
+        self.canvas = FigureCanvas(self.figure)
+        self.canvas.setFixedSize(200, 400)
+        self.layout.addWidget(self.canvas)
+        
+        # Create dummy scatter plot
+        self.create_dummy_scatter_plot()
+    
+    def create_dummy_scatter_plot(self):
+        """Create a dummy scatter plot for display."""
+        # Clear the figure
+        self.figure.clear()
+        
+        # Create subplot
+        ax = self.figure.add_subplot(111)
+        
+        # Generate dummy data
+        np.random.seed(42)  # For reproducible results
+        n_points = 50
+        x = np.random.randn(n_points)
+        y = np.random.randn(n_points)
+        colors = np.random.rand(n_points)
+        sizes = 100 * np.random.rand(n_points)
+        
+        # Create scatter plot
+        scatter = ax.scatter(x, y, c=colors, s=sizes, alpha=0.6, cmap='viridis')
+        
+        # Add labels and title
+        ax.set_xlabel('X Position (μm)')
+        ax.set_ylabel('Y Position (μm)')
+        ax.set_title('Particle Trajectories')
+        ax.grid(True, alpha=0.3)
+        
+        # Add colorbar
+        self.figure.colorbar(scatter, ax=ax, label='Time (frames)')
+        
+        # Adjust layout
+        self.figure.tight_layout()
+        
+        # Refresh canvas
+        self.canvas.draw()
