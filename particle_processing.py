@@ -98,11 +98,11 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
 
         # Annotate and save frame
         if not features.empty:
-            fig, ax = plt.subplots()
-            tp.annotate(features, image, ax=ax)
+            annotated_image = image.copy()
+            for index, particle in features.iterrows():
+                cv2.circle(annotated_image, (int(particle.x), int(particle.y)), int(feature_size/2) + 2, (0, 255, 255), 2)
             annotated_frame_path = os.path.join(ANNOTATED_FRAMES_FOLDER, f"frame_{frame_number:05d}.jpg")
-            fig.savefig(annotated_frame_path)
-            plt.close(fig)
+            cv2.imwrite(annotated_frame_path, annotated_image)
 
     if not all_features:
         if progress_callback:
