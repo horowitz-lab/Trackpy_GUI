@@ -48,34 +48,6 @@ PARTICLES_FOLDER = config.get('particles_folder', 'particles/')
 FRAMES_FOLDER = config.get('frames_folder', 'frames/')
 VIDEOS_FOLDER = config.get('videos_folder', 'videos/')
 
-def save_video_frames(video_path: str, output_folder: str):
-    """
-    Extracts all frames from a video and saves them as .jpg in the output folder.
-
-    Args:
-        video_path (str): Path to the video file.
-        output_folder (str): Path to the folder where frames will be saved.
-    """
-    # Make sure output folder exists
-    os.makedirs(output_folder, exist_ok=True)
-
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        raise ValueError(f"Could not open video: {video_path}")
-
-    frame_idx = 0
-    while True:
-        ret, frame = cap.read()
-        if not ret or frame_idx >= 50:
-            break  # End of video
-
-        frame_path = os.path.join(output_folder, f"frame_{frame_idx:05d}.jpg")
-        cv2.imwrite(frame_path, frame)
-        frame_idx += 1
-
-    cap.release()
-    print(f"Saved {frame_idx} frames to {output_folder}")
-
 class ParticleDetectionWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -136,10 +108,11 @@ class ParticleDetectionWindow(QMainWindow):
         self.main_layout.right_panel = DetectionParametersWidget()
         self.right_layout = QVBoxLayout(self.main_layout.right_panel)
         self.main_layout.addWidget(self.main_layout.right_panel)
-        # When particles are found, refresh gallery
+        
+        # Connect signals
         self.main_layout.right_panel.particlesUpdated.connect(self.errant_particle_gallery.refresh_particles)
-        # When link trajectories is clicked, switch to trajectory linking window
         self.main_layout.right_panel.openTrajectoryLinking.connect(self.open_trajectory_linking_window)
+        self.frame_player.frames_saved.connect(self.main_layout.right_panel.set_total_frames)
 
     def import_video(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Video", VIDEOS_FOLDER, "Video Files (*.avi *.mp4 *.mov *.mkv);;All Files (*)")
@@ -149,11 +122,11 @@ class ParticleDetectionWindow(QMainWindow):
         os.makedirs(FRAMES_FOLDER, exist_ok=True)
         try:
             particle_processing.delete_all_files_in_folder(FRAMES_FOLDER)
+            self.main_layout.right_panel.clear_processed_frames()
         except Exception:
             pass
-        save_video_frames(file_path, FRAMES_FOLDER)
-        # Load the selected video into the frame player
-        self.frame_player.load_video(file_path)
+        # Save video frames and load them into the player
+        self.frame_player.save_video_frames(file_path)
 
     def _export_data(self, source_filename: str, target_format: str):
         config = get_config()
