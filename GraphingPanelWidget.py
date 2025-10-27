@@ -23,7 +23,6 @@ class GraphingPanelWidget(QWidget):
         self.layout = QVBoxLayout(self)
         self.blank_plot()
         self.canvas = FigureCanvas(self.fig)
-        self.canvas.setFixedSize(500, 400)
         self.layout.addWidget(self.canvas)
 
         # button for plotting subpixel bias
