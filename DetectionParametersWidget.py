@@ -92,6 +92,7 @@ class DetectAllFramesThread(QThread):
 class DetectionParametersWidget(QWidget):
     particlesUpdated = Signal()
     openTrajectoryLinking = Signal()
+    parameter_changed = Signal() # Define the new signal
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -226,6 +227,7 @@ class DetectionParametersWidget(QWidget):
             'threshold': float(self.threshold_input.value()),
         }
         save_detection_params(params)
+        self.parameter_changed.emit() # Emit the signal here
 
     def find_particles(self):
         self.save_params()

@@ -35,6 +35,11 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.figure import Figure
 
+import particle_processing
+from config_parser import get_config
+config = get_config()
+PARTICLES_FOLDER = config.get('particles_folder', 'particles/')
+
 class ErrantParticleGalleryWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -75,7 +80,7 @@ class ErrantParticleGalleryWidget(QWidget):
         self.layout.addLayout(self.frame_nav_layout)
 
         # particles directory and files
-        self.particles_dir = os.path.join(os.path.dirname(__file__), "particles")
+        self.particles_dir = PARTICLES_FOLDER
         self.particle_files = self._load_particle_files(self.particles_dir)
         self.current_pixmap = None
 
@@ -92,6 +97,17 @@ class ErrantParticleGalleryWidget(QWidget):
             self.curr_particle_idx = 0
         self._display_particle(self.curr_particle_idx)
 
+    def clear_gallery(self):
+        """Clears all displayed errant particles and deletes the corresponding files."""
+        try:
+            particle_processing.delete_all_files_in_folder(self.particles_dir)
+            self.particle_files = []
+            self.curr_particle_idx = 0
+            self._display_particle(self.curr_particle_idx)
+            print(f"Cleared errant particle gallery and deleted files in {self.particles_dir}")
+        except Exception as e:
+            print(f"Error clearing errant particle gallery: {e}")
+
     def _load_particle_files(self, directory_path):
         """Return a sorted list of image file paths in the particles directory."""
         if not os.path.isdir(directory_path):
@@ -99,10 +115,8 @@ class ErrantParticleGalleryWidget(QWidget):
         valid_exts = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"}
         files = []
         try:
-            for name in os.listdir(directory_path):
-                root, ext = os.path.splitext(name)
-                if ext.lower() in valid_exts:
-                    files.append(os.path.join(directory_path, name))
+            for name in os.path.splitext(os.path.basename(name))[0] in valid_exts:
+                files.append(os.path.join(directory_path, name))
         except Exception:
             return []
         files.sort()
