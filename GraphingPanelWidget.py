@@ -22,6 +22,8 @@ STANDARD_DPI = 100
 class GraphingPanelWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        self.particles = None
         
         # Graph area
         self.layout = QVBoxLayout(self)
@@ -42,10 +44,6 @@ class GraphingPanelWidget(QWidget):
         # buttons
         self.graphing_buttons = QWidget()
         self.button_layout = QHBoxLayout(self.graphing_buttons)
-
-        self.sb_button = QPushButton(text = "Plot Subpixel Bias", parent = self)
-        self.sb_button.clicked.connect(self.plot_sb)
-        self.button_layout.addWidget(self.sb_button, alignment = Qt.AlignLeft)
 
         self.mass_size_button = QPushButton(text = "Plot Mass", parent = self)
         self.mass_size_button.clicked.connect(self.plot_mass)
@@ -92,7 +90,6 @@ class GraphingPanelWidget(QWidget):
         
         if new_fig is None:
             # Handle error/no particles case
-            print("fuck")
             self.blank_plot("error")
             self.canvas.draw()
             return
@@ -106,93 +103,40 @@ class GraphingPanelWidget(QWidget):
         self.canvas.draw()
 
     def get_mass_count(self):
-        # Get parameters
-        params = get_detection_params() 
-        config = get_config()
-        frames_folder = config.get('frames_folder', 'frames/')
-        
-        # Check if frames exist
-        if not os.path.exists(frames_folder):
-            print(f"Frames folder not found: {frames_folder}")
-            return None
-        
-        # Get all frame files
-        frame_files = []
-        for filename in sorted(os.listdir(frames_folder)):
-            if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.tif', '.tiff')):
-                frame_files.append(os.path.join(frames_folder, filename))
-        
-        if not frame_files:
-            print("No frame files found in frames folder")
-            return None
-        
-        # Check if frames exist (and similar file handling)
-        if not os.path.exists(frames_folder) or not frame_files:
-            print(f"Frames issue. Folder: {os.path.exists(frames_folder)}, Files: {len(frame_files) if frame_files else 0}")
-            return None
-            
         try:
             import trackpy as tp
             import cv2
             import pandas as pd
 
-            # Get detection parameters
-            feature_size = int(params.get('feature_size', 15))
-            min_mass = float(params.get('min_mass', 100.0))
-            invert = bool(params.get('invert', False))
-            threshold = float(params.get('threshold', 0.0))
-            frame_idx = int(params.get('frame_idx', 0))
-            frame_idx = int(params.get('frame_idx', 0))
+            # Return None if nothing was found
+            if self.particles.empty:
+                print("No particles detected in the selected frame.")
+                return None 
 
-            if frame_idx >= len(frame_files):
-                frame_idx = 0 
-                
-            frame_file = frame_files[frame_idx]
+            # Create the plot 
+            fig, ax = plt.subplots()
+            ax.hist(self.particles['mass'], bins=20)
 
-            for frame_num, frame_file in enumerate(frame_files):
-                if frame_num == frame_idx:
-                    frame = cv2.imread(frame_file)
-                    if frame is None:
-                        continue
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            # Label the axes
+            ax.set_xlabel("Mass", fontsize = 20)
+            ax.set_ylabel("Count", fontsize = 20)
 
-                    # tp.locate returns the pandas DataFrame
-                    particles = tp.locate(
-                            gray,
-                            diameter=feature_size,
-                            minmass=min_mass,
-                            invert=invert,
-                            threshold=threshold
-                        )
-                    
-                    # Check if particles were found before plotting
-                    if particles.empty:
-                        print("No particles detected in the selected frame.")
-                        return None # Return None if nothing was found
+            temp_fig = plt.gcf()
+            temp_fig.set_figheight(8)
+            temp_fig.set_figwidth(10)
 
-                    # Create the plot 
-                    fig, ax = plt.subplots()
-                    ax.hist(particles['mass'], bins=20)
+            temp_fig.suptitle("Mass (Brightness)", fontsize = 24)
 
-                    # Optionally, label the axes.
-                    ax.set_xlabel("Mass", fontsize = 20)
-                    ax.set_ylabel("Count", fontsize = 20)
-
-                    temp_fig = plt.gcf()
-                    temp_fig.set_figheight(8)
-                    temp_fig.set_figwidth(10)
-
-                    temp_fig.suptitle("Mass (Brightness)", fontsize = 24)
-
-                    return temp_fig
+            return temp_fig
 
         except Exception as e:
             print(f"Error in particle locating or plotting: {e}")
             return None
 
-    def plot_sb(self):
+    def plot_sb(self, particles):
         # 1. Get the new sized figure
-        new_fig = self.get_subpixel_bias()
+        self.particles = particles
+        new_fig = self.get_subpixel_bias(particles)
 
         # 2. Close the old figure 
         if self.fig and self.fig is not new_fig:
@@ -200,7 +144,7 @@ class GraphingPanelWidget(QWidget):
         
         if new_fig is None:
             # Handle error/no particles case
-            print("fuck")
+            
             # self.blank_plot("error")
             
             # self.canvas.draw()
@@ -214,82 +158,28 @@ class GraphingPanelWidget(QWidget):
         self.canvas.figure = self.fig
         self.canvas.draw()
 
-    def get_subpixel_bias(self):
-        # Get parameters
-        params = get_detection_params() 
-        config = get_config()
-        original_frames_folder = config.get('original_frames_folder', 'original_frames/')
-        
-        # Check if frames exist
-        if not os.path.exists(original_frames_folder):
-            print(f"Frames folder not found: {original_frames_folder}")
-            return
-
-        # Get all frame files
-        frame_files = []
-        for filename in sorted(os.listdir(original_frames_folder)):
-            if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.tif', '.tiff')):
-                frame_files.append(os.path.join(original_frames_folder, filename))
-        
-        if not frame_files:
-            print("No frame files found in frames folder")
-            return None
-        
-        # Check if frames exist (and similar file handling)
-        if not os.path.exists(original_frames_folder) or not frame_files:
-            print(f"Frames issue. Folder: {os.path.exists(original_frames_folder)}, Files: {len(frame_files) if frame_files else 0}")
-            return None
-            
+    def get_subpixel_bias(self, particles):
         try:
             import trackpy as tp
             import cv2
             import pandas as pd
 
-            # Get detection parameters
-            feature_size = int(params.get('feature_size', 15))
-            min_mass = float(params.get('min_mass', 100.0))
-            invert = bool(params.get('invert', False))
-            threshold = float(params.get('threshold', 0.0))
-            frame_idx = int(params.get('frame_idx', 0))
-            frame_idx = int(params.get('frame_idx', 0))
+            # Return None if nothing was found
+            if particles.empty:
+                print("No particles detected in the selected frame.")
+                return None 
 
-            if frame_idx >= len(frame_files):
-                frame_idx = 0 
-                
-            frame_file = frame_files[frame_idx]
+            # Create the plot 
+            tp.subpx_bias(particles)
 
-            for frame_num, frame_file in enumerate(frame_files):
-                if frame_num == frame_idx:
-                    frame = cv2.imread(frame_file)
-                    if frame is None:
-                        continue
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-                    # tp.locate returns the pandas DataFrame
-                    particles = tp.locate(
-                            gray,
-                            diameter=feature_size,
-                            minmass=min_mass,
-                            invert=invert,
-                            threshold=threshold
-                        )
-                    
-                    # Check if particles were found before plotting
-                    if particles.empty:
-                        print("No particles detected in the selected frame.")
-                        return None # Return None if nothing was found
-
-                    # Create the plot 
-                    tp.subpx_bias(particles)
-
-                    temp_fig = plt.gcf()
-                    temp_fig.subplots_adjust(top = 0.900, bottom = 0.100, left = 0.075, right = 0.950, wspace = 0.250)
-                    temp_fig.set_figheight(8)
-                    temp_fig.set_figwidth(10)
-                    temp_fig.suptitle("Subpixel Bias", fontsize = 24)
-                    
-                    # Return the figure instead of the DataFrame
-                    return temp_fig
+            temp_fig = plt.gcf()
+            temp_fig.subplots_adjust(top = 0.900, bottom = 0.100, left = 0.075, right = 0.950, wspace = 0.250)
+            temp_fig.set_figheight(8)
+            temp_fig.set_figwidth(10)
+            temp_fig.suptitle("Subpixel Bias", fontsize = 24)
+            
+            # Return the figure instead of the DataFrame
+            return temp_fig
 
         except Exception as e:
             print(f"Error in particle locating or plotting: {e}")
@@ -305,7 +195,6 @@ class GraphingPanelWidget(QWidget):
         
         if new_fig is None:
             # Handle error/no particles case
-            print("fuck")
             # self.blank_plot("error")
             
             # self.canvas.draw()
@@ -320,84 +209,30 @@ class GraphingPanelWidget(QWidget):
         self.canvas.draw()
 
     def get_mass_size(self):
-        # Get parameters
-        params = get_detection_params() 
-        config = get_config()
-        frames_folder = config.get('frames_folder', 'frames/')
-        
-        # Check if frames exist
-        if not os.path.exists(frames_folder):
-            print(f"Frames folder not found: {frames_folder}")
-            return None
-        
-        # Get all frame files
-        frame_files = []
-        for filename in sorted(os.listdir(frames_folder)):
-            if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.tif', '.tiff')):
-                frame_files.append(os.path.join(frames_folder, filename))
-        
-        if not frame_files:
-            print("No frame files found in frames folder")
-            return None
-        
-        # Check if frames exist (and similar file handling)
-        if not os.path.exists(frames_folder) or not frame_files:
-            print(f"Frames issue. Folder: {os.path.exists(frames_folder)}, Files: {len(frame_files) if frame_files else 0}")
-            return None
-            
         try:
             import trackpy as tp
             import cv2
             import pandas as pd
 
-            # Get detection parameters
-            feature_size = int(params.get('feature_size', 15))
-            min_mass = float(params.get('min_mass', 100.0))
-            invert = bool(params.get('invert', False))
-            threshold = float(params.get('threshold', 0.0))
-            frame_idx = int(params.get('frame_idx', 0))
-            frame_idx = int(params.get('frame_idx', 0))
+            # Check if particles were found before plotting
+            if self.particles.empty:
+                print("No particles detected in the selected frame.")
+                return None # Return None if nothing was found
 
-            if frame_idx >= len(frame_files):
-                frame_idx = 0 
-                
-            frame_file = frame_files[frame_idx]
+            # Create the plot 
+            fig, ax = plt.subplots()
+            tp.mass_size(self.particles, ax = ax)
 
-            for frame_num, frame_file in enumerate(frame_files):
-                if frame_num == frame_idx:
-                    frame = cv2.imread(frame_file)
-                    if frame is None:
-                        continue
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            ax.set_xlabel("Mass", fontsize = 20)
+            ax.set_ylabel("Size", fontsize = 20)
 
-                    # tp.locate returns the pandas DataFrame
-                    particles = tp.locate(
-                            gray,
-                            diameter=feature_size,
-                            minmass=min_mass,
-                            invert=invert,
-                            threshold=threshold
-                        )
-                    
-                    # Check if particles were found before plotting
-                    if particles.empty:
-                        print("No particles detected in the selected frame.")
-                        return None # Return None if nothing was found
-
-                    # Create the plot 
-                    fig, ax = plt.subplots()
-                    tp.mass_size(particles, ax = ax)
-
-                    ax.set_xlabel("Mass", fontsize = 20)
-                    ax.set_ylabel("Size", fontsize = 20)
-
-                    temp_fig = plt.gcf()
-                    temp_fig.set_figheight(8)
-                    temp_fig.set_figwidth(10)
-                    temp_fig.suptitle("Mass vs Size", fontsize = 24)
-                    
-                    # Return the figure instead of the DataFrame
-                    return temp_fig
+            temp_fig = plt.gcf()
+            temp_fig.set_figheight(8)
+            temp_fig.set_figwidth(10)
+            temp_fig.suptitle("Mass vs Size", fontsize = 24)
+            
+            # Return the figure instead of the DataFrame
+            return temp_fig
 
         except Exception as e:
             print(f"Error in particle locating or plotting: {e}")

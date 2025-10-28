@@ -106,7 +106,7 @@ class ParticleDetectionWindow(QMainWindow):
         self.main_layout.addWidget(self.main_layout.middle_panel)
 
         # Right Panel
-        self.main_layout.right_panel = DetectionParametersWidget()
+        self.main_layout.right_panel = DetectionParametersWidget(self.main_layout.left_panel)
         self.right_layout = QVBoxLayout(self.main_layout.right_panel)
         self.main_layout.addWidget(self.main_layout.right_panel)
         

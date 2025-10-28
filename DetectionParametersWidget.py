@@ -13,22 +13,31 @@ import cv2
 import os
 import particle_processing
 
+from GraphingPanelWidget import *
+
 class FindParticlesThread(QThread):
     processing_frame = Signal(str)
     finished = Signal()
+    particles_found = Signal(object)
 
     def __init__(self, frame_paths, params):
         super().__init__()
         self.frame_paths = frame_paths
         self.params = params
+        self.particles = None
 
     def run(self):
-        particle_processing.find_and_save_errant_particles(
+        self.particles = particle_processing.find_and_save_errant_particles(
             self.frame_paths,
             self.params,
             progress_callback=self.processing_frame
         )
+        self.particles_found.emit(self.particles)
         self.finished.emit()
+    
+    def get_particles(self):
+        print("p: ", self.particles)
+        return self.particles
 
 class DetectAllFramesThread(QThread):
     processing_frame = Signal(str)
@@ -92,7 +101,7 @@ class DetectAllFramesThread(QThread):
 class DetectionParametersWidget(QWidget):
     particlesUpdated = Signal()
     openTrajectoryLinking = Signal()
-    def __init__(self, parent=None):
+    def __init__(self, graphing_panel, parent=None):
         super().__init__(parent)
 
         self.total_frames = 0
@@ -101,6 +110,8 @@ class DetectionParametersWidget(QWidget):
         self.processed_frames = set()
         self._last_find_range = None
         self.layout = QVBoxLayout(self)
+
+        self.graphing_panel = graphing_panel
 
         self.form = QFormLayout()
 
@@ -253,10 +264,23 @@ class DetectionParametersWidget(QWidget):
         self.next_button.setEnabled(False)
         self.progress_display.setText("Starting...")
 
+        print("before fpt")
         self.find_particles_thread = FindParticlesThread(frame_paths, params)
         self.find_particles_thread.processing_frame.connect(self.progress_display.setText)
         self.find_particles_thread.finished.connect(self.on_find_finished)
+        self.find_particles_thread.particles_found.connect(self.on_particles_data_ready)
         self.find_particles_thread.start()
+        print("after fpt")
+        print("before particles")
+        particles = self.find_particles_thread.get_particles()
+        print("after particles")
+
+        self.graphing_panel.plot_sb(particles)
+
+    def on_particles_data_ready(self, particles_df):
+        """Receives the particles DataFrame from the worker thread."""
+        print("Received particles from thread. Plotting now.")
+        self.graphing_panel.plot_sb(particles_df)
 
     def on_find_finished(self):
         self.save_button.setEnabled(True)
