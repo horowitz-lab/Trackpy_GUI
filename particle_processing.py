@@ -98,11 +98,11 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
 
         # Annotate and save frame
         if not features.empty:
-            fig, ax = plt.subplots()
-            tp.annotate(features, image, ax=ax)
+            annotated_image = image.copy()
+            for index, particle in features.iterrows():
+                cv2.circle(annotated_image, (int(particle.x), int(particle.y)), int(feature_size/2) + 2, (0, 255, 255), 2)
             annotated_frame_path = os.path.join(ANNOTATED_FRAMES_FOLDER, f"frame_{frame_number:05d}.jpg")
-            fig.savefig(annotated_frame_path)
-            plt.close(fig)
+            cv2.imwrite(annotated_frame_path, annotated_image)
 
     if not all_features:
         if progress_callback:
@@ -113,9 +113,9 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
 
     if not combined_features.empty:
         combined_features['mass_diff'] = combined_features['mass'] - min_mass
-        top_5_particles = combined_features.nsmallest(5, 'mass_diff')
+        top_5_mass_particles = combined_features.nsmallest(5, 'mass_diff')
 
-        for i, particle in top_5_particles.iterrows():
+        for i, particle in top_5_mass_particles.iterrows():
             frame_idx = int(particle['frame'])
             image_to_crop = original_images.get(frame_idx)
             if image_to_crop is None:
@@ -123,7 +123,7 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
 
             x, y, size = particle['x'], particle['y'], particle['size']
             padding = 5
-            half_size = int(size) + padding
+            half_size = (int(size) + padding) * 3
             x_min = max(0, int(x) - half_size)
             y_min = max(0, int(y) - half_size)
             x_max = min(image_to_crop.shape[1], int(x) + half_size)
@@ -137,7 +137,7 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
             cv2.line(particle_image, (center_x - cross_size, center_y), (center_x + cross_size, center_y), (255, 255, 255), 1)
             cv2.line(particle_image, (center_x, center_y - cross_size), (center_x, center_y + cross_size), (255, 255, 255), 1)
 
-            base_filename = f"particle_{i}"
+            base_filename = f"mass_particle_{i}"
             particle_filename = os.path.join(PARTICLES_FOLDER, f"{base_filename}.png")
             cv2.imwrite(particle_filename, particle_image)
 
@@ -145,6 +145,41 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
             with open(mass_info_filename, 'w') as f:
                 f.write(f"mass: {particle['mass']:.2f}\n")
                 f.write(f"min_mass: {min_mass}\n")
+
+        # Handle feature size difference
+        combined_features['size_diff'] = abs(combined_features['size'] - feature_size)
+        top_5_size_particles = combined_features.nlargest(5, 'size_diff')
+
+        for i, particle in top_5_size_particles.iterrows():
+            frame_idx = int(particle['frame'])
+            image_to_crop = original_images.get(frame_idx)
+            if image_to_crop is None:
+                continue
+
+            x, y, size = particle['x'], particle['y'], particle['size']
+            padding = 5
+            half_size = (int(size) + padding) * 3
+            x_min = max(0, int(x) - half_size)
+            y_min = max(0, int(y) - half_size)
+            x_max = min(image_to_crop.shape[1], int(x) + half_size)
+            y_max = min(image_to_crop.shape[0], int(y) + half_size)
+
+            particle_image = image_to_crop[y_min:y_max, x_min:x_max]
+
+            center_x = int(x) - x_min
+            center_y = int(y) - y_min
+            cross_size = 5
+            cv2.line(particle_image, (center_x - cross_size, center_y), (center_x + cross_size, center_y), (255, 255, 255), 1)
+            cv2.line(particle_image, (center_x, center_y - cross_size), (center_x, center_y + cross_size), (255, 255, 255), 1)
+
+            base_filename = f"size_particle_{i}"
+            particle_filename = os.path.join(PARTICLES_FOLDER, f"{base_filename}.png")
+            cv2.imwrite(particle_filename, particle_image)
+
+            size_info_filename = os.path.join(PARTICLES_FOLDER, f"{base_filename}.txt")
+            with open(size_info_filename, 'w') as f:
+                f.write(f"feature_size: {particle['size']:.2f}\n")
+                f.write(f"parameter_feature_size: {feature_size}\n")
 
     if progress_callback:
         progress_callback.emit("Done.")

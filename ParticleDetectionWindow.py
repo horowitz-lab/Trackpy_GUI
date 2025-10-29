@@ -108,12 +108,23 @@ class ParticleDetectionWindow(QMainWindow):
         # Right Panel
         self.main_layout.right_panel = DetectionParametersWidget(self.main_layout.left_panel)
         self.right_layout = QVBoxLayout(self.main_layout.right_panel)
+
         self.main_layout.addWidget(self.main_layout.right_panel)
         
         # Connect signals
         self.main_layout.right_panel.particlesUpdated.connect(self.errant_particle_gallery.refresh_particles)
         self.main_layout.right_panel.openTrajectoryLinking.connect(self.open_trajectory_linking_window)
+        self.main_layout.right_panel.parameter_changed.connect(self.clear_processed_data)
         self.frame_player.frames_saved.connect(self.main_layout.right_panel.set_total_frames)
+
+    def clear_processed_data(self):
+        print("Particle detection parameters changed. Clearing processed data...")
+        try:
+            particle_processing.delete_all_files_in_folder(ANNOTATED_FRAMES_FOLDER)
+            self.errant_particle_gallery.clear_gallery() # Assuming this method exists or will be created
+            # Add any other data clearing here
+        except Exception as e:
+            print(f"Error clearing processed data: {e}")
 
     def import_video(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Video", VIDEOS_FOLDER, "Video Files (*.avi *.mp4 *.mov *.mkv);;All Files (*)")

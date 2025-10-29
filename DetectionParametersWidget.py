@@ -75,11 +75,11 @@ class DetectAllFramesThread(QThread):
                 all_particles.append(particles)
 
                 if not particles.empty:
-                    fig, ax = plt.subplots()
-                    tp.annotate(particles, frame, ax=ax)
+                    annotated_image = frame.copy()
+                    for index, particle in particles.iterrows():
+                        cv2.circle(annotated_image, (int(particle.x), int(particle.y)), int(feature_size/2) + 2, (0, 255, 255), 2)
                     annotated_frame_path = os.path.join(annotated_frames_folder, f"frame_{frame_num:05d}.jpg")
-                    fig.savefig(annotated_frame_path)
-                    plt.close(fig)
+                    cv2.imwrite(annotated_frame_path, annotated_image)
 
             if all_particles:
                 combined_particles = pd.concat(all_particles, ignore_index=True)
@@ -101,7 +101,12 @@ class DetectAllFramesThread(QThread):
 class DetectionParametersWidget(QWidget):
     particlesUpdated = Signal()
     openTrajectoryLinking = Signal()
+
     def __init__(self, graphing_panel, parent=None):
+
+    parameter_changed = Signal() # Define the new signal
+    def __init__(self, parent=None):
+
         super().__init__(parent)
 
         self.total_frames = 0
@@ -237,6 +242,7 @@ class DetectionParametersWidget(QWidget):
             'threshold': float(self.threshold_input.value()),
         }
         save_detection_params(params)
+        self.parameter_changed.emit() # Emit the signal here
 
     def find_particles(self):
         self.save_params()
