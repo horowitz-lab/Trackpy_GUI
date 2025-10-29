@@ -101,11 +101,10 @@ class DetectAllFramesThread(QThread):
 class DetectionParametersWidget(QWidget):
     particlesUpdated = Signal()
     openTrajectoryLinking = Signal()
+    parameter_changed = Signal() # Define the new signal
 
     def __init__(self, graphing_panel, parent=None):
 
-    parameter_changed = Signal() # Define the new signal
-    def __init__(self, parent=None):
 
         super().__init__(parent)
 
