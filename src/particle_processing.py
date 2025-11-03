@@ -594,7 +594,7 @@ def create_rb_gallery(trajectories_file, frames_folder=None, output_folder=None,
         for i, traj in enumerate(top_links):
             print(f"  {i+1}. Particle {traj['particle_id']}: score={traj['score']:.2f}, jump={traj['jump_dist']:.2f}, frames {traj['frame_i']}->{traj['frame_i1']}")
     
-    crop_size = 100  # Size of the crop around each particle
+    crop_size = 200  # Size of the crop around each particle (increased for better context)
     
     # Create RB overlay for each worst link showing the actual problem frames
     print(f"🖼️  Creating RB overlay images for {len(top_links)} links...")
@@ -645,69 +645,65 @@ def create_rb_gallery(trajectories_file, frames_folder=None, output_folder=None,
             crop1 = cv2.resize(crop1, target_size)
             crop2 = cv2.resize(crop2, target_size)
             
+            # Get invert setting from detection parameters
+            from .config_parser import get_detection_params
+            detection_params = get_detection_params()
+            invert = detection_params.get('invert', False)
+            
             # Convert to grayscale for thresholding
             gray1 = cv2.cvtColor(crop1, cv2.COLOR_BGR2GRAY)
             gray2 = cv2.cvtColor(crop2, cv2.COLOR_BGR2GRAY)
             
-            # Apply adaptive thresholding (Otsu's method)
-            # First try with bright objects on dark background
-            _, thresh1_bright = cv2.threshold(gray1, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            _, thresh2_bright = cv2.threshold(gray2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            # Apply thresholding based on invert setting
+            # Goal: always threshold so background is white (255) and particles are dark (0)
             
-            # Try with dark objects on bright background
-            _, thresh1_dark = cv2.threshold(gray1, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-            _, thresh2_dark = cv2.threshold(gray2, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+            if invert:
+                # Particles are bright on dark background
+                # Use inverse threshold: bright particles become dark (0), dark background becomes white (255)
+                _, thresh1 = cv2.threshold(gray1, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+                _, thresh2 = cv2.threshold(gray2, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+            else:
+                # Particles are dark on bright background
+                # Use normal threshold: dark particles stay dark (0), bright background becomes white (255)
+                _, thresh1 = cv2.threshold(gray1, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                _, thresh2 = cv2.threshold(gray2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
             
-            # Choose the thresholding that has better separation (higher variance)
-            var1_bright = np.var(thresh1_bright)
-            var1_dark = np.var(thresh1_dark)
-            var2_bright = np.var(thresh2_bright)
-            var2_dark = np.var(thresh2_dark)
-            
-            # Choose thresholding that better separates particles
-            thresh1 = thresh1_dark if var1_dark > var1_bright else thresh1_bright
-            thresh2 = thresh2_dark if var2_dark > var2_bright else thresh2_bright
-            
-            # Ensure particles are white (255) - invert if needed
+            # Ensure background is white (255) and particles are dark (0)
+            # Check if we need to invert based on which is more common (white background should be majority)
             white_pixels1 = np.sum(thresh1 == 255)
             white_pixels2 = np.sum(thresh2 == 255)
             
-            # If less than 30% are white, assume we need to invert
-            if white_pixels1 < (thresh1.size * 0.3):
+            # If less than 50% white, assume background is black - invert to get white background
+            if white_pixels1 < (thresh1.size * 0.5):
                 thresh1 = cv2.bitwise_not(thresh1)
-            if white_pixels2 < (thresh2.size * 0.3):
+            if white_pixels2 < (thresh2.size * 0.5):
                 thresh2 = cv2.bitwise_not(thresh2)
             
-            # Create RGB overlay with white background
-            # Background is white (255, 255, 255), particles are red (frame1) or blue (frame2)
+            # Create white background RGB image
             rb_overlay = np.ones((crop_size, crop_size, 3), dtype=np.uint8) * 255  # White background
             
-            # Apply thresholded particles as red (frame1) and blue (frame2)
-            # Where thresh1 is white (255), make it red
-            red_mask = thresh1 == 255
-            rb_overlay[red_mask, 0] = 255  # Red channel
-            rb_overlay[red_mask, 1] = 0
-            rb_overlay[red_mask, 2] = 0
+            # Create colored versions for overlay
+            # Frame 1 (frame_i): Blue particles
+            # Frame 2 (frame_i1): Red particles
             
-            # Where thresh2 is white (255), make it blue
-            blue_mask = thresh2 == 255
-            rb_overlay[blue_mask, 0] = 0
-            rb_overlay[blue_mask, 1] = 0
-            rb_overlay[blue_mask, 2] = 255  # Blue channel
+            # Create blue image for frame 1: dark pixels (particles) become blue
+            blue_overlay = rb_overlay.copy()
+            particle_mask1 = thresh1 == 0  # Dark pixels are particles
+            blue_overlay[particle_mask1, 0] = 0  # Blue channel
+            blue_overlay[particle_mask1, 1] = 0
+            blue_overlay[particle_mask1, 2] = 255  # Full blue for particles
             
-            # Where both are present, create purple overlay
-            both_mask = red_mask & blue_mask
-            rb_overlay[both_mask, 0] = 255  # Red channel
-            rb_overlay[both_mask, 1] = 0
-            rb_overlay[both_mask, 2] = 255  # Blue channel (makes purple)
+            # Create red image for frame 2: dark pixels (particles) become red
+            red_overlay = rb_overlay.copy()
+            particle_mask2 = thresh2 == 0  # Dark pixels are particles
+            red_overlay[particle_mask2, 0] = 255  # Full red for particles
+            red_overlay[particle_mask2, 1] = 0
+            red_overlay[particle_mask2, 2] = 0  # Red channel
             
-            # Draw particle centers as small white circles
-            center = crop_size // 2
-            cv2.circle(rb_overlay, (center, center), 3, (255, 255, 255), -1)
-            
-            # Add frame information text
-            cv2.putText(rb_overlay, f'F{frame_i}', (5, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
-            cv2.putText(rb_overlay, f'F{frame_i1}', (5, crop_size - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 0), 1)
+            # Overlay at 50% opacity: blend blue and red
+            # Formula: result = alpha * image1 + (1 - alpha) * image2
+            alpha = 0.5
+            rb_overlay = (alpha * blue_overlay + (1 - alpha) * red_overlay).astype(np.uint8)
             
             # Save the RB overlay image
             base_filename = f"particle_{particle_id}_link_{frame_i}_to_{frame_i1}"
