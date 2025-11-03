@@ -19,6 +19,8 @@ from ..config_parser import get_config
 class ErrantTrajectoryGalleryWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.config_manager = None
+        self.file_controller = None
 
         self.layout = QVBoxLayout(self)
 
@@ -31,6 +33,15 @@ class ErrantTrajectoryGalleryWidget(QWidget):
         self.photo_label.setMinimumHeight(200)
         self.photo_label.setScaledContents(False)
         self.layout.addWidget(self.photo_label)
+
+        # Info display (similar to ErrantParticleGalleryWidget)
+        self.info_label = QLabel("Info")
+        self.info_label.setAlignment(Qt.AlignCenter)
+        self.info_label.setWordWrap(True)
+        self.info_label.setStyleSheet(
+            "background-color: #333; color: #ccc; padding: 10px; border: 1px solid #555;"
+        )
+        self.layout.addWidget(self.info_label)
 
         # Navigation controls
         self.nav_layout = QHBoxLayout()
@@ -49,14 +60,40 @@ class ErrantTrajectoryGalleryWidget(QWidget):
         self.nav_layout.addWidget(self.next_button)
         self.layout.addLayout(self.nav_layout)
 
-        # RB gallery directory and files
-        config = get_config()
-        self.rb_gallery_dir = config.get('rb_gallery_folder', 'rb_gallery')
-        self.rb_gallery_files = self._load_rb_gallery_files(self.rb_gallery_dir)
+        # RB gallery directory and files (will be set via dependency injection)
+        self.rb_gallery_dir = None
+        self.rb_gallery_files = []
         self.current_pixmap = None
 
         # Show initial trajectory if available
         self._display_trajectory(self.curr_trajectory_idx)
+    
+    def set_config_manager(self, config_manager):
+        """Set the config manager for this widget."""
+        self.config_manager = config_manager
+        self._update_rb_gallery_path()
+    
+    def set_file_controller(self, file_controller):
+        """Set the file controller for this widget."""
+        self.file_controller = file_controller
+        self._update_rb_gallery_path()
+    
+    def _update_rb_gallery_path(self):
+        """Update RB gallery path from injected dependencies."""
+        if self.file_controller:
+            self.rb_gallery_dir = self.file_controller.rb_gallery_folder
+        elif self.config_manager:
+            self.rb_gallery_dir = self.config_manager.get_path('rb_gallery_folder')
+        else:
+            # Fall back to global config
+            config = get_config()
+            self.rb_gallery_dir = config.get('rb_gallery_folder', 'rb_gallery')
+        
+        # Reload gallery files if path is set
+        if self.rb_gallery_dir:
+            self.rb_gallery_files = self._load_rb_gallery_files(self.rb_gallery_dir)
+            self.curr_trajectory_idx = min(self.curr_trajectory_idx, len(self.rb_gallery_files) - 1) if self.rb_gallery_files else 0
+            self._display_trajectory(self.curr_trajectory_idx)
 
     def _load_rb_gallery_files(self, directory_path):
         """Return a sorted list of RB overlay image file paths."""
@@ -90,11 +127,25 @@ class ErrantTrajectoryGalleryWidget(QWidget):
                 self.photo_label.setPixmap(scaled)
             else:
                 self.photo_label.setText("Failed to load RB overlay image")
+            
+            # Load and display info
+            # Remove _rb_overlay suffix if present, then add .txt
+            base_name = os.path.splitext(file_path)[0]
+            if base_name.endswith('_rb_overlay'):
+                base_name = base_name[:-11]  # Remove '_rb_overlay' suffix
+            info_path = base_name + ".txt"
+            if os.path.exists(info_path):
+                with open(info_path, 'r') as f:
+                    self.info_label.setText(f.read())
+            else:
+                self.info_label.setText("")
+            
             self._update_display_text()
         else:
             # Out of bounds or no files
             if not self.rb_gallery_files:
                 self.photo_label.setText("No RB overlay images found")
+            self.info_label.setText("")
             self._update_display_text()
 
     def _update_display_text(self):
@@ -156,7 +207,13 @@ class ErrantTrajectoryGalleryWidget(QWidget):
 
     def refresh_rb_gallery(self):
         """Reload the list of RB overlay image files and refresh display."""
-        self.rb_gallery_files = self._load_rb_gallery_files(self.rb_gallery_dir)
+        # Update path first in case it changed
+        self._update_rb_gallery_path()
+        # Reload files
+        if self.rb_gallery_dir:
+            self.rb_gallery_files = self._load_rb_gallery_files(self.rb_gallery_dir)
+        else:
+            self.rb_gallery_files = []
         # Clamp current index within bounds
         if self.rb_gallery_files:
             self.curr_trajectory_idx = min(self.curr_trajectory_idx, len(self.rb_gallery_files) - 1)

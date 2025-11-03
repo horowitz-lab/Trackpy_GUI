@@ -62,6 +62,8 @@ class TrajectoryLinkingWindow(QMainWindow):
             self.main_layout.right_panel.set_config_manager(config_manager)
         if hasattr(self, 'frame_player'):
             self.frame_player.set_config_manager(config_manager)
+        if hasattr(self, 'errant_particle_gallery'):
+            self.errant_particle_gallery.set_config_manager(config_manager)
     
     def set_file_controller(self, file_controller):
         """Set the file controller for this window."""
@@ -71,6 +73,8 @@ class TrajectoryLinkingWindow(QMainWindow):
             self.main_layout.right_panel.set_file_controller(file_controller)
         if hasattr(self, 'frame_player'):
             self.frame_player.set_file_controller(file_controller)
+        if hasattr(self, 'errant_particle_gallery'):
+            self.errant_particle_gallery.set_file_controller(file_controller)
 
     def setup_ui(self):
         # Main Widget
