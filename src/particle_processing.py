@@ -404,6 +404,102 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
     return combined_features
 
 
+def create_full_frame_rb_overlay(frame1, frame2, threshold_percent=50):
+    """
+    Create a full-frame red-blue overlay image from two frames.
+    
+    Parameters
+    ----------
+    frame1 : numpy array
+        First frame (BGR) - particles will be red
+    frame2 : numpy array
+        Second frame (BGR) - particles will be blue
+    threshold_percent : float
+        Threshold percentage (0-100). For dark background, this is the percentage of 
+        brightest pixels that become the dark color (red/blue)
+    
+    Returns
+    -------
+    numpy array
+        RB overlay image (RGB format, white background, red particles from frame1, blue particles from frame2, both at 50% opacity)
+    """
+    # Ensure frames are same size
+    if frame1.shape[:2] != frame2.shape[:2]:
+        # Resize frame2 to match frame1
+        frame2 = cv2.resize(frame2, (frame1.shape[1], frame1.shape[0]))
+    
+    height, width = frame1.shape[:2]
+    
+    # Get invert setting from detection parameters
+    from .config_parser import get_detection_params
+    detection_params = get_detection_params()
+    invert = detection_params.get('invert', False)
+    
+    # Convert to grayscale for thresholding
+    gray1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
+    gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+    
+    # Apply percentile-based thresholding
+    # Calculate threshold value based on percentile
+    percentile = 100 - threshold_percent  # Inverse: 10% means 90th percentile
+    
+    # Get threshold values
+    threshold_val1 = np.percentile(gray1.flatten(), percentile)
+    threshold_val2 = np.percentile(gray2.flatten(), percentile)
+    
+    # Apply thresholding
+    if invert:
+        # Particles are bright on dark background
+        _, thresh1 = cv2.threshold(gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV)
+        _, thresh2 = cv2.threshold(gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV)
+    else:
+        # Particles are dark on bright background
+        _, thresh1 = cv2.threshold(gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV)
+        _, thresh2 = cv2.threshold(gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV)
+    
+    # Ensure background is white (255) and particles are dark (0)
+    white_pixels1 = np.sum(thresh1 == 255)
+    white_pixels2 = np.sum(thresh2 == 255)
+    
+    if white_pixels1 < (thresh1.size * 0.5):
+        thresh1 = cv2.bitwise_not(thresh1)
+    if white_pixels2 < (thresh2.size * 0.5):
+        thresh2 = cv2.bitwise_not(thresh2)
+    
+    # Create white background RGB image
+    rb_overlay = np.ones((height, width, 3), dtype=np.uint8) * 255  # White background
+    
+    # Create colored versions for overlay
+    # Frame 1: Red particles
+    # Frame 2: Blue particles
+    
+    # Create red image for frame 1: dark pixels (particles) become red
+    # In BGR format: red = [0, 0, 255] (B=0, G=0, R=255)
+    red_overlay = rb_overlay.copy()
+    particle_mask1 = thresh1 == 0  # Dark pixels are particles
+    red_overlay[particle_mask1, 0] = 0    # B channel
+    red_overlay[particle_mask1, 1] = 0    # G channel
+    red_overlay[particle_mask1, 2] = 255  # R channel (red)
+    
+    # Create blue image for frame 2: dark pixels (particles) become blue
+    # In BGR format: blue = [255, 0, 0] (B=255, G=0, R=0)
+    blue_overlay = rb_overlay.copy()
+    particle_mask2 = thresh2 == 0  # Dark pixels are particles
+    blue_overlay[particle_mask2, 0] = 255  # B channel (blue)
+    blue_overlay[particle_mask2, 1] = 0    # G channel
+    blue_overlay[particle_mask2, 2] = 0    # R channel
+    
+    # Overlay at 50% opacity: blend red and blue
+    # Formula: result = alpha * image1 + (1 - alpha) * image2
+    alpha = 0.5
+    rb_overlay = (alpha * red_overlay + (1 - alpha) * blue_overlay).astype(np.uint8)
+    
+    # Convert BGR to RGB for return
+    rb_overlay_rgb = cv2.cvtColor(rb_overlay, cv2.COLOR_BGR2RGB)
+    
+    return rb_overlay_rgb
+
+
 def create_rb_overlay_image(crop1, crop2, x1, y1, x2, y2, threshold_percent=50, crop_size=200):
     """
     Create a red-blue overlay image from two cropped frames.

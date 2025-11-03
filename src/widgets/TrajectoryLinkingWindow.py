@@ -131,7 +131,7 @@ class TrajectoryLinkingWindow(QMainWindow):
         self.right_layout = QVBoxLayout(self.main_layout.right_panel)
         self.main_layout.addWidget(self.main_layout.right_panel)
         
-        # Connect trajectory visualization signal to display in trajectory player
+        # Connect trajectory visualization signal - now loads frames for overlay display
         self.main_layout.right_panel.trajectoryVisualizationCreated.connect(self.frame_player.display_trajectory_image)
         
         # Connect back button signal to return to detection window
@@ -139,6 +139,17 @@ class TrajectoryLinkingWindow(QMainWindow):
         
         # Connect RB gallery creation signal to refresh the trajectory gallery
         self.main_layout.right_panel.rbGalleryCreated.connect(self.errant_particle_gallery.refresh_rb_gallery)
+        
+        # Connect threshold slider from errant_particle_gallery to frame_player
+        # The connection is set up after widgets are created
+        def connect_threshold_slider():
+            if hasattr(self.errant_particle_gallery, 'threshold_slider'):
+                slider = self.errant_particle_gallery.threshold_slider
+                self.frame_player.set_threshold_slider(slider)
+        
+        # Connect after a short delay to ensure widgets are fully initialized
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(100, connect_threshold_slider)
 
     
     def _export_data(self, source_filename: str, target_format: str):
