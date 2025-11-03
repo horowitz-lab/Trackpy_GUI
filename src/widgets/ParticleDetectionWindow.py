@@ -147,6 +147,7 @@ class ParticleDetectionWindow(QMainWindow):
         self.main_layout.right_panel.parameter_changed.connect(self.frame_player.update_feature_size)
         self.frame_player.frames_saved.connect(self.main_layout.right_panel.set_total_frames)
         self.frame_player.errant_particles_updated.connect(self.errant_particle_gallery.refresh_particles)
+        self.errant_particle_gallery.errant_particle_selected.connect(self.frame_player.on_errant_particle_selected)
 
     def on_particles_updated(self, particle_data):
         if self.frame_player:

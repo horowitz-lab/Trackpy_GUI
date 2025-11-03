@@ -10,7 +10,7 @@ import os
 import sys
 import cv2
 
-from PySide6.QtCore import QUrl, Qt
+from PySide6.QtCore import QUrl, Qt, Signal
 from PySide6.QtGui import QAction, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -36,6 +36,8 @@ from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.figure import Figure
 
 class ErrantParticleGalleryWidget(QWidget):
+    errant_particle_selected = Signal(int)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.config_manager = None
@@ -138,6 +140,14 @@ class ErrantParticleGalleryWidget(QWidget):
         """Update UI to display particle image and index if within bounds."""
         if 0 <= index < len(self.particle_files):
             file_path = self.particle_files[index]
+
+            try:
+                basename = os.path.basename(file_path)
+                particle_index = int(basename.split('_')[-1].split('.')[0])
+                self.errant_particle_selected.emit(particle_index)
+            except (ValueError, IndexError):
+                self.errant_particle_selected.emit(-1)
+
             pixmap = QPixmap(file_path)
             if not pixmap.isNull():
                 self.current_pixmap = pixmap
@@ -157,6 +167,7 @@ class ErrantParticleGalleryWidget(QWidget):
 
             self._update_display_text()
         else:
+            self.errant_particle_selected.emit(-1)
             # out of bounds or no files
             if not self.particle_files:
                 self.photo_label.setText("No particle images found")

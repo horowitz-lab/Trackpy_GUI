@@ -8,6 +8,7 @@ Description: Widget displaying frames of the video with frame controls. Shows th
 import sys
 import cv2
 import os
+import pandas as pd
 from PySide6.QtCore import Qt, Signal, QThread
 from PySide6.QtWidgets import (
     QApplication,
@@ -150,6 +151,14 @@ class FramePlayerWidget(QWidget):
         self.original_frames_folder = "original_frames"
         self.annotated_frames_folder = "annotated_frames"
         self.feature_size = 15
+        self.selected_errant_particle_index = -1
+        self.current_original_pixmap = None
+        self.current_particles_in_frame = None
+
+    def on_errant_particle_selected(self, particle_index):
+        """Slot to receive the selected errant particle index."""
+        self.selected_errant_particle_index = particle_index
+        self._update_annotations()
 
     def save_video_frames(self, video_path):
         """Save video frames to disk in a background thread"""
@@ -180,43 +189,69 @@ class FramePlayerWidget(QWidget):
 
     def on_toggle_annotate(self, state):
         self.show_annotated = self.annotate_toggle.isChecked()
-        self.display_frame(self.current_frame_idx)
+        self._update_annotations()
 
     def display_frame(self, frame_number):
-        """Display a specific frame from a file"""
         if not (0 <= frame_number < self.total_frames):
             return
 
+        self.current_frame_idx = frame_number
+        
         if self.file_controller:
             self.file_controller.delete_all_files_in_folder(self.annotated_frames_folder)
 
         file_name = f"frame_{frame_number:05d}.jpg"
-        frame_path_to_display = os.path.join(self.original_frames_folder, file_name)
+        original_frame_path = os.path.join(self.original_frames_folder, file_name)
 
-        if self.file_controller:
-            particle_data = self.file_controller.load_particles_data("found_particles.csv")
-            if not particle_data.empty:
-                particles_in_frame = particle_data[particle_data['frame'] == frame_number]
-                if not particles_in_frame.empty:
-                    params = self.config_manager.get_detection_params()
-                    save_errant_particle_crops_for_frame(frame_number, particles_in_frame, params)
-                    self.errant_particles_updated.emit()
-
-                if self.show_annotated:
-                    annotated_path = annotate_frame(frame_number, particles_in_frame, self.feature_size)
-                    if annotated_path:
-                        frame_path_to_display = annotated_path
-
-        if not os.path.exists(frame_path_to_display):
+        if not os.path.exists(original_frame_path):
             self.frame_label.clear()
             self.frame_label.setText(f"Frame not found: {file_name}")
+            self.current_original_pixmap = None
+            self.current_particles_in_frame = pd.DataFrame()
         else:
-            pixmap = QPixmap(frame_path_to_display)
-            scaled_pixmap = pixmap.scaled(self.frame_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            self.frame_label.setPixmap(scaled_pixmap)
+            self.current_original_pixmap = QPixmap(original_frame_path)
+            
+            if self.file_controller:
+                particle_data = self.file_controller.load_particles_data("found_particles.csv")
+                if not particle_data.empty:
+                    self.current_particles_in_frame = particle_data[particle_data['frame'] == frame_number]
+                    if not self.current_particles_in_frame.empty:
+                        params = self.config_manager.get_detection_params()
+                        save_errant_particle_crops_for_frame(frame_number, self.current_particles_in_frame, params)
+                        self.errant_particles_updated.emit()
+                else:
+                    self.current_particles_in_frame = pd.DataFrame()
+            else:
+                self.current_particles_in_frame = pd.DataFrame()
 
-        self.current_frame_idx = frame_number
+        self._update_annotations()
         self.update_frame_display()
+
+    def _update_annotations(self):
+        """Renders the frame with or without annotations."""
+        frame_path_to_display = None
+
+        if self.show_annotated and self.file_controller and self.current_particles_in_frame is not None and not self.current_particles_in_frame.empty:
+            annotated_path = annotate_frame(
+                self.current_frame_idx,
+                self.current_particles_in_frame,
+                self.feature_size,
+                highlighted_particle_index=self.selected_errant_particle_index
+            )
+            if annotated_path and os.path.exists(annotated_path):
+                frame_path_to_display = annotated_path
+
+        if frame_path_to_display:
+            pixmap = QPixmap(frame_path_to_display)
+        elif self.current_original_pixmap:
+            pixmap = self.current_original_pixmap
+        else:
+            self.frame_label.clear()
+            self.frame_label.setText(f"Frame not found")
+            return
+
+        scaled_pixmap = pixmap.scaled(self.frame_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.frame_label.setPixmap(scaled_pixmap)
 
     def update_frame_display(self):
         """Update the frame display and input"""
@@ -254,5 +289,4 @@ class FramePlayerWidget(QWidget):
     def resizeEvent(self, event):
         """Handle widget resize to update frame display"""
         super().resizeEvent(event)
-        if 0 <= self.current_frame_idx < self.total_frames:
-            self.display_frame(self.current_frame_idx)
+        self._update_annotations()

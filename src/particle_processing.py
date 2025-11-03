@@ -539,7 +539,7 @@ def create_rb_gallery(trajectories_file, original_frames_folder, output_folder=N
     print(f"Processed {len(unique_particles)} particles")
 
 
-def annotate_frame(frame_number, particle_data_df, feature_size):
+def annotate_frame(frame_number, particle_data_df, feature_size, highlighted_particle_index=None):
     """
     Annotates a single frame using pre-existing particle data and saves it.
 
@@ -551,6 +551,8 @@ def annotate_frame(frame_number, particle_data_df, feature_size):
         DataFrame containing all particle data.
     feature_size : int
         The diameter of the features to draw.
+    highlighted_particle_index : int, optional
+        The index of a specific particle to highlight.
 
     Returns
     -------
@@ -581,7 +583,14 @@ def annotate_frame(frame_number, particle_data_df, feature_size):
         annotated_image = image.copy()
         for _, particle in frame_particles.iterrows():
             cv2.circle(annotated_image, (int(particle.x), int(particle.y)), int(feature_size / 2) + 2, (0, 255, 255), 2)
-        
+
+        # Highlight the selected errant particle
+        if highlighted_particle_index is not None and highlighted_particle_index in frame_particles.index:
+            particle_to_highlight = frame_particles.loc[highlighted_particle_index]
+            x, y = int(particle_to_highlight.x), int(particle_to_highlight.y)
+            size = int(feature_size / 2) + 5  # Make the square a bit larger
+            cv2.rectangle(annotated_image, (x - size, y - size), (x + size, y + size), (255, 0, 0), 3) # Blue square
+
         cv2.imwrite(annotated_frame_path, annotated_image)
         return annotated_frame_path
 
