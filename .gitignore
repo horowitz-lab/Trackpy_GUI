@@ -3,3 +3,4 @@ processed_frames
 particles
 videos
 __pycache__
+*.pyc
