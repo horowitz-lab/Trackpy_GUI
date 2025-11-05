@@ -33,6 +33,7 @@ class GraphingPanelWidget(QWidget):
         # Graph area
         self.layout = QVBoxLayout(self)
         self.fig = None 
+        self.highlighted_button = None
         self.blank_plot("beginning")
 
         self.canvas = FigureCanvas(self.fig)
@@ -48,40 +49,87 @@ class GraphingPanelWidget(QWidget):
         self.graphing_buttons = QWidget()
         self.button_layout = QHBoxLayout(self.graphing_buttons)
 
+        # subpixel bias
+        self.sb = QWidget()
+        self.sb_layout = QVBoxLayout(self.sb)
+        self.sb_label = QLabel("Subpixel Bias")
+        self.sb_layout.addWidget(self.sb_label, alignment = Qt.AlignTop)
+
         self.sb_button = QPushButton(text = "Plot Subpixel Bias", parent = self)
         self.sb_button.clicked.connect(self.plot_sb)
-        self.button_layout.addWidget(self.sb_button, alignment = Qt.AlignLeft)
+        self.sb_layout.addWidget(self.sb_button, alignment = Qt.AlignTop)
+        
+        self.button_layout.addWidget(self.sb)
+        self.sb_layout.addStretch(1) 
 
-        self.hist = QPushButton(text = "Histograms", parent = self)
+        # filtering
+        self.filter = QWidget()
+        self.filter_layout = QVBoxLayout(self.filter)
+        self.filter_label = QLabel("Filtering")
+        self.filter_layout.addWidget(self.filter_label, alignment = Qt.AlignTop)
 
-        self.ecc_hist = QAction("Eccentricity", self)
-        self.ecc_hist.triggered.connect(self.plot_ecc)
-        self.mass_hist = QAction("Mass", self)
-        self.mass_hist.triggered.connect(self.plot_mass)
+        self.mass_ecc_button = QPushButton(text = "Plot Mass vs Eccentricity", parent = self)
+        self.mass_ecc_button.clicked.connect(self.plot_mass_ecc)
+        self.filter_layout.addWidget(self.mass_ecc_button, alignment = Qt.AlignTop)
 
-        self.hist_menu = QMenu(self)
-        self.hist_menu.addAction(self.ecc_hist)
-        self.hist_menu.addAction(self.mass_hist)
+        self.mass_size_button = QPushButton(text = "Plot Mass vs Size", parent = self)
+        self.mass_size_button.clicked.connect(self.plot_mass_size)
+        self.filter_layout.addWidget(self.mass_size_button, alignment = Qt.AlignTop)
 
-        self.hist.setMenu(self.hist_menu)
-        self.button_layout.addWidget(self.hist, alignment = Qt.AlignLeft)
+        self.size_ecc_button = QPushButton(text = "Plot Size vs Eccentricity", parent = self)
+        self.size_ecc_button.clicked.connect(self.plot_size_ecc)
+        self.filter_layout.addWidget(self.size_ecc_button, alignment = Qt.AlignTop)
+        
+        self.button_layout.addWidget(self.filter)
+        self.filter_layout.addStretch(1) 
 
-        self.filter = QPushButton(text = "Filtering", parent = self)
+        # histograms
+        self.hist = QWidget()
+        self.hist_layout = QVBoxLayout(self.hist)
+        self.hist_label = QLabel("Histograms")
+        self.hist_layout.addWidget(self.hist_label, alignment = Qt.AlignTop)
 
-        self.mass_size = QAction("Mass vs Size", self)
-        self.mass_size.triggered.connect(self.plot_mass_size)
-        self.mass_ecc = QAction("Mass vs Eccentricity", self)
-        self.mass_ecc.triggered.connect(self.plot_mass_ecc)
-        self.size_ecc = QAction("Size vs Eccentricity", self)
-        self.size_ecc.triggered.connect(self.plot_size_ecc)
+        self.ecc_button = QPushButton(text = "Plot Eccentricity", parent = self)
+        self.ecc_button.clicked.connect(self.plot_ecc)
+        self.hist_layout.addWidget(self.ecc_button, alignment = Qt.AlignTop)
 
-        self.filter_menu = QMenu(self)
-        self.filter_menu.addAction(self.mass_ecc)
-        self.filter_menu.addAction(self.mass_size)
-        self.filter_menu.addAction(self.size_ecc)
+        self.mass_button = QPushButton(text = "Plot Mass", parent = self)
+        self.mass_button.clicked.connect(self.plot_mass)
+        self.hist_layout.addWidget(self.mass_button, alignment = Qt.AlignTop)
 
-        self.filter.setMenu(self.filter_menu)
-        self.button_layout.addWidget(self.filter, alignment = Qt.AlignLeft)
+        self.button_layout.addWidget(self.hist)
+        self.hist_layout.addStretch(1)
+
+        # self.hist = QPushButton(text = "Histograms", parent = self)
+
+        # self.ecc_hist = QAction("Eccentricity", self)
+        # self.ecc_hist.triggered.connect(self.plot_ecc)
+        # self.mass_hist = QAction("Mass", self)
+        # self.mass_hist.triggered.connect(self.plot_mass)
+
+        # self.hist_menu = QMenu(self)
+        # self.hist_menu.addAction(self.ecc_hist)
+        # self.hist_menu.addAction(self.mass_hist)
+
+        # self.hist.setMenu(self.hist_menu)
+        # self.button_layout.addWidget(self.hist, alignment = Qt.AlignLeft)
+
+        # self.filter = QPushButton(text = "Filtering", parent = self)
+
+        # self.mass_size = QAction("Mass vs Size", self)
+        # self.mass_size.triggered.connect(self.plot_mass_size)
+        # self.mass_ecc = QAction("Mass vs Eccentricity", self)
+        # self.mass_ecc.triggered.connect(self.plot_mass_ecc)
+        # self.size_ecc = QAction("Size vs Eccentricity", self)
+        # self.size_ecc.triggered.connect(self.plot_size_ecc)
+
+        # self.filter_menu = QMenu(self)
+        # self.filter_menu.addAction(self.mass_ecc)
+        # self.filter_menu.addAction(self.mass_size)
+        # self.filter_menu.addAction(self.size_ecc)
+
+        # self.filter.setMenu(self.filter_menu)
+        # self.button_layout.addWidget(self.filter, alignment = Qt.AlignLeft)
 
         # self.ecc_button = QPushButton(text = "Plot Eccentricity", parent = self)
         # self.ecc_button.clicked.connect(self.plot_ecc)
@@ -115,15 +163,22 @@ class GraphingPanelWidget(QWidget):
         """Set the file controller for this widget."""
         self.file_controller = file_controller
 
-    def _get_figure_size_inches(self):
+    def get_figure_size_inches(self):
         """Calculates the necessary figsize in inches."""
         width_in = TARGET_WIDTH_PX / STANDARD_DPI 
         height_in = TARGET_HEIGHT_PX / STANDARD_DPI
         return (width_in, height_in)
 
+    def switch_button_color(self, button):
+        if self.highlighted_button != None:
+            self.highlighted_button.setStyleSheet("background-color: light grey")
+
+        self.highlighted_button = button
+        button.setStyleSheet("background-color: #1f77b4")
+
     def blank_plot(self, state):
         """Creates a new blank figure with the correct size."""
-        fig_size = self._get_figure_size_inches()
+        fig_size = self.get_figure_size_inches()
         if self.fig:
              plt.close(self.fig)
              
@@ -163,6 +218,8 @@ class GraphingPanelWidget(QWidget):
         # 4. Redraw the canvas with the new figure
         self.canvas.figure = self.fig
         self.canvas.draw()
+
+        self.switch_button_color(self.mass_button)
 
     def get_mass_count(self):
         try:
@@ -217,6 +274,8 @@ class GraphingPanelWidget(QWidget):
         self.canvas.figure = self.fig
         self.canvas.draw()
 
+        self.switch_button_color(self.ecc_button)
+
     def get_eccentriicity_count(self):
         try:
             import trackpy as tp
@@ -269,6 +328,8 @@ class GraphingPanelWidget(QWidget):
         self.canvas.figure = self.fig
         self.canvas.draw()
 
+        self.switch_button_color(self.sb_button)
+
     def get_subpixel_bias(self):
         try:
             import trackpy as tp
@@ -315,6 +376,8 @@ class GraphingPanelWidget(QWidget):
         # 4. Redraw the canvas with the new figure
         self.canvas.figure = self.fig
         self.canvas.draw()
+
+        self.switch_button_color(self.mass_size_button)
 
     def get_mass_size(self):
         try:
@@ -366,6 +429,8 @@ class GraphingPanelWidget(QWidget):
         self.canvas.figure = self.fig
         self.canvas.draw()
 
+        self.switch_button_color(self.mass_ecc_button)
+
     def get_mass_ecc(self):
         try:
             import trackpy as tp
@@ -415,6 +480,8 @@ class GraphingPanelWidget(QWidget):
         # 4. Redraw the canvas with the new figure
         self.canvas.figure = self.fig
         self.canvas.draw()
+
+        self.switch_button_color(self.size_ecc_button)
 
     def get_size_ecc(self):
         try:
