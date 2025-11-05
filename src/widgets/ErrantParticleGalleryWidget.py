@@ -50,7 +50,7 @@ class ErrantParticleGalleryWidget(QWidget):
         self.photo_label = QLabel("Photo display")
         self.photo_label.setAlignment(Qt.AlignCenter)
         self.photo_label.setStyleSheet(
-            "background-color: #222; color: #ccc; border: 1px solid #555;"
+            "background-color: #222; color: #ccc; border: 2px solid blue;"
         )
         self.photo_label.setMinimumHeight(200)
         self.photo_label.setScaledContents(False)
