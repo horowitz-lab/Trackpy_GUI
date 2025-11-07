@@ -323,83 +323,129 @@ def find_and_save_particles(image_paths, params=None, progress_callback=None):
     return combined_features
 
 def save_errant_particle_crops_for_frame(frame_number, particle_data_for_frame, params):
-    """Saves cropped images of the 5 most errant particles for a given frame."""
+    """
+    Saves cropped images of the 10 most errant particles across ALL frames.
+    Finds 5 most errant based on mass and 5 most errant based on feature size.
+    Stores frame information in filenames and metadata.
+    """
     if file_controller is None:
+        return
+
+    # Load all particles from found_particles.csv
+    all_particles = file_controller.load_particles_data("found_particles.csv")
+    if all_particles.empty:
         return
 
     file_controller.delete_all_files_in_folder(file_controller.particles_folder)
     file_controller.ensure_folder_exists(file_controller.particles_folder)
 
-    if particle_data_for_frame.empty:
-        return
-
     feature_size = int(params.get('feature_size', 15))
     min_mass = float(params.get('min_mass', 100.0))
 
-    image_path = file_controller.get_frame_path(frame_number)
-    image_to_crop = cv2.imread(image_path)
-    if image_to_crop is None:
-        return
+    # Calculate errant scores for all particles
+    all_particles['mass_diff'] = all_particles['mass'] - min_mass
+    all_particles['size_diff'] = abs(all_particles['size'] - feature_size)
 
-    # Mass difference
-    particle_data_for_frame['mass_diff'] = particle_data_for_frame['mass'] - min_mass
-    top_5_mass_particles = particle_data_for_frame.nsmallest(5, 'mass_diff')
+    # Get top 5 most errant by mass (lowest mass, most negative mass_diff)
+    top_5_mass_particles = all_particles.nsmallest(5, 'mass_diff')
 
-    for i, particle in top_5_mass_particles.iterrows():
+    # Get top 5 most errant by size (largest size_diff)
+    top_5_size_particles = all_particles.nlargest(5, 'size_diff')
+
+    # Combine and process all 10 particles
+    particle_counter = 0
+
+    # Process mass-based errant particles
+    for idx, particle in top_5_mass_particles.iterrows():
+        frame_num = int(particle['frame'])
         x, y, size = particle['x'], particle['y'], particle['size']
-        padding = 5
-        half_size = (int(size) + padding) * 3
-        x_min = max(0, int(x) - half_size)
-        y_min = max(0, int(y) - half_size)
-        x_max = min(image_to_crop.shape[1], int(x) + half_size)
-        y_max = min(image_to_crop.shape[0], int(y) + half_size)
+        
+        image_path = file_controller.get_frame_path(frame_num)
+        image_to_crop = cv2.imread(image_path)
+        if image_to_crop is None:
+            continue
+
+        # Calculate crop boundaries - 4x more zoomed in (25 pixels on each side, then resize to 200x200)
+        final_display_size = 200
+        crop_radius = 25  # 4x more zoomed: 100/4 = 25 pixels on each side
+        x_min = max(0, int(x) - crop_radius)
+        y_min = max(0, int(y) - crop_radius)
+        x_max = min(image_to_crop.shape[1], int(x) + crop_radius)
+        y_max = min(image_to_crop.shape[0], int(y) + crop_radius)
 
         particle_image = image_to_crop[y_min:y_max, x_min:x_max]
 
-        center_x = int(x) - x_min
-        center_y = int(y) - y_min
+        # Resize to exactly 200x200 for display
+        particle_image = cv2.resize(particle_image, (final_display_size, final_display_size))
+
+        # Draw crosshair at center
+        center_x = final_display_size // 2
+        center_y = final_display_size // 2
         cross_size = 5
         cv2.line(particle_image, (center_x - cross_size, center_y), (center_x + cross_size, center_y), (255, 255, 255), 1)
         cv2.line(particle_image, (center_x, center_y - cross_size), (center_x, center_y + cross_size), (255, 255, 255), 1)
 
-        base_filename = f"mass_particle_{i}"
+        # Save with frame number in filename
+        base_filename = f"mass_particle_{particle_counter}_frame_{frame_num:05d}"
         particle_filename = os.path.join(file_controller.particles_folder, f"{base_filename}.png")
         cv2.imwrite(particle_filename, particle_image)
 
+        # Save metadata with frame information (frame and position needed for jumping to frame)
         mass_info_filename = os.path.join(file_controller.particles_folder, f"{base_filename}.txt")
         with open(mass_info_filename, 'w') as f:
+            f.write(f"frame: {frame_num}\n")
+            f.write(f"x: {particle['x']:.2f}\n")
+            f.write(f"y: {particle['y']:.2f}\n")
             f.write(f"mass: {particle['mass']:.2f}\n")
             f.write(f"min_mass: {min_mass}\n")
 
-    # Feature size difference
-    particle_data_for_frame['size_diff'] = abs(particle_data_for_frame['size'] - feature_size)
-    top_5_size_particles = particle_data_for_frame.nlargest(5, 'size_diff')
+        particle_counter += 1
 
-    for i, particle in top_5_size_particles.iterrows():
+    # Process size-based errant particles
+    for idx, particle in top_5_size_particles.iterrows():
+        frame_num = int(particle['frame'])
         x, y, size = particle['x'], particle['y'], particle['size']
-        padding = 5
-        half_size = (int(size) + padding) * 3
-        x_min = max(0, int(x) - half_size)
-        y_min = max(0, int(y) - half_size)
-        x_max = min(image_to_crop.shape[1], int(x) + half_size)
-        y_max = min(image_to_crop.shape[0], int(y) + half_size)
+        
+        image_path = file_controller.get_frame_path(frame_num)
+        image_to_crop = cv2.imread(image_path)
+        if image_to_crop is None:
+            continue
+
+        # Calculate crop boundaries - 4x more zoomed in (25 pixels on each side, then resize to 200x200)
+        final_display_size = 200
+        crop_radius = 25  # 4x more zoomed: 100/4 = 25 pixels on each side
+        x_min = max(0, int(x) - crop_radius)
+        y_min = max(0, int(y) - crop_radius)
+        x_max = min(image_to_crop.shape[1], int(x) + crop_radius)
+        y_max = min(image_to_crop.shape[0], int(y) + crop_radius)
 
         particle_image = image_to_crop[y_min:y_max, x_min:x_max]
 
-        center_x = int(x) - x_min
-        center_y = int(y) - y_min
+        # Resize to exactly 200x200 for display
+        particle_image = cv2.resize(particle_image, (final_display_size, final_display_size))
+
+        # Draw crosshair at center
+        center_x = final_display_size // 2
+        center_y = final_display_size // 2
         cross_size = 5
         cv2.line(particle_image, (center_x - cross_size, center_y), (center_x + cross_size, center_y), (255, 255, 255), 1)
         cv2.line(particle_image, (center_x, center_y - cross_size), (center_x, center_y + cross_size), (255, 255, 255), 1)
 
-        base_filename = f"size_particle_{i}"
+        # Save with frame number in filename
+        base_filename = f"size_particle_{particle_counter}_frame_{frame_num:05d}"
         particle_filename = os.path.join(file_controller.particles_folder, f"{base_filename}.png")
         cv2.imwrite(particle_filename, particle_image)
 
+        # Save metadata with frame information (frame and position needed for jumping to frame)
         size_info_filename = os.path.join(file_controller.particles_folder, f"{base_filename}.txt")
         with open(size_info_filename, 'w') as f:
+            f.write(f"frame: {frame_num}\n")
+            f.write(f"x: {particle['x']:.2f}\n")
+            f.write(f"y: {particle['y']:.2f}\n")
             f.write(f"feature_size: {particle['size']:.2f}\n")
             f.write(f"parameter_feature_size: {feature_size}\n")
+
+        particle_counter += 1
 
 
 def create_full_frame_rb_overlay(frame1, frame2, threshold_percent=50):
@@ -953,13 +999,6 @@ def annotate_frame(frame_number, particle_data_df, feature_size, highlighted_par
         annotated_image = image.copy()
         for _, particle in frame_particles.iterrows():
             cv2.circle(annotated_image, (int(particle.x), int(particle.y)), int(feature_size / 2) + 2, (0, 255, 255), 2)
-
-        # Highlight the selected errant particle
-        if highlighted_particle_index is not None and highlighted_particle_index in frame_particles.index:
-            particle_to_highlight = frame_particles.loc[highlighted_particle_index]
-            x, y = int(particle_to_highlight.x), int(particle_to_highlight.y)
-            size = int(feature_size / 2) + 5  # Make the square a bit larger
-            cv2.rectangle(annotated_image, (x - size, y - size), (x + size, y + size), (255, 0, 0), 3) # Blue square
 
         cv2.imwrite(annotated_frame_path, annotated_image)
         return annotated_frame_path

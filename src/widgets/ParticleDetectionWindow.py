@@ -148,10 +148,17 @@ class ParticleDetectionWindow(QMainWindow):
         self.frame_player.frames_saved.connect(self.main_layout.right_panel.set_total_frames)
         self.frame_player.errant_particles_updated.connect(self.errant_particle_gallery.refresh_particles)
         self.errant_particle_gallery.errant_particle_selected.connect(self.frame_player.on_errant_particle_selected)
+        # Connect new signal for showing particle on frame
+        self.errant_particle_gallery.show_particle_on_frame.connect(self.frame_player.jump_to_frame_and_highlight_particle)
+        # Connect frame changes to update gallery highlighting
+        self.frame_player.frame_changed.connect(self.errant_particle_gallery.set_current_frame)
 
     def on_particles_updated(self, particle_data):
         if self.frame_player:
             self.frame_player.display_frame(self.frame_player.current_frame_idx)
+        # Refresh errant particle gallery after particles are detected
+        if self.errant_particle_gallery:
+            self.errant_particle_gallery.refresh_particles()
 
     def load_particle_data(self):
         if self.file_controller:

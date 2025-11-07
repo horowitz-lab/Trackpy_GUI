@@ -66,6 +66,7 @@ class FramePlayerWidget(QWidget):
     """Widget for displaying video frames from a folder of images"""
     frames_saved = Signal(int)
     errant_particles_updated = Signal()
+    frame_changed = Signal(int)  # Emits current frame number when frame changes
 
     def __init__(self):
         super().__init__()
@@ -154,6 +155,9 @@ class FramePlayerWidget(QWidget):
         self.selected_errant_particle_index = -1
         self.current_original_pixmap = None
         self.current_particles_in_frame = None
+        self.highlighted_particle_x = None
+        self.highlighted_particle_y = None
+        self.is_highlight_jump = False  # Flag to indicate we're jumping to highlight a particle
 
     def on_errant_particle_selected(self, particle_index):
         """Slot to receive the selected errant particle index."""
@@ -195,8 +199,12 @@ class FramePlayerWidget(QWidget):
         if not (0 <= frame_number < self.total_frames):
             return
 
+        # Store whether we have a highlighted particle before we potentially clear things
+        has_highlight = (self.highlighted_particle_x is not None and self.highlighted_particle_y is not None)
+        
         self.current_frame_idx = frame_number
         
+        # Always delete all annotated frames to ensure only one exists at a time
         if self.file_controller:
             self.file_controller.delete_all_files_in_folder(self.annotated_frames_folder)
 
@@ -215,10 +223,6 @@ class FramePlayerWidget(QWidget):
                 particle_data = self.file_controller.load_particles_data("found_particles.csv")
                 if not particle_data.empty:
                     self.current_particles_in_frame = particle_data[particle_data['frame'] == frame_number]
-                    if not self.current_particles_in_frame.empty:
-                        params = self.config_manager.get_detection_params()
-                        save_errant_particle_crops_for_frame(frame_number, self.current_particles_in_frame, params)
-                        self.errant_particles_updated.emit()
                 else:
                     self.current_particles_in_frame = pd.DataFrame()
             else:
@@ -226,23 +230,86 @@ class FramePlayerWidget(QWidget):
 
         self._update_annotations()
         self.update_frame_display()
+        # Emit frame change signal
+        self.frame_changed.emit(frame_number)
 
     def _update_annotations(self):
-        """Renders the frame with or without annotations."""
+        """Renders the frame with or without annotations.
+        
+        Creates exactly one annotated frame if:
+        - Show annotated checkbox is checked (draws particle circles), OR
+        - A particle is highlighted (draws blue box only, no circles unless checkbox is checked)
+        
+        The annotated frame will include:
+        - Particle circles ONLY if show_annotated is True
+        - Blue box around highlighted particle if one is set
+        """
         frame_path_to_display = None
-
+        import cv2
+        
+        # Case 1: Show annotated checkbox is checked - create annotated frame with particle circles
         if self.show_annotated and self.file_controller and self.current_particles_in_frame is not None and not self.current_particles_in_frame.empty:
             annotated_path = annotate_frame(
                 self.current_frame_idx,
                 self.current_particles_in_frame,
                 self.feature_size,
-                highlighted_particle_index=self.selected_errant_particle_index
+                highlighted_particle_index=None  # We'll add blue box separately if needed
             )
             if annotated_path and os.path.exists(annotated_path):
                 frame_path_to_display = annotated_path
+        
+        # Case 2: We have a highlighted particle - add blue box
+        # If show_annotated is False, we start with original frame (no circles)
+        # If show_annotated is True, we use the annotated frame (with circles) from above
+        if self.highlighted_particle_x is not None and self.highlighted_particle_y is not None:
+            image_to_modify = None
+            # Use annotated frame if available (from show_annotated), otherwise use original frame
+            if frame_path_to_display and os.path.exists(frame_path_to_display):
+                image_to_modify = cv2.imread(frame_path_to_display)
+            elif self.file_controller:
+                original_frame_path = os.path.join(self.original_frames_folder, f"frame_{self.current_frame_idx:05d}.jpg")
+                if os.path.exists(original_frame_path):
+                    image_to_modify = cv2.imread(original_frame_path)
+                    # Create annotated frame path for saving (even if no circles, we need to save the blue box)
+                    frame_path_to_display = os.path.join(self.annotated_frames_folder, f"frame_{self.current_frame_idx:05d}.jpg")
+                    self.file_controller.ensure_folder_exists(self.annotated_frames_folder)
+            
+            if image_to_modify is not None:
+                x, y = int(self.highlighted_particle_x), int(self.highlighted_particle_y)
+                # Blue square should match the zoom-in crop size: 25 pixels radius (50x50 total)
+                crop_radius = 25
+                cv2.rectangle(image_to_modify, (x - crop_radius, y - crop_radius), (x + crop_radius, y + crop_radius), (255, 0, 0), 3)  # Blue square
+                
+                # Save the modified image (this will be the only annotated frame)
+                # Ensure the directory exists
+                if self.file_controller:
+                    self.file_controller.ensure_folder_exists(self.annotated_frames_folder)
+                success = cv2.imwrite(frame_path_to_display, image_to_modify)
+                if not success:
+                    print(f"Warning: Failed to save annotated frame to {frame_path_to_display}")
+                # Verify the file was actually created and wait a moment for filesystem to sync
+                import time
+                max_retries = 10
+                retry_count = 0
+                while not os.path.exists(frame_path_to_display) and retry_count < max_retries:
+                    time.sleep(0.001)  # Wait 1ms
+                    retry_count += 1
+                if not os.path.exists(frame_path_to_display):
+                    print(f"Error: Annotated frame file was not created at {frame_path_to_display} after {max_retries} retries")
 
-        if frame_path_to_display:
-            pixmap = QPixmap(frame_path_to_display)
+        # Display the frame - prioritize annotated frame if it exists
+        if frame_path_to_display and os.path.exists(frame_path_to_display):
+            # Load the pixmap from the annotated frame - force reload by clearing cache
+            pixmap = QPixmap()
+            if not pixmap.load(frame_path_to_display):
+                # If pixmap failed to load, fall back to original
+                print(f"Warning: Failed to load annotated frame from {frame_path_to_display}, using original")
+                if self.current_original_pixmap:
+                    pixmap = self.current_original_pixmap
+                else:
+                    self.frame_label.clear()
+                    self.frame_label.setText(f"Frame not found")
+                    return
         elif self.current_original_pixmap:
             pixmap = self.current_original_pixmap
         else:
@@ -252,6 +319,16 @@ class FramePlayerWidget(QWidget):
 
         scaled_pixmap = pixmap.scaled(self.frame_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.frame_label.setPixmap(scaled_pixmap)
+    
+    def jump_to_frame_and_highlight_particle(self, frame_number, particle_x, particle_y):
+        """Jump to a specific frame and highlight a particle with a blue box."""
+        if 0 <= frame_number < self.total_frames:
+            # Set highlighted particle coordinates FIRST, before displaying frame
+            # This ensures _update_annotations() sees them when it runs
+            self.highlighted_particle_x = particle_x
+            self.highlighted_particle_y = particle_y
+            # Now display the frame (which will call _update_annotations with the coordinates set)
+            self.display_frame(frame_number)
 
     def update_frame_display(self):
         """Update the frame display and input"""
@@ -265,11 +342,19 @@ class FramePlayerWidget(QWidget):
     def previous_frame(self):
         """Go to previous frame"""
         if self.current_frame_idx > 0:
+            # Clear highlighted particle when navigating normally (unless we're on the same frame)
+            if self.current_frame_idx - 1 != self.current_frame_idx:
+                self.highlighted_particle_x = None
+                self.highlighted_particle_y = None
             self.display_frame(self.current_frame_idx - 1)
 
     def next_frame(self):
         """Go to next frame"""
         if self.current_frame_idx < self.total_frames - 1:
+            # Clear highlighted particle when navigating normally (unless we're on the same frame)
+            if self.current_frame_idx + 1 != self.current_frame_idx:
+                self.highlighted_particle_x = None
+                self.highlighted_particle_y = None
             self.display_frame(self.current_frame_idx + 1)
 
     def go_to_frame(self):
@@ -277,6 +362,10 @@ class FramePlayerWidget(QWidget):
         try:
             frame_number = int(self.frame_input.text())
             if 0 <= frame_number < self.total_frames:
+                # Clear highlighted particle when navigating normally (unless we're on the same frame)
+                if frame_number != self.current_frame_idx:
+                    self.highlighted_particle_x = None
+                    self.highlighted_particle_y = None
                 self.display_frame(frame_number)
         except ValueError:
             pass
@@ -284,6 +373,10 @@ class FramePlayerWidget(QWidget):
     def slider_value_changed(self, value):
         """Go to frame specified by slider"""
         if 0 <= value < self.total_frames:
+            # Clear highlighted particle when navigating normally (unless we're on the same frame)
+            if value != self.current_frame_idx:
+                self.highlighted_particle_x = None
+                self.highlighted_particle_y = None
             self.display_frame(value)
 
     def resizeEvent(self, event):

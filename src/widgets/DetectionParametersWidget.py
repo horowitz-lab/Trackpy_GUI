@@ -306,11 +306,27 @@ class DetectionParametersWidget(QWidget):
         self.find_particles_thread.processing_frame.connect(self.progress_display.setText)
         self.find_particles_thread.finished.connect(self.on_find_finished)
         self.find_particles_thread.particles_found.connect(self.on_particles_data_ready)
+        # Generate errant particles after detection completes
+        self.find_particles_thread.particles_found.connect(self._generate_errant_particles)
         self.find_particles_thread.start()
 
     def on_particles_data_ready(self, particles_df):
         """Receives the particles DataFrame from the worker thread."""
         self.graphing_panel.set_particles(particles_df)
+
+    def _generate_errant_particles(self, particles_df):
+        """Generate errant particle crops after particles are detected."""
+        if particles_df is None or particles_df.empty:
+            return
+        if self.file_controller is None:
+            return
+        
+        # Get detection parameters
+        params = get_detection_params()
+        
+        # Call the function to generate errant particles (it will use all particles from found_particles.csv)
+        # We pass a dummy frame_number since the function now processes all frames
+        particle_processing.save_errant_particle_crops_for_frame(0, particles_df, params)
 
     def on_find_finished(self):
         self.save_button.setEnabled(True)
