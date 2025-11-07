@@ -5,35 +5,19 @@ Description: Widget displaying errant particles to inform user if particle track
              Generated boiler plate code using Cursor AI.
 """
 
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout
 import os
-import sys
-import cv2
 
-from PySide6.QtCore import QUrl, Qt, Signal
-from PySide6.QtGui import QAction, QPixmap
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QFileDialog,
-    QWidget,
-    QVBoxLayout,
-    QGridLayout,
-    QFormLayout,
-    QPushButton,
-    QSlider,
-    QLabel,
-    QSplitter,
     QHBoxLayout,
-    QFrame,
-    QSizePolicy,
+    QLabel,
     QLineEdit,
-
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6 import QtWidgets
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_qtagg import FigureCanvas
-from matplotlib.figure import Figure
+
 
 class ErrantParticleGalleryWidget(QWidget):
     errant_particle_selected = Signal(int)
@@ -58,7 +42,7 @@ class ErrantParticleGalleryWidget(QWidget):
         self.layout.addStretch()
         self.layout.addWidget(self.photo_label, alignment=Qt.AlignCenter)
         self.layout.addStretch()
-        
+
         # Store frame numbers for each particle
         self.particle_frames = {}  # index -> frame_number
         self.particle_positions = {}  # index -> (x, y)
@@ -85,12 +69,12 @@ class ErrantParticleGalleryWidget(QWidget):
         self.frame_nav_layout.addWidget(self.prev_frame_button)
         self.frame_nav_layout.addWidget(self.frame_number_display)
         self.frame_nav_layout.addWidget(self.next_frame_button)
-        
+
         # Add "Show particle on frame" button
         self.show_particle_button = QPushButton("Show particle on frame")
         self.show_particle_button.clicked.connect(self._on_show_particle_clicked)
         self.frame_nav_layout.addWidget(self.show_particle_button)
-        
+
         self.layout.addLayout(self.frame_nav_layout)
 
         # particles directory and files
@@ -119,7 +103,9 @@ class ErrantParticleGalleryWidget(QWidget):
         self.particle_files = self._load_particle_files(self.particles_dir)
         # clamp current index within bounds
         if self.particle_files:
-            self.curr_particle_idx = min(self.curr_particle_idx, len(self.particle_files) - 1)
+            self.curr_particle_idx = min(
+                self.curr_particle_idx, len(self.particle_files) - 1
+            )
         else:
             self.curr_particle_idx = 0
         self._display_particle(self.curr_particle_idx)
@@ -132,7 +118,9 @@ class ErrantParticleGalleryWidget(QWidget):
                 self.particle_files = []
                 self.curr_particle_idx = 0
                 self._display_particle(self.curr_particle_idx)
-                print(f"Cleared errant particle gallery and deleted files in {self.particles_dir}")
+                print(
+                    f"Cleared errant particle gallery and deleted files in {self.particles_dir}"
+                )
             except Exception as e:
                 print(f"Error clearing errant particle gallery: {e}")
 
@@ -158,7 +146,7 @@ class ErrantParticleGalleryWidget(QWidget):
 
             try:
                 basename = os.path.basename(file_path)
-                particle_index = int(basename.split('_')[-1].split('.')[0])
+                particle_index = int(basename.split("_")[-1].split(".")[0])
                 self.errant_particle_selected.emit(particle_index)
             except (ValueError, IndexError):
                 self.errant_particle_selected.emit(-1)
@@ -167,11 +155,13 @@ class ErrantParticleGalleryWidget(QWidget):
             if not pixmap.isNull():
                 self.current_pixmap = pixmap
                 # Fixed 200x200 size - scale to fit
-                scaled = self.current_pixmap.scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                scaled = self.current_pixmap.scaled(
+                    200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                )
                 self.photo_label.setPixmap(scaled)
             else:
                 self.photo_label.setText("Failed to load image")
-            
+
             # Load and display info, extract frame number and position
             info_path = os.path.splitext(file_path)[0] + ".txt"
             frame_num = -1
@@ -179,7 +169,7 @@ class ErrantParticleGalleryWidget(QWidget):
             particle_y = None
             display_text = ""
             if os.path.exists(info_path):
-                with open(info_path, 'r') as f:
+                with open(info_path, "r") as f:
                     info_text = f.read()
                     # Parse frame number and position from metadata (needed for functionality)
                     # But only display mass/min_mass or feature_size/parameter_feature_size
@@ -187,59 +177,63 @@ class ErrantParticleGalleryWidget(QWidget):
                     min_mass = None
                     feature_size = None
                     parameter_feature_size = None
-                    
-                    for line in info_text.split('\n'):
-                        if line.startswith('frame:'):
+
+                    for line in info_text.split("\n"):
+                        if line.startswith("frame:"):
                             try:
-                                frame_num = int(line.split(':')[1].strip())
+                                frame_num = int(line.split(":")[1].strip())
                             except (ValueError, IndexError):
                                 pass
-                        elif line.startswith('x:'):
+                        elif line.startswith("x:"):
                             try:
-                                particle_x = float(line.split(':')[1].strip())
+                                particle_x = float(line.split(":")[1].strip())
                             except (ValueError, IndexError):
                                 pass
-                        elif line.startswith('y:'):
+                        elif line.startswith("y:"):
                             try:
-                                particle_y = float(line.split(':')[1].strip())
+                                particle_y = float(line.split(":")[1].strip())
                             except (ValueError, IndexError):
                                 pass
-                        elif line.startswith('mass:'):
+                        elif line.startswith("mass:"):
                             try:
-                                mass = float(line.split(':')[1].strip())
+                                mass = float(line.split(":")[1].strip())
                             except (ValueError, IndexError):
                                 pass
-                        elif line.startswith('min_mass:'):
+                        elif line.startswith("min_mass:"):
                             try:
-                                min_mass = float(line.split(':')[1].strip())
+                                min_mass = float(line.split(":")[1].strip())
                             except (ValueError, IndexError):
                                 pass
-                        elif line.startswith('feature_size:'):
+                        elif line.startswith("feature_size:"):
                             try:
-                                feature_size = float(line.split(':')[1].strip())
+                                feature_size = float(line.split(":")[1].strip())
                             except (ValueError, IndexError):
                                 pass
-                        elif line.startswith('parameter_feature_size:'):
+                        elif line.startswith("parameter_feature_size:"):
                             try:
-                                parameter_feature_size = float(line.split(':')[1].strip())
+                                parameter_feature_size = float(
+                                    line.split(":")[1].strip()
+                                )
                             except (ValueError, IndexError):
                                 pass
-                    
+
                     # Build display text - only show mass/min_mass or feature_size/parameter_feature_size
                     if mass is not None and min_mass is not None:
                         display_text = f"mass: {mass:.2f}\nmin_mass: {min_mass:.2f}"
-                    elif feature_size is not None and parameter_feature_size is not None:
+                    elif (
+                        feature_size is not None and parameter_feature_size is not None
+                    ):
                         display_text = f"feature_size: {feature_size:.2f}\nparameter_feature_size: {parameter_feature_size:.2f}"
-                    
+
                     self.info_label.setText(display_text)
             else:
                 self.info_label.setText("")
-            
+
             # Store frame number and position for this particle
             self.particle_frames[index] = frame_num
             if particle_x is not None and particle_y is not None:
                 self.particle_positions[index] = (particle_x, particle_y)
-            
+
             # Update background highlighting based on current frame
             self._update_background_highlighting()
 
@@ -251,7 +245,7 @@ class ErrantParticleGalleryWidget(QWidget):
                 self.photo_label.setText("No particle images found")
             self.info_label.setText("")
             self._update_display_text()
-    
+
     def _on_show_particle_clicked(self):
         """Handle click on 'Show particle on frame' button."""
         if 0 <= self.curr_particle_idx < len(self.particle_files):
@@ -264,27 +258,29 @@ class ErrantParticleGalleryWidget(QWidget):
                 self.show_particle_on_frame.emit(frame_num, particle_x, particle_y)
                 # Update background highlighting
                 self._update_background_highlighting()
-    
+
     def set_current_frame(self, frame_number):
         """Set the current frame number for background highlighting."""
         old_frame = self.current_frame_number
         self.current_frame_number = frame_number
-        
+
         # If frame changed (and it wasn't changed by the button), clear highlighted frame
         if old_frame != frame_number and frame_number != self.highlighted_frame:
             self.highlighted_frame = -1
-        
+
         self._update_background_highlighting()
-    
+
     def _update_background_highlighting(self):
         """Update background color based on whether current frame contains an errant particle."""
         # Background should be blue only if:
         # 1. We have a highlighted frame (set by button press)
         # 2. The current frame matches the highlighted frame
         # 3. The displayed particle is from that frame
-        if (self.highlighted_frame >= 0 and 
-            self.current_frame_number == self.highlighted_frame and
-            0 <= self.curr_particle_idx < len(self.particle_files)):
+        if (
+            self.highlighted_frame >= 0
+            and self.current_frame_number == self.highlighted_frame
+            and 0 <= self.curr_particle_idx < len(self.particle_files)
+        ):
             particle_frame = self.particle_frames.get(self.curr_particle_idx, -1)
             if particle_frame == self.highlighted_frame:
                 # Current frame has this errant particle and was highlighted - blue background
@@ -308,7 +304,8 @@ class ErrantParticleGalleryWidget(QWidget):
         if self.current_pixmap is not None and not self.current_pixmap.isNull():
             # Fixed 200x200 size
             scaled = self.current_pixmap.scaled(
-                200, 200,
+                200,
+                200,
                 Qt.KeepAspectRatio,
                 Qt.SmoothTransformation,
             )

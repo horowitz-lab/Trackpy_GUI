@@ -5,7 +5,14 @@ Description: Graphing panel showing the subpixel bias of all particles based on 
 
 """
 
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QMenu
+from PySide6.QtWidgets import (
+    QWidget,
+    QLabel,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+    QMenu,
+)
 from PySide6.QtGui import QAction
 from PySide6.QtCore import Qt
 import matplotlib.pyplot as plt
@@ -13,7 +20,10 @@ from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.figure import Figure
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+sys.path.append(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 from .. import particle_processing
 from ..config_parser import *
 import os
@@ -23,27 +33,28 @@ TARGET_WIDTH_PX = 500
 TARGET_HEIGHT_PX = 400
 STANDARD_DPI = 100
 
+
 class GraphingPanelWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.config_manager = None
         self.file_controller = None
         self.particles = None
-        
+
         # Graph area
         self.layout = QVBoxLayout(self)
-        self.fig = None 
+        self.fig = None
         self.highlighted_button = None
         self.blank_plot("beginning")
 
         self.canvas = FigureCanvas(self.fig)
 
-        self.canvas.setFixedSize(TARGET_WIDTH_PX, TARGET_HEIGHT_PX) 
-        
+        self.canvas.setFixedSize(TARGET_WIDTH_PX, TARGET_HEIGHT_PX)
+
         # Add stretch above the canvas for vertical centering
-        self.layout.addStretch(1) 
+        self.layout.addStretch(1)
         # Center the canvas in the layout
-        self.layout.addWidget(self.canvas, alignment = Qt.AlignCenter) 
+        self.layout.addWidget(self.canvas, alignment=Qt.AlignCenter)
 
         # buttons
         self.graphing_buttons = QWidget()
@@ -53,49 +64,53 @@ class GraphingPanelWidget(QWidget):
         self.sb = QWidget()
         self.sb_layout = QVBoxLayout(self.sb)
         self.sb_label = QLabel("Subpixel Bias")
-        self.sb_layout.addWidget(self.sb_label, alignment = Qt.AlignTop)
+        self.sb_layout.addWidget(self.sb_label, alignment=Qt.AlignTop)
 
-        self.sb_button = QPushButton(text = "Plot Subpixel Bias", parent = self)
+        self.sb_button = QPushButton(text="Plot Subpixel Bias", parent=self)
         self.sb_button.clicked.connect(self.plot_sb)
-        self.sb_layout.addWidget(self.sb_button, alignment = Qt.AlignTop)
-        
+        self.sb_layout.addWidget(self.sb_button, alignment=Qt.AlignTop)
+
         self.button_layout.addWidget(self.sb)
-        self.sb_layout.addStretch(1) 
+        self.sb_layout.addStretch(1)
 
         # filtering
         self.filter = QWidget()
         self.filter_layout = QVBoxLayout(self.filter)
         self.filter_label = QLabel("Filtering")
-        self.filter_layout.addWidget(self.filter_label, alignment = Qt.AlignTop)
+        self.filter_layout.addWidget(self.filter_label, alignment=Qt.AlignTop)
 
-        self.mass_ecc_button = QPushButton(text = "Plot Mass vs Eccentricity", parent = self)
+        self.mass_ecc_button = QPushButton(
+            text="Plot Mass vs Eccentricity", parent=self
+        )
         self.mass_ecc_button.clicked.connect(self.plot_mass_ecc)
-        self.filter_layout.addWidget(self.mass_ecc_button, alignment = Qt.AlignTop)
+        self.filter_layout.addWidget(self.mass_ecc_button, alignment=Qt.AlignTop)
 
-        self.mass_size_button = QPushButton(text = "Plot Mass vs Size", parent = self)
+        self.mass_size_button = QPushButton(text="Plot Mass vs Size", parent=self)
         self.mass_size_button.clicked.connect(self.plot_mass_size)
-        self.filter_layout.addWidget(self.mass_size_button, alignment = Qt.AlignTop)
+        self.filter_layout.addWidget(self.mass_size_button, alignment=Qt.AlignTop)
 
-        self.size_ecc_button = QPushButton(text = "Plot Size vs Eccentricity", parent = self)
+        self.size_ecc_button = QPushButton(
+            text="Plot Size vs Eccentricity", parent=self
+        )
         self.size_ecc_button.clicked.connect(self.plot_size_ecc)
-        self.filter_layout.addWidget(self.size_ecc_button, alignment = Qt.AlignTop)
-        
+        self.filter_layout.addWidget(self.size_ecc_button, alignment=Qt.AlignTop)
+
         self.button_layout.addWidget(self.filter)
-        self.filter_layout.addStretch(1) 
+        self.filter_layout.addStretch(1)
 
         # histograms
         self.hist = QWidget()
         self.hist_layout = QVBoxLayout(self.hist)
         self.hist_label = QLabel("Histograms")
-        self.hist_layout.addWidget(self.hist_label, alignment = Qt.AlignTop)
+        self.hist_layout.addWidget(self.hist_label, alignment=Qt.AlignTop)
 
-        self.ecc_button = QPushButton(text = "Plot Eccentricity", parent = self)
+        self.ecc_button = QPushButton(text="Plot Eccentricity", parent=self)
         self.ecc_button.clicked.connect(self.plot_ecc)
-        self.hist_layout.addWidget(self.ecc_button, alignment = Qt.AlignTop)
+        self.hist_layout.addWidget(self.ecc_button, alignment=Qt.AlignTop)
 
-        self.mass_button = QPushButton(text = "Plot Mass", parent = self)
+        self.mass_button = QPushButton(text="Plot Mass", parent=self)
         self.mass_button.clicked.connect(self.plot_mass)
-        self.hist_layout.addWidget(self.mass_button, alignment = Qt.AlignTop)
+        self.hist_layout.addWidget(self.mass_button, alignment=Qt.AlignTop)
 
         self.button_layout.addWidget(self.hist)
         self.hist_layout.addStretch(1)
@@ -150,22 +165,22 @@ class GraphingPanelWidget(QWidget):
         # self.size_ecc_button = QPushButton(text = "Plot Size vs Eccentricity", parent = self)
         # self.size_ecc_button.clicked.connect(self.plot_size_ecc)
         # self.button_layout.addWidget(self.size_ecc_button, alignment=Qt.AlignLeft)
-        
+
         self.layout.addWidget(self.graphing_buttons)
         # Add stretch below the buttons
-        self.layout.addStretch(1) 
-     
+        self.layout.addStretch(1)
+
     def set_config_manager(self, config_manager):
         """Set the config manager for this widget."""
         self.config_manager = config_manager
-    
+
     def set_file_controller(self, file_controller):
         """Set the file controller for this widget."""
         self.file_controller = file_controller
 
     def get_figure_size_inches(self):
         """Calculates the necessary figsize in inches."""
-        width_in = TARGET_WIDTH_PX / STANDARD_DPI 
+        width_in = TARGET_WIDTH_PX / STANDARD_DPI
         height_in = TARGET_HEIGHT_PX / STANDARD_DPI
         return (width_in, height_in)
 
@@ -180,8 +195,8 @@ class GraphingPanelWidget(QWidget):
         """Creates a new blank figure with the correct size."""
         fig_size = self.get_figure_size_inches()
         if self.fig:
-             plt.close(self.fig)
-             
+            plt.close(self.fig)
+
         # Ensure the blank figure is created with the target size properties
         self.fig = Figure(figsize=fig_size, dpi=STANDARD_DPI)
         ax = self.fig.add_subplot(111)
@@ -196,15 +211,14 @@ class GraphingPanelWidget(QWidget):
         self.particles = particles
         self.plot_sb()
 
-
     def plot_mass(self):
         # 1. Get the new sized figure
         new_fig = self.get_mass_count()
 
-        # 2. Close the old figure 
+        # 2. Close the old figure
         if self.fig and self.fig is not new_fig:
-             plt.close(self.fig)
-        
+            plt.close(self.fig)
+
         if new_fig is None:
             # Handle error/no particles case
             self.blank_plot("error")
@@ -230,21 +244,21 @@ class GraphingPanelWidget(QWidget):
             # Return None if nothing was found
             if self.particles is None or self.particles.empty:
                 print("No particles detected in the selected frame.")
-                return None 
+                return None
 
-            # Create the plot 
+            # Create the plot
             fig, ax = plt.subplots()
-            ax.hist(self.particles['mass'], bins=20)
+            ax.hist(self.particles["mass"], bins=20)
 
             # Label the axes
-            ax.set_xlabel("Mass", fontsize = 20)
-            ax.set_ylabel("Count", fontsize = 20)
+            ax.set_xlabel("Mass", fontsize=20)
+            ax.set_ylabel("Count", fontsize=20)
 
             temp_fig = plt.gcf()
             temp_fig.set_figheight(8)
             temp_fig.set_figwidth(10)
 
-            temp_fig.suptitle("Mass (Brightness)", fontsize = 24)
+            temp_fig.suptitle("Mass (Brightness)", fontsize=24)
 
             return temp_fig
 
@@ -256,10 +270,10 @@ class GraphingPanelWidget(QWidget):
         # 1. Get the new sized figure
         new_fig = self.get_eccentriicity_count()
 
-        # 2. Close the old figure 
+        # 2. Close the old figure
         if self.fig and self.fig is not new_fig:
-             plt.close(self.fig)
-        
+            plt.close(self.fig)
+
         if new_fig is None:
             # Handle error/no particles case
             self.blank_plot("error")
@@ -285,21 +299,21 @@ class GraphingPanelWidget(QWidget):
             # Return None if nothing was found
             if self.particles is None or self.particles.empty:
                 print("No particles detected in the selected frame.")
-                return None 
+                return None
 
-            # Create the plot 
+            # Create the plot
             fig, ax = plt.subplots()
-            ax.hist(self.particles['ecc'], bins=20)
+            ax.hist(self.particles["ecc"], bins=20)
 
             # Label the axes
-            ax.set_xlabel("Eccentricity", fontsize = 20)
-            ax.set_ylabel("Count", fontsize = 20)
+            ax.set_xlabel("Eccentricity", fontsize=20)
+            ax.set_ylabel("Count", fontsize=20)
 
             temp_fig = plt.gcf()
             temp_fig.set_figheight(8)
             temp_fig.set_figwidth(10)
 
-            temp_fig.suptitle("Eccentricity", fontsize = 24)
+            temp_fig.suptitle("Eccentricity", fontsize=24)
 
             return temp_fig
 
@@ -309,13 +323,13 @@ class GraphingPanelWidget(QWidget):
 
     def plot_sb(self):
         # 1. Get the new sized figure
-        
+
         new_fig = self.get_subpixel_bias()
 
-        # 2. Close the old figure 
+        # 2. Close the old figure
         if self.fig and self.fig is not new_fig:
-             plt.close(self.fig)
-        
+            plt.close(self.fig)
+
         if new_fig is None:
             # Handle error/no particles case
             return
@@ -339,17 +353,19 @@ class GraphingPanelWidget(QWidget):
             # Return None if nothing was found
             if self.particles.empty:
                 print("No particles detected in the selected frame.")
-                return None 
+                return None
 
-            # Create the plot 
+            # Create the plot
             tp.subpx_bias(self.particles)
 
             temp_fig = plt.gcf()
-            temp_fig.subplots_adjust(top = 0.900, bottom = 0.100, left = 0.075, right = 0.950, wspace = 0.250)
+            temp_fig.subplots_adjust(
+                top=0.900, bottom=0.100, left=0.075, right=0.950, wspace=0.250
+            )
             temp_fig.set_figheight(8)
             temp_fig.set_figwidth(10)
-            temp_fig.suptitle("Subpixel Bias", fontsize = 24)
-            
+            temp_fig.suptitle("Subpixel Bias", fontsize=24)
+
             # Return the figure instead of the DataFrame
             return temp_fig
 
@@ -361,10 +377,10 @@ class GraphingPanelWidget(QWidget):
         # 1. Get the new sized figure
         new_fig = self.get_mass_size()
 
-        # 2. Close the old figure 
+        # 2. Close the old figure
         if self.fig and self.fig is not new_fig:
-             plt.close(self.fig)
-        
+            plt.close(self.fig)
+
         if new_fig is None:
             # Handle error/no particles case
             return
@@ -388,20 +404,20 @@ class GraphingPanelWidget(QWidget):
             # Check if particles were found before plotting
             if self.particles is None or self.particles.empty:
                 print("No particles detected in the selected frame.")
-                return None # Return None if nothing was found
+                return None  # Return None if nothing was found
 
-            # Create the plot 
+            # Create the plot
             fig, ax = plt.subplots()
-            tp.mass_size(self.particles, ax = ax)
+            tp.mass_size(self.particles, ax=ax)
 
-            ax.set_xlabel("Mass", fontsize = 20)
-            ax.set_ylabel("Size", fontsize = 20)
+            ax.set_xlabel("Mass", fontsize=20)
+            ax.set_ylabel("Size", fontsize=20)
 
             temp_fig = plt.gcf()
             temp_fig.set_figheight(8)
             temp_fig.set_figwidth(10)
-            temp_fig.suptitle("Mass vs Size", fontsize = 24)
-            
+            temp_fig.suptitle("Mass vs Size", fontsize=24)
+
             # Return the figure instead of the DataFrame
             return temp_fig
 
@@ -413,10 +429,10 @@ class GraphingPanelWidget(QWidget):
         # 1. Get the new sized figure
         new_fig = self.get_mass_ecc()
 
-        # 2. Close the old figure 
+        # 2. Close the old figure
         if self.fig and self.fig is not new_fig:
-             plt.close(self.fig)
-        
+            plt.close(self.fig)
+
         if new_fig is None:
             # Handle error/no particles case
             return
@@ -440,20 +456,20 @@ class GraphingPanelWidget(QWidget):
             # Check if particles were found before plotting
             if self.particles is None or self.particles.empty:
                 print("No particles detected in the selected frame.")
-                return None # Return None if nothing was found
+                return None  # Return None if nothing was found
 
-            # Create the plot 
+            # Create the plot
             fig, ax = plt.subplots()
-            tp.mass_ecc(self.particles, ax = ax)
+            tp.mass_ecc(self.particles, ax=ax)
 
-            ax.set_xlabel("Mass", fontsize = 20)
-            ax.set_ylabel("Eccentricity", fontsize = 20)
+            ax.set_xlabel("Mass", fontsize=20)
+            ax.set_ylabel("Eccentricity", fontsize=20)
 
             temp_fig = plt.gcf()
             temp_fig.set_figheight(8)
             temp_fig.set_figwidth(10)
-            temp_fig.suptitle("Mass vs Eccentricity", fontsize = 24)
-            
+            temp_fig.suptitle("Mass vs Eccentricity", fontsize=24)
+
             # Return the figure instead of the DataFrame
             return temp_fig
 
@@ -465,10 +481,10 @@ class GraphingPanelWidget(QWidget):
         # 1. Get the new sized figure
         new_fig = self.get_size_ecc()
 
-        # 2. Close the old figure 
+        # 2. Close the old figure
         if self.fig and self.fig is not new_fig:
-             plt.close(self.fig)
-        
+            plt.close(self.fig)
+
         if new_fig is None:
             # Handle error/no particles case
             return
@@ -492,21 +508,21 @@ class GraphingPanelWidget(QWidget):
             # Check if particles were found before plotting
             if self.particles is None or self.particles.empty:
                 print("No particles detected in the selected frame.")
-                return None # Return None if nothing was found
+                return None  # Return None if nothing was found
 
-            # Create the plot 
+            # Create the plot
             fig, ax = plt.subplots()
-            ax.plot(self.particles['size'], self.particles['ecc'], 'ko', alpha=0.1)
+            ax.plot(self.particles["size"], self.particles["ecc"], "ko", alpha=0.1)
             # tp.mass_ecc(self.particles, ax = ax)
 
-            ax.set_xlabel("Size", fontsize = 20)
-            ax.set_ylabel("Eccentricity", fontsize = 20)
+            ax.set_xlabel("Size", fontsize=20)
+            ax.set_ylabel("Eccentricity", fontsize=20)
 
             temp_fig = plt.gcf()
             temp_fig.set_figheight(8)
             temp_fig.set_figwidth(10)
-            temp_fig.suptitle("Size vs Eccentricity", fontsize = 24)
-            
+            temp_fig.suptitle("Size vs Eccentricity", fontsize=24)
+
             # Return the figure instead of the DataFrame
             return temp_fig
 
