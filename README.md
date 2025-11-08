@@ -44,5 +44,5 @@ You can install the necessary dependencies using either `pip` (with a virtual en
 1.  Ensure your virtual environment or conda environment is active.
 2.  Launch the GUI:
     ```bash
-    python main.py
+    python run.py
     ```
