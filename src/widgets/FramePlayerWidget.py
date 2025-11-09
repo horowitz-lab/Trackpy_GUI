@@ -211,6 +211,36 @@ class FramePlayerWidget(QWidget):
         self.show_annotated = self.annotate_toggle.isChecked()
         self._update_annotations()
 
+    def reload_from_disk(self):
+        """Reload available frames from disk and display the current one."""
+        frames_folder = self.original_frames_folder
+        if self.file_controller:
+            frames_folder = self.file_controller.original_frames_folder
+
+        frame_files = []
+        if frames_folder and os.path.exists(frames_folder):
+            frame_files = sorted(
+                f
+                for f in os.listdir(frames_folder)
+                if f.startswith("frame_") and f.lower().endswith(".jpg")
+            )
+
+        self.total_frames = len(frame_files)
+
+        if self.total_frames > 0:
+            self.frame_slider.setRange(0, self.total_frames - 1)
+            self.current_frame_idx = min(self.current_frame_idx, self.total_frames - 1)
+            self.display_frame(self.current_frame_idx)
+        else:
+            self.current_frame_idx = 0
+            self.frame_label.setPixmap(QPixmap())
+            self.frame_label.setText("No video loaded")
+            self.current_original_pixmap = None
+            self.current_particles_in_frame = None
+
+        self.update_frame_display()
+        return self.total_frames
+
     def display_frame(self, frame_number):
         if not (0 <= frame_number < self.total_frames):
             return
@@ -241,9 +271,7 @@ class FramePlayerWidget(QWidget):
             self.current_original_pixmap = QPixmap(original_frame_path)
 
             if self.file_controller:
-                particle_data = self.file_controller.load_particles_data(
-                    "found_particles.csv"
-                )
+                particle_data = self.file_controller.load_particles_data()
                 if not particle_data.empty:
                     self.current_particles_in_frame = particle_data[
                         particle_data["frame"] == frame_number
