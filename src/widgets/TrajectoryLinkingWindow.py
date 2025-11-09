@@ -245,5 +245,8 @@ class TrajectoryLinkingWindow(QMainWindow):
 
     def go_back_to_detection(self):
         """Emit signal to switch back to particle detection window."""
-        # The controller will handle the actual window switching
-        pass
+        if hasattr(self, "frame_player") and self.frame_player:
+            self.frame_player.reset_state()
+        if hasattr(self, "errant_particle_gallery") and self.errant_particle_gallery:
+            self.errant_particle_gallery.reset_state()
+        self.goBackToDetection.emit()

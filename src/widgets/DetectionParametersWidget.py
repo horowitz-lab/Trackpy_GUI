@@ -257,6 +257,10 @@ class DetectionParametersWidget(QWidget):
         self.file_controller = file_controller
         self._refresh_processed_frames()
 
+    def refresh_from_disk(self):
+        """Refresh cached detection progress based on existing particle data."""
+        self._refresh_processed_frames()
+
     def clear_processed_frames(self):
         particles_file = self._particles_file_path()
         if particles_file and os.path.exists(particles_file):
@@ -275,6 +279,11 @@ class DetectionParametersWidget(QWidget):
         self.set_all_frames()
 
     def set_all_frames(self):
+        if self.total_frames <= 0:
+            self.start_frame_input.setValue(1)
+            self.end_frame_input.setValue(1)
+            self.step_frame_input.setValue(1)
+            return
         self.start_frame_input.setValue(1)
         self.end_frame_input.setValue(self.total_frames)
         self.step_frame_input.setValue(1)
@@ -296,12 +305,21 @@ class DetectionParametersWidget(QWidget):
         feature_size = int(self.feature_size_input.value())
         if feature_size % 2 == 0:
             feature_size += 1
+        existing = get_detection_params()
+        existing_params = {
+            "feature_size": int(existing.get("feature_size", 15)),
+            "min_mass": float(existing.get("min_mass", 100.0)),
+            "invert": bool(existing.get("invert", False)),
+            "threshold": float(existing.get("threshold", 0.0)),
+        }
         params = {
             "feature_size": feature_size,
             "min_mass": float(self.min_mass_input.value()),
             "invert": bool(self.invert_input.isChecked()),
             "threshold": float(self.threshold_input.value()),
         }
+        if params == existing_params:
+            return
         save_detection_params(params)
         self.parameter_changed.emit()  # Emit the signal here
 
@@ -392,6 +410,35 @@ class DetectionParametersWidget(QWidget):
         self.progress_display.setText("Finished current detection run.")
 
     def next_step(self):
+        self.save_params()
+        particles_df = self._load_all_particles_df()
+        self._refresh_processed_frames()
+
+        if particles_df is not None and not particles_df.empty:
+            self.particlesUpdated.emit(particles_df)
+
+            missing = sorted(
+                self._get_available_frame_numbers() - self.processed_frames
+            )
+            if missing:
+                preview = ", ".join(str(num) for num in missing[:5])
+                if len(missing) > 5:
+                    preview += ", ..."
+                self.progress_display.setText(
+                    f"Continuing with available particles (missing frames: {preview})"
+                )
+            else:
+                self.progress_display.setText(
+                    "All selected frames processed. Continuing to trajectory linking."
+                )
+
+            self.openTrajectoryLinking.emit()
+            return
+
+        # No particle data yet—process selected frames before proceeding.
+        self.progress_display.setText(
+            "No particle data found. Detecting particles in selected frames..."
+        )
         self.detect_all_frames()
 
     def detect_all_frames(self):
@@ -448,22 +495,28 @@ class DetectionParametersWidget(QWidget):
             else:
                 self.particlesUpdated.emit(pd.DataFrame())
 
-            if self._all_frames_have_particles():
-                self.progress_display.setText("All frames already processed.")
-                self.openTrajectoryLinking.emit()
-            else:
-                missing = sorted(
-                    self._get_available_frame_numbers() - self.processed_frames
+            if all_particles_df.empty:
+                self.progress_display.setText(
+                    "No particle data available. Run 'Find Particles' first."
                 )
-                if missing:
-                    preview = ", ".join(str(num) for num in missing[:5])
-                    if len(missing) > 5:
-                        preview += ", ..."
-                    self.progress_display.setText(
-                        f"Particles missing for frames: {preview}"
-                    )
-                else:
-                    self.progress_display.setText("No new frames to process.")
+                return
+
+            missing = sorted(
+                self._get_available_frame_numbers() - self.processed_frames
+            )
+            if missing:
+                preview = ", ".join(str(num) for num in missing[:5])
+                if len(missing) > 5:
+                    preview += ", ..."
+                self.progress_display.setText(
+                    f"Particles missing for frames: {preview} (proceeding with available data)"
+                )
+            else:
+                self.progress_display.setText(
+                    "All selected frames already processed. Proceeding to linking."
+                )
+
+            self.openTrajectoryLinking.emit()
             return
 
         self.save_button.setEnabled(False)
@@ -494,22 +547,24 @@ class DetectionParametersWidget(QWidget):
         else:
             self.particlesUpdated.emit(pd.DataFrame())
 
-        if self._all_frames_have_particles():
-            self.progress_display.setText("Finished processing all frames.")
-            self.openTrajectoryLinking.emit()
-        else:
-            missing = sorted(
-                self._get_available_frame_numbers() - self.processed_frames
+        if all_particles_df.empty:
+            self.progress_display.setText(
+                "Finished detection but no particle data was saved."
             )
-            if missing:
-                preview = ", ".join(str(num) for num in missing[:5])
-                if len(missing) > 5:
-                    preview += ", ..."
-                self.progress_display.setText(
-                    f"Particles missing for frames: {preview}"
-                )
-            else:
-                self.progress_display.setText("Finished processing selected frames.")
+            return
+
+        missing = sorted(self._get_available_frame_numbers() - self.processed_frames)
+        if missing:
+            preview = ", ".join(str(num) for num in missing[:5])
+            if len(missing) > 5:
+                preview += ", ..."
+            self.progress_display.setText(
+                f"Particles missing for frames: {preview} (proceeding with available data)"
+            )
+        else:
+            self.progress_display.setText("Finished processing selected frames.")
+
+        self.openTrajectoryLinking.emit()
 
     def _get_data_folder(self) -> str:
         if self.file_controller:
@@ -606,14 +661,6 @@ class DetectionParametersWidget(QWidget):
                 except (ValueError, IndexError):
                     continue
         return frame_numbers
-
-    def _all_frames_have_particles(self) -> bool:
-        available_frames = self._get_available_frame_numbers()
-        if not available_frames:
-            return False
-        if not self.processed_frames:
-            self._refresh_processed_frames()
-        return available_frames.issubset(self.processed_frames)
 
     def open_trajectory_linking(self):
         self.openTrajectoryLinking.emit()
