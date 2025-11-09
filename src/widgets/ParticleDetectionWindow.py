@@ -216,7 +216,7 @@ class ParticleDetectionWindow(QMainWindow):
         if not particles_df.empty and self.main_layout.left_panel:
             self.main_layout.left_panel.set_particles(particles_df)
         elif self.main_layout.left_panel:
-            self.main_layout.left_panel.blank_plot("beginning")
+            self.main_layout.left_panel.blank_plot()
 
         # Update frame/errant displays as if particles were just detected
         self.on_particles_updated(particles_df)
