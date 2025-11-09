@@ -46,3 +46,4 @@ You can install the necessary dependencies using either `pip` (with a virtual en
     ```bash
     python run.py
     ```
+3.  ![Usage Diagram](assets/usage_iagram.png)
