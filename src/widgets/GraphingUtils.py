@@ -259,3 +259,4 @@ class GraphingPanelWidget(QWidget):
         except Exception as e:
             print(f"Error in particle locating or plotting: {e}")
             return None
+

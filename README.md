@@ -1,6 +1,6 @@
 # Particle Tracking GUI
 
-This project is a workflow facilitator for particle detection and tracking with `trackpy`. It streamlines the process from raw microscopy videos through detection, linking, review, and export, presenting parameter controls, diagnostics, and visualization galleries (including enhanced red-blue link overlays) in a single PySide6 desktop application so students can iterate quickly without writing scripts.
+This project is a workflow facilitator for particle detection and tracking with `trackpy`. It streamlines the process from raw microscopy videos through detection, linking, review, and export, presenting parameter controls, diagnostics, and visualization galleries (including enhanced red-blue link overlays) in a single PySide6 desktop application so students can find data quickly without writing scripts.
 
 ---
 ## Installation
@@ -46,3 +46,6 @@ You can install the necessary dependencies using either `pip` (with a virtual en
     ```bash
     python run.py
     ```
+3.  Follow usage diagram:
+
+![Usage Diagram](assets/usage_diagram.png)

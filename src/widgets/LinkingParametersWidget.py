@@ -42,6 +42,7 @@ class LinkingParametersWidget(QWidget):
         self.config_manager = None
         self.file_controller = None
         self.trajectory_plotting = trajectory_plotting
+        self.subtract_drift = False
 
         # Store detected particles and linked trajectories
         self.detected_particles = None
