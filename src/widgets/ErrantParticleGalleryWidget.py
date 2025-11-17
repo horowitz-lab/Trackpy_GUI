@@ -10,6 +10,7 @@ import os
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
+    QCheckBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -76,12 +77,12 @@ class ErrantParticleGalleryWidget(QWidget):
         self.frame_nav_layout.addWidget(self.frame_number_display)
         self.frame_nav_layout.addWidget(self.next_frame_button)
 
-        # Add "Show particle on frame" button
-        self.show_particle_button = QPushButton("Show particle on frame")
-        self.show_particle_button.clicked.connect(
-            self._on_show_particle_clicked
+        # Add "Show particle on frame" checkbox
+        self.show_particle_checkbox = QCheckBox("Show particle on frame")
+        self.show_particle_checkbox.stateChanged.connect(
+            self._on_show_particle_checkbox_changed
         )
-        self.frame_nav_layout.addWidget(self.show_particle_button)
+        self.frame_nav_layout.addWidget(self.show_particle_checkbox)
 
         self.layout.addLayout(self.frame_nav_layout)
 
@@ -262,6 +263,10 @@ class ErrantParticleGalleryWidget(QWidget):
             self._update_background_highlighting()
 
             self._update_display_text()
+
+            # If checkbox is checked, show the particle on the frame
+            if self.show_particle_checkbox.isChecked():
+                self._show_particle_on_frame()
         else:
             self.errant_particle_selected.emit(-1)
             # out of bounds or no files
@@ -270,8 +275,13 @@ class ErrantParticleGalleryWidget(QWidget):
             self.info_label.setText("")
             self._update_display_text()
 
-    def _on_show_particle_clicked(self):
-        """Handle click on 'Show particle on frame' button."""
+    def _on_show_particle_checkbox_changed(self, state):
+        """Handle state change of 'Show particle on frame' checkbox."""
+        if state == Qt.Checked:
+            self._show_particle_on_frame()
+
+    def _show_particle_on_frame(self):
+        """Show the current particle on its frame."""
         if 0 <= self.curr_particle_idx < len(self.particle_files):
             frame_num = self.particle_frames.get(self.curr_particle_idx, -1)
             position = self.particle_positions.get(
