@@ -240,4 +240,4 @@ class TrajectoryLinkingWindow(QMainWindow):
             hasattr(self, "errant_particle_gallery")
             and self.errant_particle_gallery
         ):
-            self.errant_particle_gallery.reset_state()\
+            self.errant_particle_gallery.reset_state()
