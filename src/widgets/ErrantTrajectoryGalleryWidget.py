@@ -92,14 +92,9 @@ class ErrantTrajectoryGalleryWidget(QWidget):
         # RB gallery directory and files (will be set via dependency injection)
         self.rb_gallery_dir = None
         self.rb_gallery_files = []  # All files
-        self.filtered_gallery_files = (
-            []
-        )  # Files filtered by current frame pair
         self.current_pixmap = None
         self.original_frames_folder = None
-        self.current_frame_pair = (
-            None  # (frame_i, frame_i1) for current filter
-        )
+        # (frame_i, frame_i1) for current filter
 
         # Show initial trajectory if available
         self._display_trajectory(self.curr_trajectory_idx)
@@ -135,13 +130,12 @@ class ErrantTrajectoryGalleryWidget(QWidget):
             self.rb_gallery_files = self._load_rb_gallery_files(
                 self.rb_gallery_dir
             )
-            self._filter_by_frame_pair(self.current_frame_pair)
             self.curr_trajectory_idx = (
                 min(
                     self.curr_trajectory_idx,
-                    len(self.filtered_gallery_files) - 1,
+                    len(self.rb_gallery_files) - 1,
                 )
-                if self.filtered_gallery_files
+                if self.rb_gallery_files
                 else 0
             )
             self._display_trajectory(self.curr_trajectory_idx)
@@ -164,8 +158,8 @@ class ErrantTrajectoryGalleryWidget(QWidget):
 
     def _display_trajectory(self, index):
         """Update UI to display RB overlay image and index if within bounds."""
-        if 0 <= index < len(self.filtered_gallery_files):
-            file_path = self.filtered_gallery_files[index]
+        if 0 <= index < len(self.rb_gallery_files):
+            file_path = self.rb_gallery_files[index]
 
             # Try to regenerate image with current threshold, otherwise load from file
             regenerated_pixmap = self._regenerate_current_image(index)
@@ -205,18 +199,13 @@ class ErrantTrajectoryGalleryWidget(QWidget):
             self._update_display_text()
         else:
             # Out of bounds or no files
-            if not self.filtered_gallery_files:
-                if self.current_frame_pair:
-                    self.photo_label.setText(
-                        f"No RB overlay images found for frames {self.current_frame_pair[0]}-{self.current_frame_pair[1]}"
-                    )
-                else:
-                    self.photo_label.setText("No RB overlay images found")
+            if not self.rb_gallery_files:
+                self.photo_label.setText("No RB overlay images found")
             self.info_label.setText("")
             self._update_display_text()
 
     def _update_display_text(self):
-        total = len(self.filtered_gallery_files)
+        total = len(self.rb_gallery_files)
         text = f"{self.curr_trajectory_idx} / {total}"
         # Avoid recursive signals while editing
         old_block = self.trajectory_display.blockSignals(True)
@@ -237,7 +226,7 @@ class ErrantTrajectoryGalleryWidget(QWidget):
             # Restore correct text
             self._update_display_text()
             return
-        total = len(self.filtered_gallery_files)
+        total = len(self.rb_gallery_files)
         if total == 0:
             self._update_display_text()
             return
@@ -252,9 +241,9 @@ class ErrantTrajectoryGalleryWidget(QWidget):
 
     def next_trajectory(self):
         """Advance to the next trajectory and update display."""
-        if not self.filtered_gallery_files:
+        if not self.rb_gallery_files:
             return
-        if self.curr_trajectory_idx < len(self.filtered_gallery_files) - 1:
+        if self.curr_trajectory_idx < len(self.rb_gallery_files) - 1:
             self.curr_trajectory_idx += 1
             self._display_trajectory(self.curr_trajectory_idx)
         else:
@@ -263,7 +252,7 @@ class ErrantTrajectoryGalleryWidget(QWidget):
 
     def prev_trajectory(self):
         """Go to the previous trajectory and update display."""
-        if not self.filtered_gallery_files:
+        if not self.rb_gallery_files:
             return
         if self.curr_trajectory_idx > 0:
             self.curr_trajectory_idx -= 1
@@ -283,12 +272,10 @@ class ErrantTrajectoryGalleryWidget(QWidget):
             )
         else:
             self.rb_gallery_files = []
-        # Filter by current frame pair if set
-        self._filter_by_frame_pair(self.current_frame_pair)
         # Clamp current index within bounds
-        if self.filtered_gallery_files:
+        if self.rb_gallery_files:
             self.curr_trajectory_idx = min(
-                self.curr_trajectory_idx, len(self.filtered_gallery_files) - 1
+                self.curr_trajectory_idx, len(self.rb_gallery_files) - 1
             )
         else:
             self.curr_trajectory_idx = 0
@@ -306,66 +293,16 @@ class ErrantTrajectoryGalleryWidget(QWidget):
         self._update_rb_gallery_path()
         self._display_trajectory(self.curr_trajectory_idx)
 
-    def _filter_by_frame_pair(self, frame_pair):
-        """
-        Filter gallery files by frame pair.
-
-        Parameters
-        ----------
-        frame_pair : tuple or None
-            (frame_i, frame_i1) to filter by. If None, shows all files.
-        """
-        self.current_frame_pair = frame_pair
-
-        if frame_pair is None:
-            # Show all files if no frame pair is set
-            self.filtered_gallery_files = self.rb_gallery_files.copy()
-            return
-
-        frame_i, frame_i1 = frame_pair
-
-        # Filter files by parsing filename
-        # Format: particle_{id}_link_{frame_i}_to_{frame_i1}_rb_overlay.png
-        self.filtered_gallery_files = []
-        for file_path in self.rb_gallery_files:
-            filename = os.path.basename(file_path)
-            # Extract frame numbers from filename
-            try:
-                # Format: particle_{id}_link_{frame_i}_to_{frame_i1}_rb_overlay.png
-                if f"_link_{frame_i}_to_{frame_i1}_rb_overlay" in filename:
-                    self.filtered_gallery_files.append(file_path)
-            except:
-                continue
-
-        # Sort filtered files
-        self.filtered_gallery_files.sort()
-
-    def set_frame_pair_filter(self, frame_i, frame_i1):
-        """
-        Set the frame pair filter and update the gallery display.
-
-        Parameters
-        ----------
-        frame_i : int
-            First frame number
-        frame_i1 : int
-            Second frame number (frame_i + 1)
-        """
-        self._filter_by_frame_pair((frame_i, frame_i1))
-        # Reset to first item in filtered list
-        self.curr_trajectory_idx = 0
-        self._display_trajectory(self.curr_trajectory_idx)
-
     def _regenerate_current_image(self, index):
         """Regenerate RB overlay image for current index with current threshold setting."""
-        if index < 0 or index >= len(self.filtered_gallery_files):
+        if index < 0 or index >= len(self.rb_gallery_files):
             return None
 
         if not self.original_frames_folder:
             return None
 
         # Parse filename to get particle info
-        file_path = self.filtered_gallery_files[index]
+        file_path = self.rb_gallery_files[index]
         base_name = os.path.basename(file_path)
         # Format: particle_{id}_link_{frame_i}_to_{frame_i1}_rb_overlay.png
 
@@ -502,17 +439,3 @@ class ErrantTrajectoryGalleryWidget(QWidget):
             print(f"Error regenerating image: {e}")
 
         return None
-
-    def resizeEvent(self, event):
-        """Ensure the currently shown image keeps aspect ratio on resize."""
-        super().resizeEvent(event)
-        if (
-            self.current_pixmap is not None
-            and not self.current_pixmap.isNull()
-        ):
-            scaled = self.current_pixmap.scaled(
-                self.photo_label.size(),
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation,
-            )
-            self.photo_label.setPixmap(scaled)

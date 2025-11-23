@@ -917,17 +917,9 @@ def create_rb_gallery(
             # Calculate deviation from expected
             deviation = max(0, jump_dist - search_range)
 
-            # Frame gap
-            frame_gap = next_p["frame"] - curr["frame"]
-
-            # Score for this individual link
-            # Higher score = worse link (more deviation from expected parameters)
-            excess_gap = (
-                max(0, (frame_gap - 1) - memory) if frame_gap > 1 else 0
-            )
-            link_score = (
-                (jump_dist - search_range) * 10 + deviation + excess_gap * 5
-            )
+            # Score for this individual link (higher score = worse link)
+            # Based solely on jump distance deviation
+            link_score = deviation
 
             # Skip if link_score is NaN or invalid
             if np.isnan(link_score) or not np.isfinite(link_score):
@@ -939,7 +931,6 @@ def create_rb_gallery(
                 "score": link_score,
                 "jump_dist": jump_dist,
                 "deviation": deviation,
-                "frame_gap": frame_gap,
                 "frame_i": int(curr["frame"]),
                 "frame_i1": int(next_p["frame"]),
                 "x_i": curr["x"],
@@ -956,32 +947,13 @@ def create_rb_gallery(
     print(f"📊 Particles skipped (no valid links): {particles_without_links}")
     print(f"📊 Total links collected: {len(all_links)}")
 
-    # Group links by frame pair (frame_i, frame_i1)
-    from collections import defaultdict
+    # Sort all links by score (worst first)
+    all_links.sort(key=lambda x: x["score"], reverse=True)
 
-    links_by_frame_pair = defaultdict(list)
-    for link in all_links:
-        frame_pair = (link["frame_i"], link["frame_i1"])
-        links_by_frame_pair[frame_pair].append(link)
+    # Take top N worst links overall
+    top_links = all_links[:max_displays]
 
-    print(f"📊 Found {len(links_by_frame_pair)} unique frame pairs")
-
-    # For each frame pair, get top N worst links
-    top_links = []
-    for frame_pair, links in links_by_frame_pair.items():
-        # Sort links by score (worst first)
-        links.sort(key=lambda x: x["score"], reverse=True)
-        # Take top N worst links for this frame pair
-        top_links_for_pair = links[:max_displays]
-        top_links.extend(top_links_for_pair)
-        print(
-            f"  Frame pair {frame_pair[0]}->{frame_pair[1]}: {len(links)} total links, selected top {len(top_links_for_pair)} worst"
-        )
-
-    # Sort all selected links by score for consistent ordering
-    top_links.sort(key=lambda x: x["score"], reverse=True)
-
-    print(f"📊 Total links selected across all frame pairs: {len(top_links)}")
+    print(f"📊 Total links selected (top {max_displays} overall): {len(top_links)}")
     if len(top_links) == 0:
         print(
             "   ⚠️  WARNING: No links found! Check if trajectories have at least 2 frames each."
@@ -1087,25 +1059,9 @@ def create_rb_gallery(
                     f"Jump distance ({link_info['jump_dist']:.2f} px) is within search_range ({search_range} px)"
                 )
 
-            if link_info["frame_gap"] > 1:
-                gap_violations = (
-                    link_info["frame_gap"] - 1
-                )  # Frames the particle disappeared
-                if gap_violations > memory:
-                    excess_gap = gap_violations - memory
-                    issues.append(
-                        f"Frame gap ({link_info['frame_gap']} frames, {gap_violations} disappearances) exceeds memory ({memory} frames) by {excess_gap} frames"
-                    )
-                else:
-                    issues.append(
-                        f"Frame gap ({link_info['frame_gap']} frames, {gap_violations} disappearances) is within memory ({memory} frames)"
-                    )
-            else:
-                issues.append(f"No frame gap (consecutive frames)")
-
             # Save metadata with detailed information (including positions for regeneration)
             metadata_text = f"""PARTICLE ID: {link_info['particle_id']}
-FRAME TRANSITION: {frame_i} → {frame_i+1}
+FRAME TRANSITION: {frame_i} → {frame_i1}
 
 POSITION (Frame {frame_i}): x={link_info['x_i']:.2f}, y={link_info['y_i']:.2f}
 POSITION (Frame {frame_i1}): x={link_info['x_i1']:.2f}, y={link_info['y_i1']:.2f}
@@ -1117,9 +1073,7 @@ METRICS:
 Jump Distance: {link_info['jump_dist']:.2f} pixels
 Search Range: {search_range} pixels
 Deviation: {link_info['deviation']:.2f} pixels (jump_distance - search_range)
-Frame Gap: {link_info['frame_gap']} frames
-Memory: {memory} frames
-Link Score: {link_info['score']:.2f} (higher = worse)"""
+Link Score: {link_info['score']:.2f} (higher = worse, based on jump distance deviation)"""
 
             # Save .txt file
             metadata_filename = os.path.join(
