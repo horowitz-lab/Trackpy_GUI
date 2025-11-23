@@ -126,9 +126,7 @@ class ParticleDetectionWindow(QMainWindow):
         self.main_layout.addWidget(self.main_layout.middle_panel)
 
         # Right Panel
-        self.main_layout.right_panel = DetectionParametersWidget(
-            self.main_layout.left_panel
-        )
+        self.main_layout.right_panel = DetectionParametersWidget(self.main_layout.left_panel)
         self.right_layout = QVBoxLayout(self.main_layout.right_panel)
         self.main_layout.addWidget(self.main_layout.right_panel)
 
@@ -200,10 +198,7 @@ class ParticleDetectionWindow(QMainWindow):
                 print(f"Error loading particle data: {e}")
                 particles_df = pd.DataFrame()
 
-        if not particles_df.empty and self.main_layout.left_panel:
-            self.main_layout.left_panel.set_particles(particles_df)
-        elif self.main_layout.left_panel:
-            self.main_layout.left_panel.blank_plot()
+        self.main_layout.left_panel.blank_plot()
 
         # Update frame/errant displays as if particles were just detected
         self.on_particles_updated(particles_df)

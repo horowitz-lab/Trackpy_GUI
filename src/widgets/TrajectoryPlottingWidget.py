@@ -98,12 +98,10 @@ class TrajectoryPlottingWidget(GraphingPanelWidget):
             d = tp.compute_drift(self.data)
             ax = d.plot()
 
-            ax.set_xlabel("Frame", fontsize=20)
+            ax.set_xlabel("Frame")
 
             temp_fig = plt.gcf()
-            temp_fig.set_figheight(8)
-            temp_fig.set_figwidth(10)
-            temp_fig.suptitle("Drift", fontsize=24)
+            temp_fig.suptitle("Drift")
 
             # Return the figure instead of the DataFrame
             return temp_fig
@@ -126,13 +124,11 @@ class TrajectoryPlottingWidget(GraphingPanelWidget):
             fig, ax = plt.subplots()
             tp.plot_traj(self.data, ax=ax)
 
-            ax.set_xlabel("X [px]", fontsize=20)
-            ax.set_ylabel("Y [px]", fontsize=20)
+            ax.set_xlabel("X [px]")
+            ax.set_ylabel("Y [px]")
 
             temp_fig = plt.gcf()
-            temp_fig.set_figheight(8)
-            temp_fig.set_figwidth(10)
-            temp_fig.suptitle("Trajectories", fontsize=24)
+            temp_fig.suptitle("Trajectories")
 
             # Return the figure instead of the DataFrame
             return temp_fig
