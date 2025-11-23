@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QAction
 from PySide6.QtCore import Qt
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.figure import Figure
@@ -26,6 +27,11 @@ TARGET_WIDTH_PX = 500
 TARGET_HEIGHT_PX = 400
 STANDARD_DPI = 100
 
+# Universal grphing label sizes
+matplotlib.rc('xtick', labelsize=20) 
+matplotlib.rc('ytick', labelsize=20)
+matplotlib.rc('axes', titlesize=22, labelsize=22)
+matplotlib.rc('figure', titlesize=25, figsize=(10, 8), dpi=STANDARD_DPI)
 
 class GraphingButton(QPushButton):
     """Button for graphing controls with highlight state management."""
@@ -126,11 +132,12 @@ class GraphingPanelWidget(QWidget):
     def blank_plot(self):
         """Create a new blank figure with the correct size."""
         fig_size = self.get_figure_size_inches()
+
         if self.fig:
             plt.close(self.fig)
 
         # Ensure the blank figure is created with the target size properties
-        self.fig = Figure(figsize=fig_size, dpi=STANDARD_DPI)
+        self.fig = Figure()
         ax = self.fig.add_subplot(111)
         ax.set_axis_off()
 
@@ -263,13 +270,11 @@ class GraphingPanelWidget(QWidget):
             else:
                 tp.mass_size(self.data.groupby(["particle"]).mean(), ax=ax)
 
-            ax.set_xlabel("Mass", fontsize=20)
-            ax.set_ylabel("Size", fontsize=20)
+            ax.set_xlabel("Mass")
+            ax.set_ylabel("Size")
 
             temp_fig = plt.gcf()
-            temp_fig.set_figheight(8)
-            temp_fig.set_figwidth(10)
-            temp_fig.suptitle("Mass vs Size", fontsize=24)
+            temp_fig.suptitle("Mass vs Size")
 
             # Return the figure instead of the DataFrame
             return temp_fig
@@ -306,13 +311,11 @@ class GraphingPanelWidget(QWidget):
             else:
                 tp.mass_ecc(self.data.groupby(["particle"]).mean(), ax=ax)
 
-            ax.set_xlabel("Mass", fontsize=20)
-            ax.set_ylabel("Eccentricity", fontsize=20)
+            ax.set_xlabel("Mass")
+            ax.set_ylabel("Eccentricity")
 
             temp_fig = plt.gcf()
-            temp_fig.set_figheight(8)
-            temp_fig.set_figwidth(10)
-            temp_fig.suptitle("Mass vs Eccentricity", fontsize=24)
+            temp_fig.suptitle("Mass vs Eccentricity")
 
             # Return the figure instead of the DataFrame
             return temp_fig
@@ -352,13 +355,11 @@ class GraphingPanelWidget(QWidget):
                     grouped_data["size"], grouped_data["ecc"], "ko", alpha=0.1
                 )
 
-            ax.set_xlabel("Size", fontsize=20)
-            ax.set_ylabel("Eccentricity", fontsize=20)
+            ax.set_xlabel("Size")
+            ax.set_ylabel("Eccentricity")
 
             temp_fig = plt.gcf()
-            temp_fig.set_figheight(8)
-            temp_fig.set_figwidth(10)
-            temp_fig.suptitle("Size vs Eccentricity", fontsize=24)
+            temp_fig.suptitle("Size vs Eccentricity")
 
             # Return the figure instead of the DataFrame
             return temp_fig

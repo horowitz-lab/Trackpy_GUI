@@ -518,7 +518,7 @@ class DetectionParametersWidget(QWidget):
                 self.progress_display.setText(
                     "All selected frames processed. Continuing to trajectory linking."
                 )
-
+            self.graphing_panel.blank_plot
             self.openTrajectoryLinking.emit()
             return
 

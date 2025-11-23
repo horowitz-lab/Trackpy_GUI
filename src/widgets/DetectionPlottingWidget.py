@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QPushButton,
     QMenu,
+    QSpinBox,
+    QFormLayout
 )
 from PySide6.QtGui import QAction
 from PySide6.QtCore import Qt
@@ -23,8 +25,7 @@ import os
 from copy import copy
 from .. import particle_processing
 
-from .GraphingUtils import *
-
+from .GraphingUtils import * 
 
 class DectectionPlottingWidget(GraphingPanelWidget):
     def __init__(self, parent=None):
@@ -74,6 +75,20 @@ class DectectionPlottingWidget(GraphingPanelWidget):
         )
         self.hist_layout.addWidget(self.mass_button, alignment=Qt.AlignTop)
 
+        # Default number of bins for histograms
+        self.bins = 20
+        self.hist_bin_row = QFormLayout()
+        # Allow user to select bin number for histograms
+        self.hist_bins = QSpinBox(value=self.bins)
+        self.hist_bins.setRange(1, 50)
+        self.hist_bins.setToolTip(
+            "Number of bins for the histograms."
+        )
+
+        self.hist_bin_row.addRow("Bins: ", self.hist_bins)
+        self.hist_layout.addLayout(self.hist_bin_row)
+        self.hist_bins.valueChanged.connect(self.update_bins)
+
         self.button_layout.addWidget(self.hist)
         self.hist_layout.addStretch(1)
 
@@ -85,6 +100,9 @@ class DectectionPlottingWidget(GraphingPanelWidget):
         """Sets paritcle data and plots subpixel bias."""
         self.data = particles
         self.self_plot(self.get_subpixel_bias, self.sb_button)
+
+    def update_bins(self, value):
+        self.bins = value
 
     def get_mass_count(self, page=None):
         """Creates a histogram of all current particles mass."""
@@ -98,17 +116,15 @@ class DectectionPlottingWidget(GraphingPanelWidget):
 
             # Create the plot
             fig, ax = plt.subplots()
-            ax.hist(self.data["mass"], bins=20)
+            ax.hist(self.data["mass"], bins=self.bins)
 
             # Label the axes
-            ax.set_xlabel("Mass", fontsize=20)
-            ax.set_ylabel("Count", fontsize=20)
+            ax.set_xlabel("Mass")
+            ax.set_ylabel("Count")
 
             temp_fig = plt.gcf()
-            temp_fig.set_figheight(8)
-            temp_fig.set_figwidth(10)
 
-            temp_fig.suptitle("Mass (Brightness)", fontsize=24)
+            temp_fig.suptitle("Mass (Brightness)")
 
             return temp_fig
 
@@ -128,17 +144,15 @@ class DectectionPlottingWidget(GraphingPanelWidget):
 
             # Create the plot
             fig, ax = plt.subplots()
-            ax.hist(self.data["ecc"], bins=20)
+            ax.hist(self.data["ecc"], bins=self.bins)
 
             # Label the axes
-            ax.set_xlabel("Eccentricity", fontsize=20)
-            ax.set_ylabel("Count", fontsize=20)
+            ax.set_xlabel("Eccentricity")
+            ax.set_ylabel("Count")
 
             temp_fig = plt.gcf()
-            temp_fig.set_figheight(8)
-            temp_fig.set_figwidth(10)
 
-            temp_fig.suptitle("Eccentricity", fontsize=24)
+            temp_fig.suptitle("Eccentricity")
 
             return temp_fig
 
@@ -161,11 +175,9 @@ class DectectionPlottingWidget(GraphingPanelWidget):
 
             temp_fig = plt.gcf()
             temp_fig.subplots_adjust(
-                top=0.900, bottom=0.100, left=0.075, right=0.950, wspace=0.250
+                top=0.900, bottom=0.100, left=0.090, right=0.950, wspace=0.250
             )
-            temp_fig.set_figheight(8)
-            temp_fig.set_figwidth(10)
-            temp_fig.suptitle("Subpixel Bias", fontsize=24)
+            temp_fig.suptitle("Subpixel Bias")
 
             # Return the figure instead of the DataFrame
             return temp_fig
