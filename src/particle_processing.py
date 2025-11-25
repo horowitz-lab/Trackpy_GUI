@@ -747,34 +747,48 @@ def create_rb_overlay_image(
     )  # White background
 
     # Create colored versions for overlay
-    # Frame 1 (frame_i): Blue particles
-    # Frame 2 (frame_i1): Red particles
+    # Frame 1 (frame_i): Red particles
+    # Frame 2 (frame_i1): Blue particles
 
-    # Create blue image for frame 1: dark pixels (particles) become blue
-    # In BGR format: blue = [255, 0, 0] (B=255, G=0, R=0)
-    blue_overlay = rb_overlay.copy()
-    particle_mask1 = thresh1 == 0  # Dark pixels are particles
-    blue_overlay[particle_mask1, 0] = 255  # B channel (blue)
-    blue_overlay[particle_mask1, 1] = 0  # G channel
-    blue_overlay[particle_mask1, 2] = 0  # R channel
-
-    # Create red image for frame 2: dark pixels (particles) become red
+    # Create red image for frame 1: dark pixels (particles) become red
     # In BGR format: red = [0, 0, 255] (B=0, G=0, R=255)
     red_overlay = rb_overlay.copy()
-    particle_mask2 = thresh2 == 0  # Dark pixels are particles
-    red_overlay[particle_mask2, 0] = 0  # B channel
-    red_overlay[particle_mask2, 1] = 0  # G channel
-    red_overlay[particle_mask2, 2] = 255  # R channel (red)
+    particle_mask1 = thresh1 == 0  # Dark pixels are particles
+    red_overlay[particle_mask1, 0] = 0    # B channel
+    red_overlay[particle_mask1, 1] = 0    # G channel
+    red_overlay[particle_mask1, 2] = 255  # R channel (red)
 
-    # Overlay at 50% opacity: blend blue and red
+    # Create blue image for frame 2: dark pixels (particles) become blue
+    # In BGR format: blue = [255, 0, 0] (B=255, G=0, R=0)
+    blue_overlay = rb_overlay.copy()
+    particle_mask2 = thresh2 == 0  # Dark pixels are particles
+    blue_overlay[particle_mask2, 0] = 255  # B channel (blue)
+    blue_overlay[particle_mask2, 1] = 0    # G channel
+    blue_overlay[particle_mask2, 2] = 0    # R channel
+
+    # Overlay at 50% opacity: blend red and blue
     # Formula: result = alpha * image1 + (1 - alpha) * image2
     alpha = 0.5
-    rb_overlay = (alpha * blue_overlay + (1 - alpha) * red_overlay).astype(
+    rb_overlay = (alpha * red_overlay + (1 - alpha) * blue_overlay).astype(
         np.uint8
     )
 
-    # Convert BGR to RGB for return
+    # Convert BGR to RGB
     rb_overlay_rgb = cv2.cvtColor(rb_overlay, cv2.COLOR_BGR2RGB)
+
+    # Calculate the midpoint between the two particle positions
+    mid_x = int((x1 + x2) / 2)
+    mid_y = int((y1 + y2) / 2)
+
+    # Draw a yellow cross at the midpoint
+    cv2.drawMarker(
+        rb_overlay_rgb,
+        (mid_x, mid_y),
+        (255, 255, 0),  # Yellow in RGB
+        markerType=cv2.MARKER_CROSS,
+        markerSize=8,
+        thickness=2,
+    )
 
     return rb_overlay_rgb
 
@@ -789,50 +803,16 @@ def create_rb_gallery(
     max_displays=None,
 ):
     """
-    Creates red-blue overlay images for the worst individual trajectory links.
-
-    Parameters
-    ----------
-    trajectories_file : str
-        Path to the CSV file containing trajectory data
-    frames_folder : str, optional
-        Path to the folder containing frame images. If None, uses file_controller.
-    output_folder : str, optional
-        Path to save the RB gallery images. If None, uses file_controller.rb_gallery_folder.
-    search_range : float, optional
-        Maximum expected jump distance for calculating deviations
-    memory : int, optional
-        Maximum expected memory (frames a particle can disappear)
-    min_deviation_multiplier : float, optional
-        DEPRECATED: No longer used. All worst links are shown regardless of threshold.
-    max_displays : int, optional
-        Maximum number of worst links to display (default 5)
-
-    Key changes from previous version:
-    - Scores individual frame-to-frame links instead of entire trajectories
-    - Identifies the worst link in each trajectory
-    - Always shows the top N worst links (no threshold filtering)
-    - Displays the specific frame pair where the bad link occurred (not first/last)
-    - Saves detailed metadata in .txt files explaining why each link is problematic
+    Finds the worst individual trajectory links and saves their metadata to a JSON file.
+    This function no longer creates images directly. The UI is responsible for generation.
     """
     # Check if file_controller is available
     if file_controller is None:
-        print(
-            "❌ ERROR: file_controller is not set! Cannot create RB gallery."
-        )
-        print(
-            "   Make sure particle_processing.set_file_controller() was called."
-        )
+        print("❌ ERROR: file_controller is not set! Cannot process RB gallery.")
         return
 
     if output_folder is None:
         output_folder = file_controller.rb_gallery_folder
-
-    if frames_folder is None:
-        frames_folder = file_controller.original_frames_folder
-
-    print(f"📁 RB Gallery output folder: {output_folder}")
-    print(f"📁 Frames folder: {frames_folder}")
 
     # Use FileController for folder management
     file_controller.ensure_folder_exists(output_folder)
@@ -850,7 +830,7 @@ def create_rb_gallery(
         print("No trajectory data found")
         return
 
-    # Get linking parameters if not provided
+    # Get linking parameters
     if (
         file_controller
         and hasattr(file_controller, "config_manager")
@@ -858,37 +838,18 @@ def create_rb_gallery(
     ):
         linking_params = file_controller.config_manager.get_linking_params()
     else:
-        # Fallback to defaults
         linking_params = {
-            "search_range": 10,
-            "memory": 10,
-            "min_trajectory_length": 10,
-            "fps": 30.0,
-            "max_speed": 100.0,
-            "max_displays": 5,
+            "search_range": 10, "memory": 10, "max_displays": 5
         }
+
     if search_range is None:
         search_range = float(linking_params.get("search_range", 10))
-    if memory is None:
-        memory = int(linking_params.get("memory", 10))
-    # max_displays defaults to 5 (show top 5 worst links)
     if max_displays is None:
         max_displays = int(linking_params.get("max_displays", 5))
 
-    print(
-        f"📊 Creating RB gallery with search_range={search_range}, memory={memory}"
-    )
-    print(f"📊 Showing top {max_displays} worst links per frame pair")
-    print(f"📊 Total trajectories: {trajectories['particle'].nunique()}")
-    print(f"📊 Total trajectory points: {len(trajectories)}")
-
-    # Collect ALL links from ALL trajectories, not just worst per trajectory
+    # For each particle, find its single worst link
     unique_particles = trajectories["particle"].unique()
-    all_links = []  # All links from all trajectories
-    print(f"📊 Analyzing {len(unique_particles)} unique particles...")
-
-    particles_with_links = 0
-    particles_without_links = 0
+    worst_links_per_particle = []
 
     for particle_id in unique_particles:
         particle_data = trajectories[
@@ -896,216 +857,81 @@ def create_rb_gallery(
         ].sort_values("frame")
 
         if len(particle_data) < 2:
-            particles_without_links += 1
             continue
 
-        num_links = len(particle_data) - 1
-        if num_links == 0:
-            particles_without_links += 1
-            continue
-
-        # Collect ALL links from this trajectory
-        for i in range(num_links):
+        particle_links = []
+        for i in range(len(particle_data) - 1):
             curr = particle_data.iloc[i]
             next_p = particle_data.iloc[i + 1]
 
-            # Calculate jump distance
-            dx = next_p["x"] - curr["x"]
-            dy = next_p["y"] - curr["y"]
-            jump_dist = np.sqrt(dx**2 + dy**2)
+            # Get frame numbers
+            frame_i = int(curr["frame"])
+            frame_i1 = int(next_p["frame"])
 
-            # Calculate deviation from expected
+            # NEW CONDITION: only consider ordinally next frames
+            if frame_i1 != (frame_i + 1):
+                continue # Skip this link if there's a frame gap
+
+            jump_dist = np.sqrt(
+                (next_p["x"] - curr["x"]) ** 2 + (next_p["y"] - curr["y"]) ** 2
+            )
             deviation = max(0, jump_dist - search_range)
-
-            # Score for this individual link (higher score = worse link)
-            # Based solely on jump distance deviation
             link_score = deviation
-
-            # Skip if link_score is NaN or invalid
+            
             if np.isnan(link_score) or not np.isfinite(link_score):
                 continue
 
-            # Add ALL links to the collection
+            issues = []
+            if jump_dist > search_range:
+                excess = jump_dist - search_range
+                issues.append(
+                    f"Jump distance ({jump_dist:.2f} px) exceeds search_range ({search_range} px) by {excess:.2f} px"
+                )
+            else:
+                issues.append(
+                    f"Jump distance ({jump_dist:.2f} px) is within search_range ({search_range} px)"
+                )
+            
             link_info = {
-                "particle_id": particle_id,
+                "particle_id": int(particle_id),
                 "score": link_score,
                 "jump_dist": jump_dist,
                 "deviation": deviation,
-                "frame_i": int(curr["frame"]),
-                "frame_i1": int(next_p["frame"]),
+                "frame_i": frame_i,
+                "frame_i1": frame_i1,
                 "x_i": curr["x"],
                 "y_i": curr["y"],
                 "x_i1": next_p["x"],
                 "y_i1": next_p["y"],
-                "data": particle_data,
+                "issues": issues,
+                "search_range": search_range,
             }
-            all_links.append(link_info)
+            particle_links.append(link_info)
 
-        particles_with_links += 1
+        if particle_links:
+            # Find the worst link for this particle and add it to our list
+            worst_link = max(particle_links, key=lambda x: x['score'])
+            worst_links_per_particle.append(worst_link)
 
-    print(f"📊 Particles with links: {particles_with_links}")
-    print(f"📊 Particles skipped (no valid links): {particles_without_links}")
-    print(f"📊 Total links collected: {len(all_links)}")
-
-    # Sort all links by score (worst first)
-    all_links.sort(key=lambda x: x["score"], reverse=True)
-
-    # Take top N worst links overall
-    top_links = all_links[:max_displays]
-
-    print(f"📊 Total links selected (top {max_displays} overall): {len(top_links)}")
+    # Sort the list of worst links from all particles to find the top overall
+    worst_links_per_particle.sort(key=lambda x: x["score"], reverse=True)
+    top_links = worst_links_per_particle[:max_displays]
+    
     if len(top_links) == 0:
-        print(
-            "   ⚠️  WARNING: No links found! Check if trajectories have at least 2 frames each."
-        )
+        print("⚠️ No problematic trajectory links found to create a gallery.")
+        return
 
-    crop_size = 200  # Size of the crop around each particle (increased for better context)
+    # Save the metadata for the top links to a single JSON file
+    metadata_filename = os.path.join(output_folder, "rb_links.json")
+    import json
+    try:
+        with open(metadata_filename, "w") as f:
+            json.dump(top_links, f, indent=4)
+        print(f"✅ Saved RB gallery metadata for {len(top_links)} links to: {metadata_filename}")
+    except Exception as e:
+        print(f"    ❌ Failed to save RB gallery metadata: {e}")
 
-    # Create RB overlay for each worst link showing the actual problem frames
-    print(f"🖼️  Creating RB overlay images for {len(top_links)} links...")
-    for idx, link_info in enumerate(top_links):
-        particle_id = link_info["particle_id"]
-        frame_i = link_info["frame_i"]
-        frame_i1 = link_info["frame_i1"]
-
-        print(
-            f"  [{idx+1}/{len(top_links)}] Processing particle {particle_id}, frames {frame_i}->{frame_i1}..."
-        )
-
-        # Load the two frames where the bad link occurred
-        # Construct filenames from frame numbers (not array indices)
-        frame1_filename = os.path.join(
-            frames_folder, f"frame_{frame_i:05d}.jpg"
-        )
-        frame2_filename = os.path.join(
-            frames_folder, f"frame_{frame_i1:05d}.jpg"
-        )
-
-        try:
-            frame1 = cv2.imread(frame1_filename)
-            frame2 = cv2.imread(frame2_filename)
-
-            if frame1 is None or frame2 is None:
-                print(
-                    f"    ⚠️  Warning: Could not load frames {frame_i} or {frame_i1}"
-                )
-                print(
-                    f"       Frame1 path: {frame1_filename} (exists: {os.path.exists(frame1_filename)})"
-                )
-                print(
-                    f"       Frame2 path: {frame2_filename} (exists: {os.path.exists(frame2_filename)})"
-                )
-                continue
-
-            # Get particle positions at the problematic link
-            x1, y1 = int(link_info["x_i"]), int(link_info["y_i"])
-            x2, y2 = int(link_info["x_i1"]), int(link_info["y_i1"])
-
-            # Calculate crop boundaries for frame1
-            x1_min = max(0, x1 - crop_size // 2)
-            y1_min = max(0, y1 - crop_size // 2)
-            x1_max = min(frame1.shape[1], x1 + crop_size // 2)
-            y1_max = min(frame1.shape[0], y1 + crop_size // 2)
-
-            # Calculate crop boundaries for frame2
-            x2_min = max(0, x2 - crop_size // 2)
-            y2_min = max(0, y2 - crop_size // 2)
-            x2_max = min(frame2.shape[1], x2 + crop_size // 2)
-            y2_max = min(frame2.shape[0], y2 + crop_size // 2)
-
-            # Crop the frames
-            crop1 = frame1[y1_min:y1_max, x1_min:x1_max]
-            crop2 = frame2[y2_min:y2_max, x2_min:x2_max]
-
-            # Resize crops to same size
-            target_size = (crop_size, crop_size)
-            crop1 = cv2.resize(crop1, target_size)
-            crop2 = cv2.resize(crop2, target_size)
-
-            # Generate RB overlay image (default threshold 50% for initial creation)
-            rb_overlay = create_rb_overlay_image(
-                crop1,
-                crop2,
-                x1 - x1_min,
-                y1 - y1_min,  # Relative positions in crop
-                x2 - x2_min,
-                y2 - y2_min,
-                threshold_percent=50,  # Default 50% for initial creation
-            )
-
-            # Save the RB overlay image (convert RGB back to BGR for OpenCV save)
-            base_filename = (
-                f"particle_{particle_id}_link_{frame_i}_to_{frame_i1}"
-            )
-            output_filename = os.path.join(
-                output_folder, f"{base_filename}_rb_overlay.png"
-            )
-            rb_overlay_bgr = cv2.cvtColor(rb_overlay, cv2.COLOR_RGB2BGR)
-            success = cv2.imwrite(output_filename, rb_overlay_bgr)
-            if success:
-                print(f"    ✅ Saved RB overlay: {output_filename}")
-            else:
-                print(f"    ❌ Failed to save RB overlay: {output_filename}")
-
-            # Determine why this link is bad
-            issues = []
-            if link_info["jump_dist"] > search_range:
-                excess = link_info["jump_dist"] - search_range
-                issues.append(
-                    f"Jump distance ({link_info['jump_dist']:.2f} px) exceeds search_range ({search_range} px) by {excess:.2f} px"
-                )
-            else:
-                issues.append(
-                    f"Jump distance ({link_info['jump_dist']:.2f} px) is within search_range ({search_range} px)"
-                )
-
-            # Save metadata with detailed information (including positions for regeneration)
-            metadata_text = f"""PARTICLE ID: {link_info['particle_id']}
-FRAME TRANSITION: {frame_i} → {frame_i1}
-
-POSITION (Frame {frame_i}): x={link_info['x_i']:.2f}, y={link_info['y_i']:.2f}
-POSITION (Frame {frame_i1}): x={link_info['x_i1']:.2f}, y={link_info['y_i1']:.2f}
-
-PARAMETER VIOLATIONS:
-{chr(10).join(issues)}
-
-METRICS:
-Jump Distance: {link_info['jump_dist']:.2f} pixels
-Search Range: {search_range} pixels
-Deviation: {link_info['deviation']:.2f} pixels (jump_distance - search_range)
-Link Score: {link_info['score']:.2f} (higher = worse, based on jump distance deviation)"""
-
-            # Save .txt file
-            metadata_filename = os.path.join(
-                output_folder, f"{base_filename}.txt"
-            )
-            try:
-                with open(metadata_filename, "w") as f:
-                    f.write(metadata_text)
-                print(f"    ✅ Saved metadata: {metadata_filename}")
-            except Exception as e:
-                print(f"    ❌ Failed to save metadata: {e}")
-
-        except Exception as e:
-            import traceback
-
-            print(f"    ❌ Error processing particle {particle_id} link: {e}")
-            traceback.print_exc()
-            continue
-
-    print(f"✅ RB gallery created in: {output_folder}")
-    print(f"✅ Processed {len(top_links)} worst trajectory links")
-    if len(top_links) == 0:
-        print(
-            f"⚠️  No trajectory links found (need at least 2 frames per particle)"
-        )
-    else:
-        print(
-            f"✅ Created {len(top_links)} RB overlay images with metadata files"
-        )
-        print(
-            f"   Showing the {len(top_links)} worst links ranked by deviation score"
-        )
+    print(f"✅ RB gallery metadata generation complete in: {output_folder}")
 
 
 def annotate_frame(

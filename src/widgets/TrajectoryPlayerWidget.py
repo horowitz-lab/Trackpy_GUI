@@ -83,14 +83,20 @@ class OverlayLabel(QLabel):
                 widget_y = (rel_y * scale) + y
                 return QPoint(int(widget_x), int(widget_y))
 
-            painter.setPen(Qt.NoPen) # No outline for a solid dot
-            painter.setBrush(QColor(255, 255, 0)) # Yellow fill
+            painter.setPen(QPen(QColor(255, 255, 0), 2)) # Yellow pen, 2 pixel thickness
+            painter.setBrush(Qt.NoBrush) # No fill for crosses
 
-            # Draw filled circles (dots) with 4-pixel diameter (radius 2)
-            # QPainter.drawEllipse takes QPoint and two radii (rx, ry)
-            # For a 4-pixel diameter, radius is 2.
-            painter.drawEllipse(transform(self.start_pos), 2, 2)
-            painter.drawEllipse(transform(self.end_pos), 2, 2)
+            cross_half_size = 4 # For a total cross size of 8 pixels
+
+            # Draw cross for start_pos
+            p_start = transform(self.start_pos)
+            painter.drawLine(p_start.x() - cross_half_size, p_start.y(), p_start.x() + cross_half_size, p_start.y())
+            painter.drawLine(p_start.x(), p_start.y() - cross_half_size, p_start.x(), p_start.y() + cross_half_size)
+
+            # Draw cross for end_pos
+            p_end = transform(self.end_pos)
+            painter.drawLine(p_end.x() - cross_half_size, p_end.y(), p_end.x() + cross_half_size, p_end.y())
+            painter.drawLine(p_end.x(), p_end.y() - cross_half_size, p_end.x(), p_end.y() + cross_half_size)
 
 
 class TrajectoryPlayerWidget(QWidget):
