@@ -35,7 +35,7 @@ class ErrantParticleGalleryWidget(QWidget):
         self.photo_label = QLabel("Photo display")
         self.photo_label.setAlignment(Qt.AlignCenter)
         self.photo_label.setStyleSheet(
-            "background-color: #222; color: #ccc; border: 2px solid blue;"
+            "background-color: #222; color: #ccc; border: 2px solid black;"
         )
         self.photo_label.setFixedSize(200, 200)
         self.photo_label.setScaledContents(False)
@@ -284,6 +284,16 @@ class ErrantParticleGalleryWidget(QWidget):
     def _on_show_particle_checkbox_changed(self, state):
         """Handle state change of 'Show particle on frame' checkbox."""
         self.update_required.emit()
+
+        # Update boarder color around errant particle zoomins to reflect state of checkbox
+        if self.is_show_on_frame_checked():
+            self.photo_label.setStyleSheet(
+                "background-color: #222; color: #ccc; border: 2px solid blue;"
+            )
+        else:
+            self.photo_label.setStyleSheet(
+                "background-color: #222; color: #ccc; border: 2px solid black;"
+            )
 
     def resizeEvent(self, event):
         """Ensure the currently shown image keeps aspect ratio on resize."""
