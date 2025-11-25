@@ -168,20 +168,10 @@ class ErrantTrajectoryGalleryWidget(QWidget):
                 return
 
             # Populate info text from metadata
-            info_text = f"""PARTICLE ID: {link_info.get('particle_id')}
-FRAME TRANSITION: {link_info.get('frame_i')} → {link_info.get('frame_i1')}
-
-POSITION (Frame {link_info.get('frame_i')}): x={link_info.get('x_i', 0):.2f}, y={link_info.get('y_i', 0):.2f}
-POSITION (Frame {link_info.get('frame_i1')}): x={link_info.get('x_i1', 0):.2f}, y={link_info.get('y_i1', 0):.2f}
-
-PARAMETER VIOLATIONS:
-{chr(10).join(link_info.get('issues', []))}
-
-METRICS:
+            info_text = f"""Particle ID: {link_info.get('particle_id')}
+Frame Transition: {link_info.get('frame_i')} → {link_info.get('frame_i1')}
 Jump Distance: {link_info.get('jump_dist', 0):.2f} pixels
-Search Range: {link_info.get('search_range', 0)} pixels
-Deviation: {link_info.get('deviation', 0):.2f} pixels (jump_distance - search_range)
-Link Score: {link_info.get('score', 0):.2f} (higher = worse, based on jump distance deviation)"""
+Search Range: {link_info.get('search_range', 0)} pixels"""
             self.info_label.setText(info_text)
 
             self._update_display_text()

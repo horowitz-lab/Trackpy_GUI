@@ -13,90 +13,10 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QPushButton,
 )
-from PySide6.QtCore import Qt, Signal, QPoint
-from PySide6.QtGui import QPixmap, QImage, QPainter, QColor, QPen
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QPixmap
 import os
-import shutil
-import cv2
-import numpy as np
-
-
-class OverlayLabel(QLabel):
-    """A custom QLabel that can draw overlays on top of its pixmap."""
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.start_pos = None
-        self.end_pos = None
-        self.crop_origin = None
-        self._pixmap = None
-
-    def setPixmap(self, pixmap):
-        self._pixmap = pixmap
-        self.update()  # Trigger a repaint
-
-    def pixmap(self):
-        return self._pixmap
-
-    def set_overlay_data(self, start_pos, end_pos, crop_origin):
-        self.start_pos = start_pos
-        self.end_pos = end_pos
-        self.crop_origin = crop_origin
-        self.update()
-
-    def paintEvent(self, event):
-        # First, draw the label's default content (like text if no pixmap)
-        super().paintEvent(event)
-
-        if self._pixmap is None or self._pixmap.isNull():
-            return
-
-        painter = QPainter(self)
-        
-        # Calculate the scaled pixmap's rect to draw it centered
-        pixmap_size = self._pixmap.size()
-        widget_size = self.size()
-        
-        scaled_pixmap = self._pixmap.scaled(widget_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        
-        x = (widget_size.width() - scaled_pixmap.width()) / 2
-        y = (widget_size.height() - scaled_pixmap.height()) / 2
-        
-        # Draw the pixmap
-        painter.drawPixmap(x, y, scaled_pixmap)
-
-        # Now draw the overlay if data is available
-        if self.start_pos and self.end_pos and self.crop_origin:
-            
-            # Calculate scaling factor of the displayed image
-            scale_w = scaled_pixmap.width() / pixmap_size.width()
-            scale_h = scaled_pixmap.height() / pixmap_size.height()
-            scale = min(scale_w, scale_h)
-
-            # Transform coordinates from original full-frame to widget space
-            def transform(pos_str):
-                # 1. Relative to crop origin
-                rel_x = pos_str[0] - self.crop_origin[0]
-                rel_y = pos_str[1] - self.crop_origin[1]
-                
-                # 2. Scale to displayed pixmap size and add offset
-                widget_x = (rel_x * scale) + x
-                widget_y = (rel_y * scale) + y
-                return QPoint(int(widget_x), int(widget_y))
-
-            painter.setPen(QPen(QColor(255, 255, 0), 2)) # Yellow pen, 2 pixel thickness
-            painter.setBrush(Qt.NoBrush) # No fill for crosses
-
-            cross_half_size = 4 # For a total cross size of 8 pixels
-
-            # Draw cross for start_pos
-            p_start = transform(self.start_pos)
-            painter.drawLine(p_start.x() - cross_half_size, p_start.y(), p_start.x() + cross_half_size, p_start.y())
-            painter.drawLine(p_start.x(), p_start.y() - cross_half_size, p_start.x(), p_start.y() + cross_half_size)
-
-            # Draw cross for end_pos
-            p_end = transform(self.end_pos)
-            painter.drawLine(p_end.x() - cross_half_size, p_end.y(), p_end.x() + cross_half_size, p_end.y())
-            painter.drawLine(p_end.x(), p_end.y() - cross_half_size, p_end.x(), p_end.y() + cross_half_size)
+import json
 
 
 class TrajectoryPlayerWidget(QWidget):
@@ -116,7 +36,7 @@ class TrajectoryPlayerWidget(QWidget):
         self.layout = QVBoxLayout(self)
 
         # Photo display for current frame
-        self.photo_label = OverlayLabel("No memory links available")
+        self.photo_label = QLabel("No memory links available")
         self.photo_label.setAlignment(Qt.AlignCenter)
         self.photo_label.setStyleSheet(
             "background-color: white; color: #333; border: 1px solid #555;"
@@ -166,8 +86,7 @@ class TrajectoryPlayerWidget(QWidget):
 
         # Store state
         self.memory_folder = None
-        self.links = []  # List of link folders
-        self.link_data = {} # Dict to store data for each link
+        self.links = []  # This will be a list of dictionaries from the JSON
         self.current_link_idx = 0
         self.current_frame_idx = 0
         self.current_link_frames = []  # List of frame files for current link
@@ -182,46 +101,27 @@ class TrajectoryPlayerWidget(QWidget):
             self._load_links()
 
     def _load_links(self):
-        """Load available memory links and their metadata from the memory folder."""
-        if not self.memory_folder or not os.path.exists(self.memory_folder):
+        """Load available memory links from the new JSON metadata file."""
+        if not self.memory_folder:
             self.links = []
-            self.link_data = {}
+            self._update_display()
+            return
+            
+        json_path = os.path.join(self.memory_folder, "memory_links.json")
+        if not os.path.exists(json_path):
+            self.links = []
             self.current_link_frames = []
+            self.photo_label.setText("No memory links available")
             self._update_display()
             return
 
-        link_folders = []
-        self.link_data = {}
-        for item in sorted(os.listdir(self.memory_folder)):
-            item_path = os.path.join(self.memory_folder, item)
-            if os.path.isdir(item_path) and item.startswith("memory_link_"):
-                link_idx = len(link_folders)
-                link_folders.append(item_path)
-                
-                # Helper to read and parse metadata files
-                def read_file(path):
-                    if not os.path.exists(path): return None
-                    with open(path, 'r') as f: return f.read().strip()
+        try:
+            with open(json_path, 'r') as f:
+                self.links = json.load(f)
+        except (IOError, json.JSONDecodeError) as e:
+            print(f"Error loading memory links metadata: {e}")
+            self.links = []
 
-                def parse_coords(s):
-                    if not s: return None
-                    try: return tuple(map(float, s.split(',')))
-                    except (ValueError, IndexError): return None
-
-                # Load all metadata
-                pid = read_file(os.path.join(item_path, "particle_id.txt"))
-                start_pos = parse_coords(read_file(os.path.join(item_path, "start_pos.txt")))
-                end_pos = parse_coords(read_file(os.path.join(item_path, "end_pos.txt")))
-                crop_origin = parse_coords(read_file(os.path.join(item_path, "crop_origin.txt")))
-
-                self.link_data[link_idx] = {
-                    'particle_id': pid or "N/A",
-                    'start_pos': start_pos,
-                    'end_pos': end_pos,
-                    'crop_origin': crop_origin
-                }
-
-        self.links = link_folders
         if len(self.links) > 0:
             self.current_link_idx = 0
             self._load_link_frames()
@@ -236,8 +136,15 @@ class TrajectoryPlayerWidget(QWidget):
             self.current_link_frames = []
             return
 
-        link_folder = self.links[self.current_link_idx]
-        frame_files = [os.path.join(link_folder, f) for f in sorted(os.listdir(link_folder)) if f.startswith("frame_") and f.lower().endswith(".jpg")]
+        current_link = self.links[self.current_link_idx]
+        link_folder_name = current_link.get("link_folder")
+        if not link_folder_name:
+            self.current_link_frames = []
+            return
+
+        link_folder_path = os.path.join(self.memory_folder, link_folder_name)
+        
+        frame_files = [os.path.join(link_folder_path, f) for f in sorted(os.listdir(link_folder_path)) if f.startswith("frame_") and f.lower().endswith(".jpg")]
 
         self.current_link_frames = frame_files
         if len(self.current_link_frames) > 0:
@@ -247,46 +154,31 @@ class TrajectoryPlayerWidget(QWidget):
             self.photo_label.setText(f"No frames in memory link {self.current_link_idx}")
 
     def _display_current_frame(self):
-        """Display the current frame and pass overlay data to the label."""
+        """Display the current pre-annotated frame."""
         if (self.current_frame_idx < 0 or 
             self.current_frame_idx >= len(self.current_link_frames)):
-            self.photo_label.setPixmap(None)
+            self.photo_label.setPixmap(QPixmap())
             self.photo_label.setText("No Frames")
             return
 
         frame_path = self.current_link_frames[self.current_frame_idx]
         if not os.path.exists(frame_path):
-            self.photo_label.setPixmap(None)
+            self.photo_label.setPixmap(QPixmap())
             self.photo_label.setText("Frame file not found")
             return
-
-        image = cv2.imread(frame_path)
-        if image is None:
-            self.photo_label.setPixmap(None)
-            self.photo_label.setText("Failed to load frame")
-            return
-
-        # Convert BGR (OpenCV) to RGB for Qt
-        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        height, width, channel = image_rgb.shape
-        bytes_per_line = 3 * width
-        q_image = QImage(image_rgb.data, width, height, bytes_per_line, QImage.Format_RGB888)
-        pixmap = QPixmap.fromImage(q_image)
-
-        # Get overlay data for the current link
-        current_link_data = self.link_data.get(self.current_link_idx, {})
-        start_pos = current_link_data.get('start_pos')
-        end_pos = current_link_data.get('end_pos')
-        crop_origin = current_link_data.get('crop_origin')
-
-        # Pass data to the overlay label
-        self.photo_label.set_overlay_data(start_pos, end_pos, crop_origin)
+        
+        pixmap = QPixmap(frame_path)
         
         if not pixmap.isNull():
-            self.photo_label.setPixmap(pixmap)
+            scaled_pixmap = pixmap.scaled(
+                self.photo_label.size(),
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation,
+            )
+            self.photo_label.setPixmap(scaled_pixmap)
         else:
-            self.photo_label.setPixmap(None)
-            self.photo_label.setText("Failed to create pixmap")
+            self.photo_label.setPixmap(QPixmap())
+            self.photo_label.setText("Failed to load frame")
 
     def _update_display(self):
         """Update the display labels."""
@@ -295,19 +187,19 @@ class TrajectoryPlayerWidget(QWidget):
         else:
             self.frame_display.setText("0 / 0")
 
-        if len(self.links) > 0 and len(self.current_link_frames) > 0:
-            frame_filename = os.path.basename(self.current_link_frames[self.current_frame_idx])
+        if len(self.links) > 0 and self.current_link_idx < len(self.links):
+            frame_filename = os.path.basename(self.current_link_frames[self.current_frame_idx]) if self.current_link_frames else ""
             try:
-                frame_num = int(frame_filename.split('_')[1].split('.')[0])
+                frame_num = int(frame_filename.split('_')[1].split('.')[0]) if frame_filename else self.current_frame_idx
             except (ValueError, IndexError):
                 frame_num = self.current_frame_idx
             
-            particle_id = self.link_data.get(self.current_link_idx, {}).get('particle_id', 'N/A')
+            particle_id = self.links[self.current_link_idx].get('particle_id', 'N/A')
 
             self.current_display_label.setText(
                 f"Particle ID: {particle_id} | "
                 f"Memory Link: {self.current_link_idx} / {len(self.links) - 1} | "
-                f"Frame: {self.current_frame_idx} / {len(self.current_link_frames) - 1} "
+                f"Frame: {self.current_frame_idx} / {max(0, len(self.current_link_frames) - 1)} "
                 f"(Original: {frame_num})"
             )
         else:
@@ -342,9 +234,7 @@ class TrajectoryPlayerWidget(QWidget):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        # The paintEvent of OverlayLabel will handle the scaling,
-        # but we need to trigger a repaint.
-        self.photo_label.update()
+        self._display_current_frame()
 
     def reset_state(self):
         self.current_link_idx = 0

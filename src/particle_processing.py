@@ -787,7 +787,7 @@ def create_rb_overlay_image(
         (255, 255, 0),  # Yellow in RGB
         markerType=cv2.MARKER_CROSS,
         markerSize=8,
-        thickness=2,
+        thickness=1,
     )
 
     return rb_overlay_rgb
@@ -1009,10 +1009,37 @@ def annotate_frame(
     return None
 
 
+def annotate_memory_link_frame(image, start_pos, end_pos, crop_origin):
+    """Draws crosses on a memory link frame."""
+    
+    # Function to draw a cross at a given point
+    def draw_cross(img, point, color, size, thickness):
+        x, y = int(point[0]), int(point[1])
+        half_size = size // 2
+        cv2.line(img, (x - half_size, y), (x + half_size, y), color, thickness)
+        cv2.line(img, (x, y - half_size), (x, y + half_size), color, thickness)
+
+    # Calculate positions relative to the crop
+    start_x_rel = start_pos[0] - crop_origin[0]
+    start_y_rel = start_pos[1] - crop_origin[1]
+    end_x_rel = end_pos[0] - crop_origin[0]
+    end_y_rel = end_pos[1] - crop_origin[1]
+    
+    # Draw yellow crosses
+    cross_color = (0, 255, 255)  # BGR for Yellow
+    cross_size = 5
+    cross_thickness = 1 # Use 1 for a finer cross
+
+    draw_cross(image, (start_x_rel, start_y_rel), cross_color, cross_size, cross_thickness)
+    draw_cross(image, (end_x_rel, end_y_rel), cross_color, cross_size, cross_thickness)
+    
+    return image
+
+
 def find_and_save_high_memory_links(trajectories_file, memory_parameter, max_links=5):
     """
-    Finds the highest memory links, saves padded 250x250 un-annotated cropped frames,
-    and creates metadata text files for each link for UI processing.
+    Finds the highest memory links, saves padded and annotated cropped frames,
+    and creates a single JSON metadata file for all links.
     """
     if file_controller is None:
         print("File controller not set in particle_processing.")
@@ -1028,7 +1055,7 @@ def find_and_save_high_memory_links(trajectories_file, memory_parameter, max_lin
         print("No trajectory data found")
         return []
     
-    memory_links = []
+    memory_links_found = []
     unique_particles = trajectories['particle'].unique()
     
     for particle_id in unique_particles:
@@ -1045,23 +1072,22 @@ def find_and_save_high_memory_links(trajectories_file, memory_parameter, max_lin
                 if memory_used < memory_parameter:
                     last_frame = int(frames[i])
                     reappear_frame = int(frames[i + 1])
-                    frame_sequence = list(range(last_frame, reappear_frame + 1))
                     
                     start_pos_data = particle_data.iloc[i]
                     end_pos_data = particle_data.iloc[i+1]
 
-                    memory_links.append({
-                        'particle_id': particle_id,
-                        'memory_used': memory_used,
-                        'last_frame': last_frame,
-                        'reappear_frame': reappear_frame,
-                        'frames': frame_sequence,
-                        'start_pos': (start_pos_data['x'], start_pos_data['y']),
-                        'end_pos': (end_pos_data['x'], end_pos_data['y']),
+                    memory_links_found.append({
+                        'particle_id': int(particle_id),
+                        'memory_used': int(memory_used),
+                        'last_frame': int(last_frame),
+                        'reappear_frame': int(reappear_frame),
+                        'frames': list(range(last_frame, reappear_frame + 1)),
+                        'start_pos': (float(start_pos_data['x']), float(start_pos_data['y'])),
+                        'end_pos': (float(end_pos_data['x']), float(end_pos_data['y'])),
                     })
     
-    memory_links.sort(key=lambda x: x['memory_used'], reverse=True)
-    top_links = memory_links[:max_links]
+    memory_links_found.sort(key=lambda x: x['memory_used'], reverse=True)
+    top_links = memory_links_found[:max_links]
     
     if len(top_links) == 0:
         print("No high-memory links found")
@@ -1073,15 +1099,16 @@ def find_and_save_high_memory_links(trajectories_file, memory_parameter, max_lin
     
     original_frames_folder = file_controller.original_frames_folder
     
+    links_metadata_for_json = []
+
     for link_idx, link in enumerate(top_links):
-        link_folder = os.path.join(memory_folder, f"memory_link_{link_idx}")
-        file_controller.ensure_folder_exists(link_folder)
+        link_folder_name = f"memory_link_{link_idx}"
+        link_folder_path = os.path.join(memory_folder, link_folder_name)
+        file_controller.ensure_folder_exists(link_folder_path)
         
         start_pos = link['start_pos']
         end_pos = link['end_pos']
-        particle_id = link['particle_id']
 
-        # Calculate center for cropping
         center_x = (start_pos[0] + end_pos[0]) / 2
         center_y = (start_pos[1] + end_pos[1]) / 2
         crop_radius = 75
@@ -1091,44 +1118,47 @@ def find_and_save_high_memory_links(trajectories_file, memory_parameter, max_lin
         crop_origin_y = int(center_y - crop_radius)
         crop_origin = (crop_origin_x, crop_origin_y)
 
-        # Save metadata to text files
-        with open(os.path.join(link_folder, "particle_id.txt"), 'w') as f:
-            f.write(str(int(particle_id)))
-        with open(os.path.join(link_folder, "start_pos.txt"), 'w') as f:
-            f.write(f"{start_pos[0]},{start_pos[1]}")
-        with open(os.path.join(link_folder, "end_pos.txt"), 'w') as f:
-            f.write(f"{end_pos[0]},{end_pos[1]}")
-        with open(os.path.join(link_folder, "crop_origin.txt"), 'w') as f:
-            f.write(f"{crop_origin[0]},{crop_origin[1]}")
+        # Add data to the list for the final JSON file
+        link_metadata = link.copy()
+        link_metadata['link_folder'] = link_folder_name
+        link_metadata['crop_origin'] = crop_origin
+        links_metadata_for_json.append(link_metadata)
 
-        # Single pass: Crop and save un-annotated images
+        # Crop and save annotated images
         for frame_num in link['frames']:
             source_frame_path = os.path.join(original_frames_folder, f"frame_{frame_num:05d}.jpg")
             if os.path.exists(source_frame_path):
-                dest_frame_path = os.path.join(link_folder, f"frame_{frame_num:05d}.jpg")
+                dest_frame_path = os.path.join(link_folder_path, f"frame_{frame_num:05d}.jpg")
                 
                 full_image = cv2.imread(source_frame_path)
                 if full_image is not None:
-                    # Create a black canvas of the target size
                     canvas = np.zeros((target_dim, target_dim, 3), dtype=np.uint8)
                     
-                    # Define source region from the full image
                     src_x_start = max(0, crop_origin_x)
                     src_y_start = max(0, crop_origin_y)
                     src_x_end = min(full_image.shape[1], crop_origin_x + target_dim)
                     src_y_end = min(full_image.shape[0], crop_origin_y + target_dim)
                     
-                    # Define destination region on the canvas
                     dest_x_start = max(0, -crop_origin_x)
                     dest_y_start = max(0, -crop_origin_y)
                     dest_x_end = dest_x_start + (src_x_end - src_x_start)
                     dest_y_end = dest_y_start + (src_y_end - src_y_start)
                     
-                    # Copy the valid region from the source to the destination on the canvas
                     canvas[dest_y_start:dest_y_end, dest_x_start:dest_x_end] = full_image[src_y_start:src_y_end, src_x_start:src_x_end]
                     
-                    # Save the UN-ANNOTATED canvas
-                    cv2.imwrite(dest_frame_path, canvas)
-    
+                    annotated_canvas = annotate_memory_link_frame(canvas, start_pos, end_pos, crop_origin)
+                    
+                    cv2.imwrite(dest_frame_path, annotated_canvas)
+
+    # Save the consolidated metadata to a single JSON file
+    json_path = os.path.join(memory_folder, "memory_links.json")
+    import json
+    try:
+        with open(json_path, 'w') as f:
+            json.dump(links_metadata_for_json, f, indent=4)
+        print(f"✅ Saved memory links metadata to: {json_path}")
+    except Exception as e:
+        print(f"❌ Failed to save memory links metadata: {e}")
+
     print(f"Found {len(top_links)} high-memory links and saved frames to {memory_folder}")
     return top_links
