@@ -189,9 +189,20 @@ class StartScreen(QWidget):
         if dialog.exec() == NewProjectWindow.Accepted:
             project_path = dialog.get_project_path()
             project_name = dialog.get_project_name()
+            movie_taker = dialog.get_movie_taker()
+            person_doing_analysis = dialog.get_person_doing_analysis()
+            video_path = dialog.get_video_path()
+            scaling = dialog.get_scaling()
+            movie_taken_date = dialog.get_movie_taken_date()
 
             if self.project_manager.create_new_project(
-                project_path, project_name
+                project_path,
+                project_name,
+                movie_taker=movie_taker,
+                person_doing_analysis=person_doing_analysis,
+                video_path=video_path,
+                scaling=scaling,
+                movie_taken_date=movie_taken_date,
             ):
                 QMessageBox.information(
                     self,

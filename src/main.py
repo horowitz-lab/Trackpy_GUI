@@ -82,6 +82,16 @@ class ParticleTrackingAppController(QMainWindow):
             num_frames = self.file_controller.get_total_frames_count()
             if num_frames > 0:
                 self.particle_detection_window.load_existing_frames(num_frames)
+            else:
+                # If no frames exist, check if video file exists and auto-extract frames
+                metadata = self.project_config.get_metadata()
+                video_filename = metadata.get("movie_filename", "")
+                if video_filename:
+                    videos_folder = self.file_controller.videos_folder
+                    video_path = os.path.join(videos_folder, video_filename)
+                    if os.path.exists(video_path):
+                        # Auto-extract frames from video
+                        self.particle_detection_window.frame_player.save_video_frames(video_path)
         else:
             print(f"Failed to load project: {project_path}")
 

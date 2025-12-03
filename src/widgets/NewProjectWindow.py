@@ -15,8 +15,10 @@ from PySide6.QtWidgets import (
     QLabel,
     QFileDialog,
     QMessageBox,
+    QDateEdit,
+    QDoubleSpinBox,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont
 import os
 
@@ -28,13 +30,18 @@ class NewProjectWindow(QDialog):
         super().__init__(parent)
         self.project_path = None
         self.project_name = None
+        self.movie_taker = ""
+        self.person_doing_analysis = ""
+        self.video_path = ""
+        self.scaling = 1.0
+        self.movie_taken_date = None
         self.setup_ui()
 
     def setup_ui(self):
         """Set up the dialog UI."""
         self.setWindowTitle("Create New Project")
         self.setModal(True)
-        self.resize(500, 300)
+        self.resize(600, 600)
 
         # Main layout
         main_layout = QVBoxLayout(self)
@@ -74,6 +81,127 @@ class NewProjectWindow(QDialog):
         """
         )
         form_layout.addRow("Project Name:", self.project_name_edit)
+
+        # Movie Taker field
+        self.movie_taker_edit = QLineEdit()
+        self.movie_taker_edit.setPlaceholderText(
+            "Enter name of person who took the movie (optional)"
+        )
+        self.movie_taker_edit.setStyleSheet(
+            """
+            QLineEdit {
+                padding: 10px;
+                border: 2px solid #bdc3c7;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+            QLineEdit:focus {
+                border-color: #3498db;
+            }
+        """
+        )
+        form_layout.addRow("Movie Taker:", self.movie_taker_edit)
+
+        # Person Doing Analysis field
+        self.person_doing_analysis_edit = QLineEdit()
+        self.person_doing_analysis_edit.setPlaceholderText(
+            "Enter name of person doing analysis (optional)"
+        )
+        self.person_doing_analysis_edit.setStyleSheet(
+            """
+            QLineEdit {
+                padding: 10px;
+                border: 2px solid #bdc3c7;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+            QLineEdit:focus {
+                border-color: #3498db;
+            }
+        """
+        )
+        form_layout.addRow("Person Doing Analysis:", self.person_doing_analysis_edit)
+
+        # Movie Taken Date field
+        self.movie_taken_date_edit = QDateEdit()
+        self.movie_taken_date_edit.setDate(QDate.currentDate())
+        self.movie_taken_date_edit.setCalendarPopup(True)
+        self.movie_taken_date_edit.setStyleSheet(
+            """
+            QDateEdit {
+                padding: 10px;
+                border: 2px solid #bdc3c7;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+            QDateEdit:focus {
+                border-color: #3498db;
+            }
+        """
+        )
+        form_layout.addRow("Movie Taken Date:", self.movie_taken_date_edit)
+
+        # Video File selection
+        video_layout = QHBoxLayout()
+        self.video_path_edit = QLineEdit()
+        self.video_path_edit.setPlaceholderText("Select video file...")
+        self.video_path_edit.setReadOnly(True)
+        self.video_path_edit.setStyleSheet(
+            """
+            QLineEdit {
+                padding: 10px;
+                border: 2px solid #bdc3c7;
+                border-radius: 5px;
+                font-size: 14px;
+                background-color: #f8f9fa;
+            }
+        """
+        )
+
+        self.browse_video_btn = QPushButton("Browse...")
+        self.browse_video_btn.setStyleSheet(
+            """
+            QPushButton {
+                background-color: #95a5a6;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #7f8c8d;
+            }
+        """
+        )
+        self.browse_video_btn.clicked.connect(self.browse_video)
+
+        video_layout.addWidget(self.video_path_edit)
+        video_layout.addWidget(self.browse_video_btn)
+        form_layout.addRow("Video File:", video_layout)
+
+        # Scaling field
+        self.scaling_edit = QDoubleSpinBox()
+        self.scaling_edit.setRange(0.000001, 1000.0)
+        self.scaling_edit.setDecimals(6)
+        self.scaling_edit.setSingleStep(0.1)
+        self.scaling_edit.setValue(1.0)
+        self.scaling_edit.setToolTip("Microns per pixel (calibration).")
+        self.scaling_edit.setStyleSheet(
+            """
+            QDoubleSpinBox {
+                padding: 10px;
+                border: 2px solid #bdc3c7;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+            QDoubleSpinBox:focus {
+                border-color: #3498db;
+            }
+        """
+        )
+        form_layout.addRow("Scaling (μm/pixel):", self.scaling_edit)
 
         # Project folder selection
         folder_layout = QHBoxLayout()
@@ -204,6 +332,8 @@ class NewProjectWindow(QDialog):
         # Connect signals
         self.project_name_edit.textChanged.connect(self.validate_input)
         self.folder_path_edit.textChanged.connect(self.validate_input)
+        self.video_path_edit.textChanged.connect(self.validate_input)
+        self.scaling_edit.valueChanged.connect(self.validate_input)
 
     def browse_folder(self):
         """Open folder selection dialog."""
@@ -221,12 +351,25 @@ class NewProjectWindow(QDialog):
                 folder_name = os.path.basename(folder)
                 self.project_name_edit.setText(folder_name)
 
+    def browse_video(self):
+        """Open video file selection dialog."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Video File",
+            "",
+            "Video Files (*.avi *.mp4 *.mov *.mkv);;All Files (*)",
+        )
+        if file_path:
+            self.video_path_edit.setText(file_path)
+
     def validate_input(self):
         """Validate input fields and enable/disable create button."""
         has_name = bool(self.project_name_edit.text().strip())
         has_folder = bool(self.folder_path_edit.text().strip())
+        has_video = bool(self.video_path_edit.text().strip())
+        has_scaling = self.scaling_edit.value() > 0
 
-        self.create_btn.setEnabled(has_name and has_folder)
+        self.create_btn.setEnabled(has_name and has_folder and has_video and has_scaling)
 
     def create_project(self):
         """Create the project and accept the dialog."""
@@ -243,6 +386,28 @@ class NewProjectWindow(QDialog):
         if not parent_folder:
             QMessageBox.warning(
                 self, "Invalid Input", "Please select a parent folder."
+            )
+            return
+
+        # Validate video file
+        video_path = self.video_path_edit.text().strip()
+        if not video_path:
+            QMessageBox.warning(
+                self, "Invalid Input", "Please select a video file."
+            )
+            return
+
+        if not os.path.exists(video_path):
+            QMessageBox.warning(
+                self, "Invalid Video File", "The selected video file does not exist."
+            )
+            return
+
+        # Validate scaling
+        scaling = self.scaling_edit.value()
+        if scaling <= 0:
+            QMessageBox.warning(
+                self, "Invalid Input", "Scaling must be greater than 0."
             )
             return
 
@@ -281,6 +446,11 @@ class NewProjectWindow(QDialog):
         # Set project details
         self.project_name = project_name
         self.project_path = project_folder
+        self.movie_taker = self.movie_taker_edit.text().strip()
+        self.person_doing_analysis = self.person_doing_analysis_edit.text().strip()
+        self.video_path = video_path
+        self.scaling = scaling
+        self.movie_taken_date = self.movie_taken_date_edit.date().toString("yyyy-MM-dd")
 
         # Accept the dialog
         self.accept()
@@ -308,3 +478,23 @@ class NewProjectWindow(QDialog):
     def get_project_path(self):
         """Get the project path."""
         return self.project_path
+
+    def get_movie_taker(self):
+        """Get the movie taker name."""
+        return self.movie_taker
+
+    def get_person_doing_analysis(self):
+        """Get the person doing analysis name."""
+        return self.person_doing_analysis
+
+    def get_video_path(self):
+        """Get the video file path."""
+        return self.video_path
+
+    def get_scaling(self):
+        """Get the scaling value."""
+        return self.scaling
+
+    def get_movie_taken_date(self):
+        """Get the movie taken date."""
+        return self.movie_taken_date
