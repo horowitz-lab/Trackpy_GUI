@@ -84,29 +84,10 @@ class ParticleDetectionWindow(QMainWindow):
         # Menu Bar
         menubar = self.menuBar()
         file_menu = menubar.addMenu("File")
+
         import_action = QAction("Import Video", self)
         import_action.triggered.connect(self.import_video)
         file_menu.addAction(import_action)
-
-        # Create an "Export" QMenu instead of a QAction
-        export_menu = file_menu.addMenu("Export Data")
-        export_particle_data_menu = export_menu.addMenu("Particle Data")
-
-        # Create the QActions for your sub-options
-        export_particle_data_csv_action = QAction("as CSV", self)
-        export_particle_data_pkl_action = QAction("as PKL", self)
-
-        # Add the sub-option actions to the "Export" menu
-        export_particle_data_menu.addAction(export_particle_data_csv_action)
-        export_particle_data_menu.addAction(export_particle_data_pkl_action)
-
-        # You can then connect your sub-actions to functions
-        export_particle_data_csv_action.triggered.connect(
-            self.export_particles_csv
-        )
-        export_particle_data_pkl_action.triggered.connect(
-            self.export_particles_pkl
-        )
 
         options_menu = menubar.addMenu("Options")
 
@@ -122,6 +103,11 @@ class ParticleDetectionWindow(QMainWindow):
         self.middle_layout.addWidget(self.frame_player)
         self.errant_particle_gallery = ErrantParticleGalleryWidget()
         self.middle_layout.addWidget(self.errant_particle_gallery)
+
+        # Set the gallery reference in the frame player
+        self.frame_player.set_errant_particle_gallery(
+            self.errant_particle_gallery
+        )
 
         self.main_layout.addWidget(self.main_layout.middle_panel)
 
@@ -146,16 +132,9 @@ class ParticleDetectionWindow(QMainWindow):
         self.frame_player.errant_particles_updated.connect(
             self.errant_particle_gallery.refresh_particles
         )
-        self.errant_particle_gallery.errant_particle_selected.connect(
-            self.frame_player.on_errant_particle_selected
-        )
-        # Connect new signal for showing particle on frame
-        self.errant_particle_gallery.show_particle_on_frame.connect(
-            self.frame_player.jump_to_frame_and_highlight_particle
-        )
-        # Connect frame changes to update gallery highlighting
-        self.frame_player.frame_changed.connect(
-            self.errant_particle_gallery.set_current_frame
+        # Connect the gallery's need for an update to the player's handler
+        self.errant_particle_gallery.update_required.connect(
+            self.frame_player.handle_gallery_update
         )
         self.frame_player.import_video_requested.connect(self.import_video)
 
@@ -254,60 +233,3 @@ class ParticleDetectionWindow(QMainWindow):
         """Load existing frames into the widgets."""
         self.main_layout.right_panel.set_total_frames(num_frames)
         self.frame_player.load_frames(num_frames)
-
-    def _export_data(self, source_filename: str, target_format: str):
-        if not self.file_controller:
-            print("File controller not set")
-            return
-
-        data_folder = self.file_controller.data_folder
-        source_file_path = os.path.join(data_folder, source_filename)
-
-        if not os.path.exists(source_file_path):
-            print("Could not find selected data")
-            return
-
-        if target_format == "csv":
-            file_filter = "CSV Files (*.csv);;All Files (*)"
-        elif target_format == "pkl":
-            file_filter = "Pickle Files (*.pkl);;All Files (*)"
-        else:
-            print(f"Error: Unsupported export format '{target_format}'")
-            return
-
-        default_name = (
-            f"{os.path.splitext(source_filename)[0]}_export.{target_format}"
-        )
-        save_path, _ = QFileDialog.getSaveFileName(
-            self, "desc", default_name, file_filter
-        )
-
-        if not save_path:
-            return
-
-        try:
-            import pandas as pd
-
-            df = pd.read_csv(source_file_path)
-
-            if target_format == "csv":
-                df.to_csv(save_path, index=False)
-            elif target_format == "pkl":
-                df.to_pickle(save_path)
-
-            print(f"Data successfully exported to: {save_path}")
-
-        except Exception as e:
-            print(f"An error occurred during export: {e}")
-
-    def export_particles_csv(self):
-        """Exports the 'all_particles.csv' file to a user-selected CSV file."""
-        self._export_data(
-            source_filename="all_particles.csv", target_format="csv"
-        )
-
-    def export_particles_pkl(self):
-        """Exports the 'all_particles.csv' data as a user-selected pickle file."""
-        self._export_data(
-            source_filename="all_particles.csv", target_format="pkl"
-        )

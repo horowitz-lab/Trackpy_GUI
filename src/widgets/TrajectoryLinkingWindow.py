@@ -4,11 +4,12 @@ Trajectory Linking Window
 Description: Main window for Trajectory Linkning. Imports trajectory linking widgets.
              Generated boiler plate code using Cursor.
 """
-
+import pandas as pd
 import os
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
+    QApplication,
     QMainWindow,
     QFileDialog,
     QWidget,
@@ -57,9 +58,9 @@ class TrajectoryLinkingWindow(QMainWindow):
         self.load_initial_overlay()
 
     def load_initial_overlay(self):
-        """Ensure the RB overlay preview is ready when the window opens."""
+        """Ensure the memory links are loaded when the window opens."""
         if hasattr(self, "frame_player") and self.frame_player:
-            self.frame_player.load_initial_overlay()
+            self.frame_player.refresh_links()
         if (
             hasattr(self, "errant_particle_gallery")
             and self.errant_particle_gallery
@@ -76,37 +77,10 @@ class TrajectoryLinkingWindow(QMainWindow):
         # Menu Bar
         menubar = self.menuBar()
         file_menu = menubar.addMenu("File")
-        export_menu = file_menu.addMenu("Export Data")
-        export_particle_data_menu = export_menu.addMenu("Particle Data")
-        export_trajectory_data_menu = export_menu.addMenu("Trajectory Data")
 
-        # Create the QActions for your sub-options
-        export_particle_data_csv_action = QAction("as CSV", self)
-        export_particle_data_pkl_action = QAction("as PKL", self)
-        export_trajectory_data_csv_action = QAction("as CSV", self)
-        export_trajectory_data_pkl_action = QAction("as PKL", self)
-        # Add the sub-option actions to the "Export" menu
-        export_particle_data_menu.addAction(export_particle_data_csv_action)
-        export_particle_data_menu.addAction(export_particle_data_pkl_action)
-        export_trajectory_data_menu.addAction(
-            export_trajectory_data_csv_action
-        )
-        export_trajectory_data_menu.addAction(
-            export_trajectory_data_pkl_action
-        )
-        # You can then connect your sub-actions to functions
-        export_particle_data_csv_action.triggered.connect(
-            self.export_particles_csv
-        )
-        export_particle_data_pkl_action.triggered.connect(
-            self.export_particles_pkl
-        )
-        export_trajectory_data_csv_action.triggered.connect(
-            self.export_trajectories_csv
-        )
-        export_trajectory_data_pkl_action.triggered.connect(
-            self.export_trajectories_pkl
-        )
+        export_action = QAction("Export...", self)
+        export_action.triggered.connect(self.export_all_data)
+        file_menu.addAction(export_action)
 
         options_menu = menubar.addMenu("Options")
 
@@ -130,9 +104,9 @@ class TrajectoryLinkingWindow(QMainWindow):
         self.right_layout = QVBoxLayout(self.main_layout.right_panel)
         self.main_layout.addWidget(self.main_layout.right_panel)
 
-        # Connect trajectory visualization signal - now loads frames for overlay display
-        self.main_layout.right_panel.trajectoryVisualizationCreated.connect(
-            self.frame_player.display_trajectory_image
+        # Connect trajectory linking signal to refresh memory links when trajectories are found
+        self.main_layout.right_panel.trajectoriesLinked.connect(
+            self.frame_player.refresh_links
         )
 
         # Connect back button signal to return to detection window
@@ -145,92 +119,60 @@ class TrajectoryLinkingWindow(QMainWindow):
             self.errant_particle_gallery.refresh_rb_gallery
         )
 
-        # Connect overlay change signal to filter gallery by frame pair
-        self.frame_player.overlay_changed.connect(
-            lambda frame_i, frame_i1: self.errant_particle_gallery.set_frame_pair_filter(
-                frame_i, frame_i1
-            )
+        # Connect export and close signal
+        self.main_layout.right_panel.export_and_close.connect(
+            self.on_export_and_close
         )
 
-        # Connect threshold slider from errant_particle_gallery to frame_player
-        # The connection is set up after widgets are created
-        def connect_threshold_slider():
-            if hasattr(self.errant_particle_gallery, "threshold_slider"):
-                slider = self.errant_particle_gallery.threshold_slider
-                self.frame_player.set_threshold_slider(slider)
-
-        # Connect after a short delay to ensure widgets are fully initialized
-        from PySide6.QtCore import QTimer
-
-        QTimer.singleShot(100, connect_threshold_slider)
-
-    def _export_data(self, source_filename: str, target_format: str):
+    def export_all_data(self):
+        """
+        Exports all particle and trajectory data to a user-selected directory.
+        Returns True if the export was initiated, False if cancelled.
+        """
         if not self.file_controller:
             print("File controller not set")
-            return
+            return False
 
-        data_folder = self.file_controller.data_folder
-        source_file_path = os.path.join(data_folder, source_filename)
-
-        if not os.path.exists(source_file_path):
-            print("Could not find selected data")
-            return
-
-        if target_format == "csv":
-            file_filter = "CSV Files (*.csv);;All Files (*)"
-        elif target_format == "pkl":
-            file_filter = "Pickle Files (*.pkl);;All Files (*)"
-        else:
-            print(f"Error: Unsupported export format '{target_format}'")
-            return
-
-        default_name = (
-            f"{os.path.splitext(source_filename)[0]}_export.{target_format}"
+        directory = QFileDialog.getExistingDirectory(
+            self, "Select Export Directory"
         )
-        save_path, _ = QFileDialog.getSaveFileName(
-            self, "desc", default_name, file_filter
-        )
+        if not directory:
+            return False
 
-        if not save_path:
-            return
+        data_sources = {
+            "all_particles": "all_particles.csv",
+            "trajectories": "trajectories.csv",
+        }
 
-        try:
-            import pandas as pd
+        for name, filename in data_sources.items():
+            source_path = os.path.join(
+                self.file_controller.data_folder, filename
+            )
+            if not os.path.exists(source_path):
+                print(f"Source file not found, skipping: {filename}")
+                continue
 
-            df = pd.read_csv(source_file_path)
+            try:
+                df = pd.read_csv(source_path)
 
-            if target_format == "csv":
-                df.to_csv(save_path, index=False)
-            elif target_format == "pkl":
-                df.to_pickle(save_path)
+                # Export to CSV
+                csv_path = os.path.join(directory, f"{name}.csv")
+                df.to_csv(csv_path, index=False)
+                print(f"Successfully exported to: {csv_path}")
 
-            print(f"Data successfully exported to: {save_path}")
+                # Export to PKL
+                pkl_path = os.path.join(directory, f"{name}.pkl")
+                df.to_pickle(pkl_path)
+                print(f"Successfully exported to: {pkl_path}")
 
-        except Exception as e:
-            print(f"An error occurred during export: {e}")
+            except Exception as e:
+                print(f"An error occurred during export of {name}: {e}")
+        return True
 
-    def export_particles_csv(self):
-        """Exports the 'all_particles.csv' file to a user-selected CSV file."""
-        self._export_data(
-            source_filename="all_particles.csv", target_format="csv"
-        )
-
-    def export_particles_pkl(self):
-        """Exports the 'all_particles.csv' data as a user-selected pickle file."""
-        self._export_data(
-            source_filename="all_particles.csv", target_format="pkl"
-        )
-
-    def export_trajectories_csv(self):
-        """Exports the 'trajectories.csv' file to a user-selected CSV file."""
-        self._export_data(
-            source_filename="trajectories.csv", target_format="csv"
-        )
-
-    def export_trajectories_pkl(self):
-        self._export_data(
-            source_filename="trajectories.csv", target_format="pkl"
-        )
+    def on_export_and_close(self):
+        """Export all data and then close the application."""
+        if self.export_all_data():
+            QApplication.instance().quit()
 
     def go_back_to_detection(self):
         """Emit signal to switch back to particle detection window."""
