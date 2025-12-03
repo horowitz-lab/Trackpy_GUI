@@ -59,6 +59,15 @@ class ProjectManager:
                 folder_path = os.path.join(project_folder_path, folder)
                 os.makedirs(folder_path, exist_ok=True)
 
+            # Create empty data files
+            data_folder = os.path.join(project_folder_path, "data")
+            csv_files = ["all_particles.csv", "old_all_particles.csv", "filtered_particles.csv"]
+            for f in csv_files:
+                open(os.path.join(data_folder, f), 'w').close()
+
+            # Create empty filters file
+            open(os.path.join(project_folder_path, "filters.ini"), 'w').close()
+
             # Create default config for project
             project_config_path = os.path.join(
                 project_folder_path, "config.ini"

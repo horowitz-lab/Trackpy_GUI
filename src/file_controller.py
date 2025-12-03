@@ -243,6 +243,29 @@ class FileController:
         ]
         return frame_files
 
+    def get_frame_files(self, start=None, end=None, step=None):
+        """Get a list of frame files, optionally filtered by range."""
+        if not os.path.exists(self.original_frames_folder):
+            return []
+
+        all_files = sorted(os.listdir(self.original_frames_folder))
+        
+        frame_files = []
+        for f in all_files:
+            if f.startswith("frame_") and f.endswith(".jpg"):
+                try:
+                    frame_num = int(f.split('_')[-1].split('.')[0])
+                    if (start is None or frame_num >= start) and \
+                       (end is None or frame_num <= end):
+                        frame_files.append(os.path.join(self.original_frames_folder, f))
+                except (ValueError, IndexError):
+                    continue
+        
+        if step is not None and step > 1:
+            return frame_files[::step]
+        
+        return frame_files
+
     def export_data(
         self, source_filename: str, target_format: str, save_path: str
     ) -> bool:

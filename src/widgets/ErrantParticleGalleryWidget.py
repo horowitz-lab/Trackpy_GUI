@@ -104,6 +104,19 @@ class ErrantParticleGalleryWidget(QWidget):
                 return {"frame": frame_num, "x": position[0], "y": position[1]}
         return None
 
+    def regenerate_errant_particles(self):
+        """Regenerate errant particle crops based on the latest filtered data."""
+        if not self.file_controller or not self.config_manager:
+            return
+
+        params = self.config_manager.get_detection_params()
+        
+        # This function now uses filtered_particles.csv internally
+        from .. import particle_processing
+        particle_processing.save_errant_particle_crops_for_frame(params)
+        
+        self.refresh_particles()
+
     def set_config_manager(self, config_manager):
         """Set the config manager for this widget."""
         self.config_manager = config_manager

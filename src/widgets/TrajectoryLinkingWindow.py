@@ -66,6 +66,10 @@ class TrajectoryLinkingWindow(QMainWindow):
             and self.errant_particle_gallery
         ):
             self.errant_particle_gallery.refresh_rb_gallery()
+        if hasattr(self, "main_layout") and hasattr(self.main_layout, "left_panel"):
+            self.main_layout.left_panel.set_config_manager(self.config_manager)
+            self.main_layout.left_panel.set_file_controller(self.file_controller)
+            self.main_layout.left_panel.refresh_plots()
 
     def setup_ui(self):
         # Main Widget
@@ -107,6 +111,17 @@ class TrajectoryLinkingWindow(QMainWindow):
         # Connect trajectory linking signal to refresh memory links when trajectories are found
         self.main_layout.right_panel.trajectoriesLinked.connect(
             self.frame_player.refresh_links
+        )
+
+        # Connect filtered data updates to refresh relevant widgets
+        self.main_layout.left_panel.filtering_widget.filteredParticlesUpdated.connect(
+            self.main_layout.right_panel.refresh_trajectories
+        )
+        self.main_layout.left_panel.filtering_widget.filteredParticlesUpdated.connect(
+            self.frame_player.refresh_links
+        )
+        self.main_layout.left_panel.filtering_widget.filteredParticlesUpdated.connect(
+            self.errant_particle_gallery.refresh_rb_gallery
         )
 
         # Connect back button signal to return to detection window

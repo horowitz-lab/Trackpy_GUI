@@ -179,135 +179,105 @@ class LinkingParametersWidget(QWidget):
 
     def find_trajectories(self):
         """Load detected particles and link them into trajectories."""
-        # Ensure latest linking parameters are saved
         self.save_params()
-
-        # Get linking parameters
-        if not self.config_manager:
+        if not self.config_manager or not self.file_controller:
             return
+
         linking_params = self.config_manager.get_linking_params()
+        data_folder = self.file_controller.data_folder
 
-        # Use injected file controller if available
-        if self.file_controller:
-            data_folder = self.file_controller.data_folder
-        else:
-            # Fall back to config manager
-            if self.config_manager:
-                data_folder = self.config_manager.get_path("data_folder")
-            else:
-                # Fall back to default
-                data_folder = "data/"
+        all_particles_file = os.path.join(data_folder, "all_particles.csv")
+        filtered_particles_file = os.path.join(data_folder, "filtered_particles.csv")
 
-        # Check if particles file exists
-        particles_file = os.path.join(data_folder, "all_particles.csv")
-        if not os.path.exists(particles_file):
-            print(f"Particles file not found: {particles_file}")
-            print("Please run 'Next' in the particle detection window first.")
+        if not os.path.exists(filtered_particles_file):
+            print(f"Filtered particles file not found: {filtered_particles_file}")
+            print("Please run 'Find Particles' and 'Apply Filters' first.")
             return
-
+        
         try:
             import trackpy as tp
             import pandas as pd
 
-            # Load detected particles
-            print("Loading detected particles...")
-            self.detected_particles = pd.read_csv(particles_file)
-            print(
-                f"Loaded {len(self.detected_particles)} particles across {self.detected_particles['frame'].nunique()} frames"
-            )
-
-            # Get linking parameters
             search_range = int(linking_params.get("search_range", 10))
             memory = int(linking_params.get("memory", 10))
-            min_trajectory_length = int(
-                linking_params.get("min_trajectory_length", 10)
-            )
+            min_trajectory_length = int(linking_params.get("min_trajectory_length", 10))
 
-            print(
-                f"Linking particles with search_range={search_range}, memory={memory}"
-            )
+            # --- Process ALL_PARTICLES.CSV for unfiltered trajectories ---
+            if os.path.exists(all_particles_file):
+                all_particles_df = pd.read_csv(all_particles_file)
+                if not all_particles_df.empty:
+                    print("Linking ALL particles for unfiltered view...")
+                    trajectories_all = tp.link_df(all_particles_df, search_range=search_range, memory=memory)
+                    trajectories_all = tp.filter_stubs(trajectories_all, min_trajectory_length)
 
-            # Link particles into trajectories
-            trajectories = tp.link_df(
-                self.detected_particles,
-                search_range=search_range,
-                memory=memory,
-            )
+                    if self.sub_drift.isChecked():
+                        drift_all = tp.compute_drift(trajectories_all)
+                        trajectories_all = tp.subtract_drift(trajectories_all.copy(), drift_all).reset_index(drop=False)
+                        if "particle" in trajectories_all.columns:
+                            trajectories_all = trajectories_all.drop(columns=["particle"])
+                        if "frame" in trajectories_all.columns:
+                            trajectories_all = trajectories_all.drop(columns=["frame"])
+                        trajectories_all = trajectories_all.reset_index(drop=False)
 
-            print(f"Created {trajectories['particle'].nunique()} trajectories")
+                    # Save all_trajectories.csv
+                    all_trajectories_file = os.path.join(data_folder, "all_trajectories.csv")
+                    trajectories_all.to_csv(all_trajectories_file, index=False)
+                    print(f"Saved ALL trajectories to: {all_trajectories_file}")
+                    self.trajectory_plotting.get_linked_particles(trajectories_all) # Pass unfiltered data to plotting
+                else:
+                    print("No data in all_particles.csv for unfiltered trajectory generation.")
+            else:
+                print("all_particles.csv not found, skipping unfiltered trajectory generation.")
 
-            # Filter short trajectories
-            print(
-                f"Filtering trajectories shorter than {min_trajectory_length} frames..."
-            )
-            trajectories_filtered = tp.filter_stubs(
-                trajectories, min_trajectory_length
-            )
+            # --- Process FILTERED_PARTICLES.CSV for filtered trajectories ---
+            print("Loading FILTERED particles for trajectory linking...")
+            filtered_particles_df = pd.read_csv(filtered_particles_file)
+            print(f"Loaded {len(filtered_particles_df)} filtered particles.")
 
-            print(
-                f"After filtering: {trajectories_filtered['particle'].nunique()} trajectories"
-            )
+            print(f"Linking filtered particles with search_range={search_range}, memory={memory}")
+            trajectories_filtered = tp.link_df(filtered_particles_df, search_range=search_range, memory=memory)
+            print(f"Created {trajectories_filtered['particle'].nunique()} filtered trajectories")
+
+            print(f"Filtering filtered trajectories shorter than {min_trajectory_length} frames...")
+            trajectories_filtered = tp.filter_stubs(trajectories_filtered, min_trajectory_length)
+            print(f"After filtering: {trajectories_filtered['particle'].nunique()} filtered trajectories")
 
             if self.sub_drift.isChecked():
-                # Remove drift
-                drift = tp.compute_drift(trajectories_filtered)
-                drift_subtracted = tp.subtract_drift(
-                    trajectories_filtered.copy(), drift
-                )
+                drift_filtered = tp.compute_drift(trajectories_filtered)
+                trajectories_filtered = tp.subtract_drift(trajectories_filtered.copy(), drift_filtered).reset_index(drop=False)
+                if "particle" in trajectories_filtered.columns:
+                    trajectories_filtered = trajectories_filtered.drop(columns=["particle"])
+                if "frame" in trajectories_filtered.columns:
+                    trajectories_filtered = trajectories_filtered.drop(columns=["frame"])
+                trajectories_filtered = trajectories_filtered.reset_index(drop=False)
 
-                # Fix dataframe index level groupings that tp.subtract_drift creates
-                if "particle" in drift_subtracted.columns:
-                    drift_subtracted = drift_subtracted.drop(
-                        columns=["particle"]
-                    )
+            self.linked_trajectories = trajectories_filtered # Store the filtered linked trajectories
 
-                if "frame" in drift_subtracted.columns:
-                    drift_subtracted = drift_subtracted.drop(columns=["frame"])
-
-                trajectories_filtered = drift_subtracted.reset_index(
-                    drop=False
-                )
-
-            # Store the linked trajectories
-            self.linked_trajectories = trajectories_filtered
-
-            # Save trajectories
+            # Save filtered trajectories.csv
             trajectories_file = os.path.join(data_folder, "trajectories.csv")
             trajectories_filtered.to_csv(trajectories_file, index=False)
-            print(f"Saved trajectories to: {trajectories_file}")
+            print(f"Saved FILTERED trajectories to: {trajectories_file}")
 
-            # Create trajectory visualization
-            self.create_trajectory_visualization(
-                trajectories_filtered, data_folder
-            )
+            # Create trajectory visualization (using filtered trajectories for this part)
+            # The requirement is to visualize all_particles.csv, which is done above.
+            # Here we can simply re-use the all_trajectories_file visualization name.
+            # I will pass trajectories_all for this part.
+            if 'trajectories_all' in locals():
+                self.create_trajectory_visualization(trajectories_all, data_folder, "trajectory_visualization.png")
 
-            # Create RB gallery for trajectory validation
-            self.create_rb_gallery(trajectories_file, data_folder)
-
-            # Find and save high-memory links
+            self.create_rb_gallery(trajectories_file, data_folder) # RB gallery from filtered trajectories
             from .. import particle_processing
-            particle_processing.find_and_save_high_memory_links(
-                trajectories_file, memory, max_links=5
-            )
+            particle_processing.find_and_save_high_memory_links(trajectories_file, memory, max_links=5)
 
-            # Emit signals
             self.trajectoriesLinked.emit()
             self.rbGalleryCreated.emit()
-
-            # Pass linked patricle data to plotting widget
-            self.trajectory_plotting.get_linked_particles(
-                self.linked_trajectories
-            )
 
         except Exception as e:
             print(f"Error linking trajectories: {e}")
             self.linked_trajectories = None
 
-    def create_trajectory_visualization(self, trajectories_df, output_folder):
-        """Create a trajectory visualization on white background and save as image.
-
-        Generated by AI - Advanced matplotlib visualization for trajectory plotting.
-        """
+    def create_trajectory_visualization(self, trajectories_df, output_folder, filename="trajectory_visualization.png"):
+        """Create a trajectory visualization on white background and save as image."""
         try:
             import matplotlib.pyplot as plt
             import numpy as np
@@ -472,6 +442,10 @@ class LinkingParametersWidget(QWidget):
             print(f"❌ Error creating RB gallery: {e}")
             print(f"❌ Traceback:")
             traceback.print_exc()
+
+    def refresh_trajectories(self):
+        """Re-run the trajectory finding process."""
+        self.find_trajectories()
 
     def go_back(self):
         """Emit signal to go back to particle detection window."""

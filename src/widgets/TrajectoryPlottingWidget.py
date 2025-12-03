@@ -13,19 +13,22 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QPushButton,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.figure import Figure
 import os
 from copy import copy
 from .. import particle_processing
+import pandas as pd
 
 from .GraphingUtils import *
 from .FilteringWidget import FilteringWidget
 
 
 class TrajectoryPlottingWidget(GraphingPanelWidget):
+    filteredTrajectoriesUpdated = Signal()
+
     def __init__(self, parent=None):
         super(GraphingPanelWidget, self).__init__()
 
@@ -79,8 +82,8 @@ class TrajectoryPlottingWidget(GraphingPanelWidget):
         self.layout.addWidget(self.graphing_buttons)
         
         # Add filtering widget below the graphs
-        self.filtering_widget = FilteringWidget()
-        self.filtering_widget.set_source_data_file("trajectories.csv")
+        self.filtering_widget = FilteringWidget(source_data_file="trajectories.csv")
+        self.filtering_widget.filteredParticlesUpdated.connect(self.filteredTrajectoriesUpdated.emit)
         self.layout.addWidget(self.filtering_widget)
         
         # Add stretch below the buttons
@@ -91,13 +94,26 @@ class TrajectoryPlottingWidget(GraphingPanelWidget):
         self.data = linked_particles
         self.self_plot(self.get_trajectories, self.trajectory_button)
     
+    def refresh_plots(self):
+        """Reload data from all_trajectories.csv and refresh plots."""
+        if self.file_controller:
+            try:
+                self.data = self.file_controller.load_trajectories_data("all_trajectories.csv")
+                if not self.data.empty:
+                    self.self_plot(self.get_trajectories, self.trajectory_button)
+                else:
+                    self.blank_plot()
+            except pd.errors.EmptyDataError:
+                self.data = pd.DataFrame()
+                self.blank_plot()
+
     def set_file_controller(self, file_controller):
         """Override to also set file controller for filtering widget."""
         super().set_file_controller(file_controller)
         if hasattr(self, 'filtering_widget'):
             self.filtering_widget.set_file_controller(file_controller)
             if file_controller and hasattr(file_controller, 'project_path'):
-                self.filtering_widget.set_project_path(file_controller.project_path)
+                self.filtering_widget.project_path = file_controller.project_path
 
     def get_drift(self, page=None):
         """Creates a plot of all particles drift"""

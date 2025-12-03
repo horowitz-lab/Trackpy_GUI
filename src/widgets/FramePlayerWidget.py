@@ -251,6 +251,10 @@ class FramePlayerWidget(QWidget):
             # If the box was just unchecked, refresh the current frame
             self.display_frame(self.current_frame_idx)
 
+    def refresh_frame(self):
+        """Force a refresh of the current frame."""
+        self.display_frame(self.current_frame_idx)
+
     def on_toggle_annotate(self, state):
         """Handle annotation toggle state change."""
         self.display_frame(self.current_frame_idx)
@@ -338,7 +342,7 @@ class FramePlayerWidget(QWidget):
             else:
                 # Annotate with particle circles
                 if show_annotations:
-                    particle_data = self.file_controller.load_particles_data()
+                    particle_data = self.file_controller.load_particles_data("filtered_particles.csv")
                     if not particle_data.empty:
                         particles_in_frame = particle_data[particle_data["frame"] == frame_number]
                         if not particles_in_frame.empty:

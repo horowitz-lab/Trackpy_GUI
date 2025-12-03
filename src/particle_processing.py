@@ -290,16 +290,23 @@ def analyze_trajectories(trajectories_df, scaling=1.0, fps=30):
 # =============================================================================
 
 
-def find_and_save_particles(image_paths, params=None, progress_callback=None):
+def find_particles_in_frames(image_paths, params=None, progress_callback=None):
     """
-    Finds particles in a series of images and saves the data.
+    Finds particles in a series of images and returns the data.
 
     Parameters
     ----------
     image_paths : list of str
         The paths to the image files.
+    params : dict, optional
+        Detection parameters.
     progress_callback : Signal, optional
         A signal to emit progress updates.
+    
+    Returns
+    -------
+    pandas.DataFrame
+        A DataFrame containing the found particles.
     """
     if params is None:
         params = get_detection_params()
@@ -345,20 +352,13 @@ def find_and_save_particles(image_paths, params=None, progress_callback=None):
 
     combined_features = pd.concat(all_features, ignore_index=True)
 
-    if not combined_features.empty:
-        file_controller.save_particles_data(
-            combined_features, "found_particles.csv"
-        )
-
     if progress_callback:
         progress_callback.emit("Done.")
 
     return combined_features
 
 
-def save_errant_particle_crops_for_frame(
-    frame_number, particle_data_for_frame, params
-):
+def save_errant_particle_crops_for_frame(params):
     """
     Saves cropped images of the 10 most errant particles across ALL frames.
     Finds 5 most errant based on mass and 5 most errant based on feature size.
@@ -367,8 +367,8 @@ def save_errant_particle_crops_for_frame(
     if file_controller is None:
         return
 
-    # Load all particles from found_particles.csv
-    all_particles = file_controller.load_particles_data("found_particles.csv")
+    # Load all particles from filtered_particles.csv
+    all_particles = file_controller.load_particles_data("filtered_particles.csv")
     if all_particles.empty:
         return
 
