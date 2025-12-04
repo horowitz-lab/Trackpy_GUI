@@ -282,24 +282,24 @@ class FilteringWidget(QWidget):
         if not self.file_controller:
             print("File controller not set")
             return None
-        try:
-            data = self.file_controller.load_particles_data("all_particles.csv")
-            if data.empty:
-                filtered_data = pd.DataFrame()
-            else:
-                filtered_data = apply_filters(data, self.filters)
-            
-            output_path = os.path.join(self.file_controller.data_folder, "filtered_particles.csv")
-            filtered_data.to_csv(output_path, index=False)
-            
-            original_count = len(data) if not data.empty else 0
-            print(f"Saved filtered data to: {output_path}")
-            print(f"  Original: {original_count} particles")
-            print(f"  Filtered: {len(filtered_data)} particles")
-            return filtered_data
-        except Exception as e:
-            print(f"Error applying filters: {e}")
-            return None
+        # try:
+        data = self.file_controller.load_particles_data("all_particles.csv")
+        if data.empty:
+            filtered_data = pd.DataFrame()
+        else:
+            filtered_data = apply_filters(data, self.filters)
+        
+        output_path = os.path.join(self.file_controller.data_folder, "filtered_particles.csv")
+        filtered_data.to_csv(output_path, index=False)
+        
+        original_count = len(data) if not data.empty else 0
+        print(f"Saved filtered data to: {output_path}")
+        print(f"  Original: {original_count} particles")
+        print(f"  Filtered: {len(filtered_data)} particles")
+        return filtered_data
+        # except Exception as e:
+        #     print(f"Error applying filters: {e}")
+        #     return None
 
 def apply_filters(df: pd.DataFrame, filters: List[Filter]) -> pd.DataFrame:
     if not filters:

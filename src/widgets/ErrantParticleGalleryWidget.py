@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QToolButton,
 )
+from ..utils import SizingUtils
 
 
 class ErrantParticleGalleryWidget(QWidget):
@@ -35,12 +36,13 @@ class ErrantParticleGalleryWidget(QWidget):
         # photo - fixed 200x200 size, centered
         self.photo_label = QLabel("Photo display")
         self.photo_label.setAlignment(Qt.AlignCenter)
-        self.photo_label.setFixedSize(200, 200)
+        self.photo_label_size = SizingUtils.get_errant_particle_dims()
+        self.photo_label.setFixedSize(self.photo_label_size, self.photo_label_size)
         self.photo_label.setScaledContents(False)
         # Center the widget horizontally
-        self.layout.addStretch()
+        self.layout.addStretch() 
         self.layout.addWidget(self.photo_label, alignment=Qt.AlignCenter)
-        self.layout.addStretch()
+        self.layout.addStretch() 
 
         # Store frame numbers for each particle
         self.particle_frames = {}  # index -> frame_number
@@ -90,6 +92,9 @@ class ErrantParticleGalleryWidget(QWidget):
 
         # show initial particle if available
         self._display_particle(self.curr_particle_idx)
+
+        gallery_size_without_photo = 70
+        self.setMinimumHeight(self.photo_label_size + gallery_size_without_photo)
 
     def is_show_on_frame_checked(self):
         """Returns the state of the 'Show particle on frame' checkbox."""
@@ -198,7 +203,7 @@ class ErrantParticleGalleryWidget(QWidget):
                 self.current_pixmap = pixmap
                 # Fixed 200x200 size - scale to fit
                 scaled = self.current_pixmap.scaled(
-                    200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                    self.photo_label_size, self.photo_label_size, Qt.KeepAspectRatio, Qt.SmoothTransformation
                 )
                 self.photo_label.setPixmap(scaled)
             else:
@@ -274,7 +279,7 @@ class ErrantParticleGalleryWidget(QWidget):
 
                     self.info_label.setText(display_text)
             else:
-                self.info_label.setText("")
+                self.info_label.setText(f" \n ")
 
             # Store frame number and position for this particle
             self.particle_frames[index] = frame_num
@@ -314,8 +319,8 @@ class ErrantParticleGalleryWidget(QWidget):
         ):
             # Fixed 200x200 size
             scaled = self.current_pixmap.scaled(
-                200,
-                200,
+                self.photo_label_size,
+                self.photo_label_size,
                 Qt.KeepAspectRatio,
                 Qt.SmoothTransformation,
             )

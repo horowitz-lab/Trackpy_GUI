@@ -88,7 +88,7 @@ class StartScreen(QWidget):
         """Open dialog to create a new project."""
         from .NewProjectWindow import NewProjectWindow
 
-        dialog = NewProjectWindow(self)
+        dialog = NewProjectWindow(parent=self.window())
         if dialog.exec() == NewProjectWindow.Accepted:
             project_path = dialog.get_project_path()
             project_name = dialog.get_project_name()

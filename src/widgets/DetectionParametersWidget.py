@@ -253,4 +253,5 @@ class DetectionParametersWidget(QWidget):
 
     def next_step(self):
         self.save_params()
+        self.graphing_panel.blank_plot
         self.openTrajectoryLinking.emit()

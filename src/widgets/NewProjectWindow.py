@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont
+from ..utils import SizingUtils
 import os
 
 
@@ -41,7 +42,10 @@ class NewProjectWindow(QDialog):
         """Set up the dialog UI."""
         self.setWindowTitle("Create New Project")
         self.setModal(True)
-        self.resize(600, 600)
+        
+        # Set window geometry
+        x_left, y_up, start_screen_width, start_screen_height = SizingUtils.get_start_screen_geometry()
+        self.setGeometry(x_left, y_up, start_screen_width, start_screen_height)
 
         # Main layout
         main_layout = QVBoxLayout(self)

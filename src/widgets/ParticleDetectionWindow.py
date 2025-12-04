@@ -129,9 +129,9 @@ class ParticleDetectionWindow(QMainWindow):
         self.main_layout.addWidget(right_panel_container)
 
         # Connect signals
-        self.main_layout.right_panel.allParticlesUpdated.connect(
-            self.main_layout.left_panel.refresh_plots
-        )
+        # self.main_layout.right_panel.allParticlesUpdated.connect(
+        #     self.main_layout.left_panel.refresh_plots
+        # )
         self.main_layout.right_panel.parameter_changed.connect(
             self.clear_processed_data
         )
@@ -174,7 +174,7 @@ class ParticleDetectionWindow(QMainWindow):
             self.errant_particle_gallery.reset_state()
 
         self.main_layout.left_panel.blank_plot()
-        self.main_layout.left_panel.refresh_plots()
+        # self.main_layout.left_panel.refresh_plots()
         
         # Only apply filters if particle data actually exists
         # Check if all_particles.csv exists and has data before applying filters

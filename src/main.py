@@ -16,6 +16,7 @@ from src.widgets.TrajectoryLinkingWindow import TrajectoryLinkingWindow
 from src.project_manager import ProjectManager
 from src.file_controller import FileController
 from src.config_manager import ConfigManager
+from .utils import SizingUtils
 
 
 class ParticleTrackingAppController(QMainWindow):
@@ -36,6 +37,10 @@ class ParticleTrackingAppController(QMainWindow):
         self.start_screen = None
         self.particle_detection_window = None
         self.trajectory_linking_window = None
+
+        # Initialize window sizes
+        self.win_width = None
+        self.win_height = None
 
         # Create stacked widget for different screens
         self.stacked_widget = QStackedWidget()
@@ -58,7 +63,8 @@ class ParticleTrackingAppController(QMainWindow):
         self.stacked_widget.setCurrentWidget(self.start_screen)
 
         # Resize the main window to fit the start screen
-        self.resize(600, 400)
+        x_left, y_up, start_screen_width, start_screen_height = SizingUtils.get_start_screen_geometry()
+        self.setGeometry(x_left, y_up, start_screen_width, start_screen_height)
 
     def on_project_selected(self, project_path):
         """Handle project selection from start screen."""
@@ -118,7 +124,9 @@ class ParticleTrackingAppController(QMainWindow):
         self.stacked_widget.setCurrentWidget(self.particle_detection_window)
 
         # Resize the main window to fit the detection window
-        self.resize(1200, 500)
+        x_left, y_up, win_width, win_height = SizingUtils.get_main_window_geometry()
+        self.setGeometry(x_left, y_up, win_width, win_height)
+        # self.win_width, self.win_height = self.get_current_win_dims(self.particle_detection_window)
 
     def show_trajectory_linking_window(self):
         """Show the trajectory linking window and hide others."""
@@ -142,7 +150,9 @@ class ParticleTrackingAppController(QMainWindow):
         self.stacked_widget.setCurrentWidget(self.trajectory_linking_window)
 
         # Resize the main window to fit the linking window
-        self.resize(1200, 500)
+        # self.resize(1200, 500)
+        # x_left, y_up, _, _ = SizingUtils.get_main_window_geometry()
+        # self.setGeometry(x_left, y_up, self.win_width, self.win_height)
 
     def on_next_to_trajectory_linking(self):
         """Handle signal to switch from particle detection to trajectory linking."""

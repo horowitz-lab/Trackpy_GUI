@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
 )
 from PySide6.QtGui import QPixmap
+from ..utils import SizingUtils
 
 
 class SaveFramesThread(QThread):
@@ -125,20 +126,21 @@ class FramePlayerWidget(QWidget):
 
         self.frame_label = QLabel()
         self.frame_label.setAlignment(Qt.AlignCenter)
-        self.frame_label.setMinimumSize(640, 480)
-        self.frame_label.setText("No video loaded")
+        frame_player_width, frame_player_height = SizingUtils.get_frame_player_dims()
+        self.frame_label.setMinimumSize(frame_player_width, frame_player_height)
+        self.frame_label.setText("Loading video...")
 
-        self.import_video_button = QPushButton("Click to import video")
-        self.import_video_button.clicked.connect(
-            self.import_video_requested.emit
-        )
-        self.import_video_button.setFixedSize(640, 480)
+        # self.import_video_button = QPushButton("Click to import video")
+        # self.import_video_button.clicked.connect(
+        #     self.import_video_requested.emit
+        # )
+        # self.import_video_button.setFixedSize(640, 480)
 
         self.frame_layout.addWidget(self.frame_label, 0, 0, 1, 1)
-        self.frame_layout.addWidget(
-            self.import_video_button, 0, 0, 1, 1, alignment=Qt.AlignCenter
-        )
-        self.import_video_button.show()
+        # self.frame_layout.addWidget(
+        #     self.import_video_button, 0, 0, 1, 1, alignment=Qt.AlignCenter
+        # )
+        # self.import_video_button.show()
 
         layout.addWidget(self.frame_container)
 
@@ -207,9 +209,9 @@ class FramePlayerWidget(QWidget):
         self.total_frames = total_frames
         if self.total_frames > 0:
             self.frame_slider.setRange(0, self.total_frames - 1)
-            self.import_video_button.hide()
-        else:
-            self.import_video_button.show()
+        #     self.import_video_button.hide()
+        # else:
+        #     self.import_video_button.show()
         self.display_frame(0)
         self.frames_saved.emit(self.total_frames)
 
@@ -218,10 +220,10 @@ class FramePlayerWidget(QWidget):
         self.total_frames = num_frames
         if self.total_frames > 0:
             self.frame_slider.setRange(0, self.total_frames - 1)
-            self.import_video_button.hide()
+            # self.import_video_button.hide()
             self.video_loaded = True
         else:
-            self.import_video_button.show()
+            # self.import_video_button.show()
             self.video_loaded = False
         self.display_frame(0)
 
@@ -287,14 +289,14 @@ class FramePlayerWidget(QWidget):
         based on the current state of the UI.
         """
         if not (0 <= frame_number < self.total_frames):
-            if self.total_frames == 0:
-                self.import_video_button.show()
-                self.frame_label.setText("No video loaded")
+            # if self.total_frames == 0:
+                # self.import_video_button.show()
+                # self.frame_label.setText("No video loaded")
             self.update_frame_display()
             return
 
         self.current_frame_idx = frame_number
-        self.import_video_button.hide()
+        # self.import_video_button.hide()
 
         # Delete old annotated frames
         if self.file_controller:

@@ -22,15 +22,15 @@ from copy import copy
 from .. import particle_processing
 import pandas as pd
 
-from .GraphingUtils import *
+from ..utils import GraphingUtils
 from .FilteringWidget import FilteringWidget
 
 
-class TrajectoryPlottingWidget(GraphingPanelWidget):
+class TrajectoryPlottingWidget(GraphingUtils.GraphingPanelWidget):
     filteredTrajectoriesUpdated = Signal()
 
     def __init__(self, parent=None):
-        super(GraphingPanelWidget, self).__init__()
+        super(GraphingUtils.GraphingPanelWidget, self).__init__()
 
         self.set_up_canvas()
 
@@ -46,7 +46,7 @@ class TrajectoryPlottingWidget(GraphingPanelWidget):
             self.trajectory_label, alignment=Qt.AlignTop
         )
 
-        self.trajectory_button = GraphingButton(
+        self.trajectory_button = GraphingUtils.GraphingButton(
             text="Plot Trajectories", parent=self
         )
         self.trajectory_button.clicked.connect(
@@ -70,7 +70,7 @@ class TrajectoryPlottingWidget(GraphingPanelWidget):
         self.drift_label = QLabel("Drift")
         self.drift_layout.addWidget(self.drift_label, alignment=Qt.AlignTop)
 
-        self.drift_button = GraphingButton(text="Plot Drift", parent=self)
+        self.drift_button = GraphingUtils.GraphingButton(text="Plot Drift", parent=self)
         self.drift_button.clicked.connect(
             lambda: self.self_plot(self.get_drift, self.drift_button)
         )
@@ -94,18 +94,18 @@ class TrajectoryPlottingWidget(GraphingPanelWidget):
         self.data = linked_particles
         self.self_plot(self.get_trajectories, self.trajectory_button)
     
-    def refresh_plots(self):
-        """Reload data from all_trajectories.csv and refresh plots."""
-        if self.file_controller:
-            try:
-                self.data = self.file_controller.load_trajectories_data("all_trajectories.csv")
-                if not self.data.empty:
-                    self.self_plot(self.get_trajectories, self.trajectory_button)
-                else:
-                    self.blank_plot()
-            except pd.errors.EmptyDataError:
-                self.data = pd.DataFrame()
-                self.blank_plot()
+    # def refresh_plots(self):
+    #     """Reload data from all_trajectories.csv and refresh plots."""
+    #     if self.file_controller:
+    #         try:
+    #             self.data = self.file_controller.load_trajectories_data("all_trajectories.csv")
+    #             if not self.data.empty:
+    #                 self.self_plot(self.get_trajectories, self.trajectory_button)
+    #             else:
+    #                 self.blank_plot()
+    #         except pd.errors.EmptyDataError:
+    #             self.data = pd.DataFrame()
+    #             self.blank_plot()
 
     def set_file_controller(self, file_controller):
         """Override to also set file controller for filtering widget."""
@@ -151,12 +151,16 @@ class TrajectoryPlottingWidget(GraphingPanelWidget):
             # Check if particles were found before plotting
             self.check_for_empty_data()
 
+            params = self.config_manager.get_detection_params()
+            scaling = params.get("scaling")
+            print(scaling)
+
             # Create the plot
             fig, ax = plt.subplots()
-            tp.plot_traj(self.data, ax=ax)
+            tp.plot_traj(self.data, mpp = scaling, ax=ax)
 
-            ax.set_xlabel("X [px]")
-            ax.set_ylabel("Y [px]")
+            ax.set_xlabel("X [microns per px]")
+            ax.set_ylabel("Y [microns per px]")
 
             temp_fig = plt.gcf()
             temp_fig.suptitle("Trajectories")

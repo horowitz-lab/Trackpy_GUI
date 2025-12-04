@@ -26,12 +26,12 @@ from copy import copy
 from .. import particle_processing
 import pandas as pd
 
-from .GraphingUtils import *
+from ..utils import GraphingUtils
 from .FilteringWidget import FilteringWidget
 
-class DectectionPlottingWidget(GraphingPanelWidget):
+class DectectionPlottingWidget(GraphingUtils.GraphingPanelWidget):
     def __init__(self, parent=None):
-        super(GraphingPanelWidget, self).__init__()
+        super(GraphingUtils.GraphingPanelWidget, self).__init__()
 
         self.set_up_canvas()
 
@@ -45,7 +45,7 @@ class DectectionPlottingWidget(GraphingPanelWidget):
         self.sb_label = QLabel("Subpixel Bias")
         self.sb_layout.addWidget(self.sb_label, alignment=Qt.AlignTop)
 
-        self.sb_button = GraphingButton(text="Plot Subpixel Bias", parent=self)
+        self.sb_button = GraphingUtils.GraphingButton(text="Plot Subpixel Bias", parent=self)
         self.sb_button.clicked.connect(
             lambda: self.self_plot(self.get_subpixel_bias, self.sb_button)
         )
@@ -63,7 +63,7 @@ class DectectionPlottingWidget(GraphingPanelWidget):
         self.hist_label = QLabel("Histograms")
         self.hist_layout.addWidget(self.hist_label, alignment=Qt.AlignTop)
 
-        self.ecc_button = GraphingButton(text="Plot Eccentricity", parent=self)
+        self.ecc_button = GraphingUtils.GraphingButton(text="Plot Eccentricity", parent=self)
         self.ecc_button.clicked.connect(
             lambda: self.self_plot(
                 self.get_eccentricity_count, self.ecc_button
@@ -71,7 +71,7 @@ class DectectionPlottingWidget(GraphingPanelWidget):
         )
         self.hist_layout.addWidget(self.ecc_button, alignment=Qt.AlignTop)
 
-        self.mass_button = GraphingButton(text="Plot Mass", parent=self)
+        self.mass_button = GraphingUtils.GraphingButton(text="Plot Mass", parent=self)
         self.mass_button.clicked.connect(
             lambda: self.self_plot(self.get_mass_count, self.mass_button)
         )
@@ -107,20 +107,20 @@ class DectectionPlottingWidget(GraphingPanelWidget):
         """Sets paritcle data and plots subpixel bias."""
         self.data = particles
         self.self_plot(self.get_subpixel_bias, self.sb_button)
-    
-    def refresh_plots(self):
-        """Reload data from all_particles.csv and refresh plots."""
-        if self.file_controller:
-            try:
-                self.data = self.file_controller.load_particles_data("all_particles.csv")
-                if not self.data.empty:
-                    self.self_plot(self.get_subpixel_bias, self.sb_button)
-                else:
-                    self.blank_plot()
-            except pd.errors.EmptyDataError:
-                self.data = pd.DataFrame()
-                self.blank_plot()
 
+    # def refresh_plots(self):
+    #     """Reload data from all_particles.csv and refresh plots."""
+    #     if self.file_controller:
+    #         try:
+    #             self.data = self.file_controller.load_particles_data("all_particles.csv")
+    #             if not self.data.empty:
+    #                 self.self_plot(self.get_subpixel_bias, self.sb_button)
+    #             else:
+    #                 self.blank_plot()
+    #         except pd.errors.EmptyDataError:
+    #             self.data = pd.DataFrame()
+    #             self.blank_plot()
+      
     def set_file_controller(self, file_controller):
         """Override to also set file controller for filtering widget."""
         super().set_file_controller(file_controller)

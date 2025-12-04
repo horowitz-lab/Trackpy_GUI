@@ -69,7 +69,7 @@ class TrajectoryLinkingWindow(QMainWindow):
         if hasattr(self, "main_layout") and hasattr(self.main_layout, "left_panel"):
             self.main_layout.left_panel.set_config_manager(self.config_manager)
             self.main_layout.left_panel.set_file_controller(self.file_controller)
-            self.main_layout.left_panel.refresh_plots()
+            # self.main_layout.left_panel.refresh_plots()
 
     def setup_ui(self):
         # Main Widget
