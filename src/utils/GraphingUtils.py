@@ -101,7 +101,8 @@ class GraphingPanelWidget(QWidget):
 
         self.plot_label = ScaledLabel("No plot to display.")
         self.plot_label.setAlignment(Qt.AlignCenter)
-        self.layout.addWidget(self.plot_label, 1)
+        # Give the plot label more space - use stretch factor 3 to make it bigger
+        self.layout.addWidget(self.plot_label, 3)
         self.blank_plot()
 
     def blank_plot(self):
@@ -150,8 +151,10 @@ class GraphingPanelWidget(QWidget):
         self.fig = new_fig
         self.fig.tight_layout()
         
+        # Increase DPI for higher quality and larger display
+        # Calculate size based on available space, but make it bigger
         buf = io.BytesIO()
-        self.fig.savefig(buf, format='png', pad_inches=0.1, dpi=150)
+        self.fig.savefig(buf, format='png', pad_inches=0.1, dpi=200, bbox_inches='tight')
         buf.seek(0)
         
         pixmap = QPixmap()
