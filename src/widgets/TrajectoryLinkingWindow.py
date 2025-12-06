@@ -34,10 +34,8 @@ class TrajectoryLinkingWindow(QMainWindow):
         """Set the config manager for this window."""
         self.config_manager = config_manager
         # Pass config manager to widgets that need it
-        if hasattr(self, "main_layout") and hasattr(
-            self.main_layout, "right_panel"
-        ):
-            self.main_layout.right_panel.set_config_manager(config_manager)
+        if hasattr(self, "right_panel"):
+            self.right_panel.set_config_manager(config_manager)
         if hasattr(self, "frame_player"):
             self.frame_player.set_config_manager(config_manager)
         if hasattr(self, "errant_particle_gallery"):
@@ -47,10 +45,8 @@ class TrajectoryLinkingWindow(QMainWindow):
         """Set the file controller for this window."""
         self.file_controller = file_controller
         # Pass file controller to widgets that need it
-        if hasattr(self, "main_layout") and hasattr(
-            self.main_layout, "right_panel"
-        ):
-            self.main_layout.right_panel.set_file_controller(file_controller)
+        if hasattr(self, "right_panel"):
+            self.right_panel.set_file_controller(file_controller)
         if hasattr(self, "frame_player"):
             self.frame_player.set_file_controller(file_controller)
         if hasattr(self, "errant_particle_gallery"):
@@ -66,17 +62,22 @@ class TrajectoryLinkingWindow(QMainWindow):
             and self.errant_particle_gallery
         ):
             self.errant_particle_gallery.refresh_rb_gallery()
-        if hasattr(self, "main_layout") and hasattr(self.main_layout, "left_panel"):
-            self.main_layout.left_panel.set_config_manager(self.config_manager)
-            self.main_layout.left_panel.set_file_controller(self.file_controller)
-            # self.main_layout.left_panel.refresh_plots()
+        if hasattr(self, "left_panel"):
+            self.left_panel.set_config_manager(self.config_manager)
+            self.left_panel.set_file_controller(self.file_controller)
 
     def setup_ui(self):
         # Main Widget
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
+        
+        # Use a QSplitter for resizable panels
+        splitter = QSplitter(Qt.Horizontal)
+        
+        # Main layout will now be the layout of the central widget
         self.main_layout = QHBoxLayout(self.central_widget)
-        self.resize(1200, 500)
+        self.main_layout.addWidget(splitter)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
 
         # Menu Bar
         menubar = self.menuBar()
@@ -89,51 +90,55 @@ class TrajectoryLinkingWindow(QMainWindow):
         options_menu = menubar.addMenu("Options")
 
         # Left Panel
-        self.main_layout.left_panel = TrajectoryPlottingWidget()
-        self.main_layout.addWidget(self.main_layout.left_panel)
+        self.left_panel = TrajectoryPlottingWidget()
+        splitter.addWidget(self.left_panel)
 
         # Middle Panel
-        self.main_layout.middle_panel = QWidget()
-        self.middle_layout = QVBoxLayout(self.main_layout.middle_panel)
+        self.middle_panel = QWidget()
+        self.middle_layout = QVBoxLayout(self.middle_panel)
 
         self.frame_player = TrajectoryPlayerWidget()
-        self.middle_layout.addWidget(self.frame_player)
+        self.middle_layout.addWidget(self.frame_player, 1) # Add with 1/2 stretch
         self.errant_particle_gallery = ErrantTrajectoryGalleryWidget()
-        self.middle_layout.addWidget(self.errant_particle_gallery)
+        self.middle_layout.addWidget(self.errant_particle_gallery, 1) # Add with 1/2 stretch
 
-        self.main_layout.addWidget(self.main_layout.middle_panel)
+        splitter.addWidget(self.middle_panel)
 
         # Right Panel
-        self.main_layout.right_panel = LinkingParametersWidget(self.main_layout.left_panel)
-        self.right_layout = QVBoxLayout(self.main_layout.right_panel)
-        self.main_layout.addWidget(self.main_layout.right_panel)
+        self.right_panel = LinkingParametersWidget(self.left_panel)
+        self.right_layout = QVBoxLayout(self.right_panel)
+        splitter.addWidget(self.right_panel)
+
+        # Set stretch factors for the splitter
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 2)
+        splitter.setStretchFactor(2, 1)
 
         # Connect trajectory linking signal to refresh memory links when trajectories are found
-        self.main_layout.right_panel.trajectoriesLinked.connect(
+        self.right_panel.trajectoriesLinked.connect(
             self.frame_player.refresh_links
         )
 
         # Connect filtered data updates to refresh relevant widgets
-        # Note: refresh_trajectories is NOT connected here - user must manually click "Find Trajectories"
-        self.main_layout.left_panel.filtering_widget.filteredParticlesUpdated.connect(
+        self.left_panel.filtering_widget.filteredParticlesUpdated.connect(
             self.frame_player.refresh_links
         )
-        self.main_layout.left_panel.filtering_widget.filteredParticlesUpdated.connect(
+        self.left_panel.filtering_widget.filteredParticlesUpdated.connect(
             self.errant_particle_gallery.refresh_rb_gallery
         )
 
         # Connect back button signal to return to detection window
-        self.main_layout.right_panel.goBackToDetection.connect(
+        self.right_panel.goBackToDetection.connect(
             self.go_back_to_detection
         )
 
         # Connect RB gallery creation signal to refresh the trajectory gallery
-        self.main_layout.right_panel.rbGalleryCreated.connect(
+        self.right_panel.rbGalleryCreated.connect(
             self.errant_particle_gallery.refresh_rb_gallery
         )
 
         # Connect export and close signal
-        self.main_layout.right_panel.export_and_close.connect(
+        self.right_panel.export_and_close.connect(
             self.on_export_and_close
         )
 

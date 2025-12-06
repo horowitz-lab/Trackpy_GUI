@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
 )
 from PySide6.QtGui import QPixmap
-from ..utils import SizingUtils
+from .ScaledLabel import ScaledLabel
 
 
 class SaveFramesThread(QThread):
@@ -124,25 +124,13 @@ class FramePlayerWidget(QWidget):
         self.frame_layout = QGridLayout(self.frame_container)
         self.frame_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.frame_label = QLabel()
+        self.frame_label = ScaledLabel()
         self.frame_label.setAlignment(Qt.AlignCenter)
-        frame_player_width, frame_player_height = SizingUtils.get_frame_player_dims()
-        self.frame_label.setMinimumSize(frame_player_width, frame_player_height)
         self.frame_label.setText("Loading video...")
 
-        # self.import_video_button = QPushButton("Click to import video")
-        # self.import_video_button.clicked.connect(
-        #     self.import_video_requested.emit
-        # )
-        # self.import_video_button.setFixedSize(640, 480)
-
         self.frame_layout.addWidget(self.frame_label, 0, 0, 1, 1)
-        # self.frame_layout.addWidget(
-        #     self.import_video_button, 0, 0, 1, 1, alignment=Qt.AlignCenter
-        # )
-        # self.import_video_button.show()
 
-        layout.addWidget(self.frame_container)
+        layout.addWidget(self.frame_container, 1)
 
         # Current frame display
         self.current_frame_label = QLabel("Frame: 0 / 0")
@@ -377,12 +365,7 @@ class FramePlayerWidget(QWidget):
             # Fallback to original path if annotation saving failed
             pixmap = QPixmap(original_frame_path)
 
-        scaled_pixmap = pixmap.scaled(
-            self.frame_label.size(),
-            Qt.KeepAspectRatio,
-            Qt.SmoothTransformation,
-        )
-        self.frame_label.setPixmap(scaled_pixmap)
+        self.frame_label.setPixmap(pixmap)
 
         self.update_frame_display()
         self.frame_changed.emit(frame_number)
@@ -426,7 +409,3 @@ class FramePlayerWidget(QWidget):
         if value != self.current_frame_idx:
             self.display_frame(value)
 
-    def resizeEvent(self, event):
-        """Handle widget resize to update frame display"""
-        super().resizeEvent(event)
-        self.display_frame(self.current_frame_idx)

@@ -19,7 +19,6 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QAction
 from PySide6.QtCore import Qt
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.figure import Figure
 import os
 from copy import copy
@@ -33,7 +32,7 @@ class DectectionPlottingWidget(GraphingUtils.GraphingPanelWidget):
     def __init__(self, parent=None):
         super(GraphingUtils.GraphingPanelWidget, self).__init__()
 
-        self.set_up_canvas()
+        self.setup_plot_display()
 
         # Buttons
         self.graphing_buttons = QWidget()

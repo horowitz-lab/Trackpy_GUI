@@ -13,26 +13,22 @@ from PySide6.QtWidgets import (
     QPushButton,
     QMenu,
 )
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QPixmap
 from PySide6.QtCore import Qt
 import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.figure import Figure
 import os
 from copy import copy
 from .. import particle_processing
-from .SizingUtils import *
-
-TARGET_WIDTH_PX = 500
-TARGET_HEIGHT_PX = 400
-STANDARD_DPI = 100
+import io
+from ..widgets.ScaledLabel import ScaledLabel
 
 # Universal graphing label sizes
 matplotlib.rc('xtick', labelsize=20) 
 matplotlib.rc('ytick', labelsize=20)
 matplotlib.rc('axes', titlesize=22, labelsize=22)
-matplotlib.rc('figure', titlesize=25, figsize=(10, 8), dpi=STANDARD_DPI)
+matplotlib.rc('figure', titlesize=25)
 
 class GraphingButton(QPushButton):
     """Button for graphing controls with highlight state management."""
@@ -92,8 +88,8 @@ class GraphingPanelWidget(QWidget):
         """
         self.file_controller = file_controller
 
-    def set_up_canvas(self):
-        """Create the starting graphing area canvas."""
+    def setup_plot_display(self):
+        """Create the starting graphing area display."""
         self.config_manager = None
         self.file_controller = None
         # Either particle data or trajectory data
@@ -102,25 +98,16 @@ class GraphingPanelWidget(QWidget):
         # Graph area
         self.layout = QVBoxLayout(self)
         self.fig = None
-        self.blank_plot
 
-        self.canvas = FigureCanvas(self.fig)
-        self.canvas.setFixedSize(TARGET_WIDTH_PX, TARGET_HEIGHT_PX)
-
-        # Add stretch above the canvas for vertical centering
-        self.layout.addStretch(1)
-        # Center the canvas in the layout
-        self.layout.addWidget(self.canvas, alignment=Qt.AlignCenter)
+        self.plot_label = ScaledLabel("No plot to display.")
+        self.plot_label.setAlignment(Qt.AlignCenter)
+        self.layout.addWidget(self.plot_label, 1)
+        self.blank_plot()
 
     def blank_plot(self):
-        """Create a new blank figure with the correct size."""
-        if self.fig:
-            plt.close(self.fig)
-
-        # Ensure the blank figure is created with the target size properties
-        self.fig = Figure()
-        ax = self.fig.add_subplot(111)
-        ax.set_axis_off()
+        """Clear the plot display."""
+        if hasattr(self, 'plot_label'):
+            self.plot_label.setPixmap(QPixmap())
 
     def check_for_empty_data(self):
         """Check if data has been found.
@@ -157,14 +144,20 @@ class GraphingPanelWidget(QWidget):
         # Handle error/no particles case
         if new_fig is None:
             self.blank_plot()
-            self.canvas.draw()
             return
 
-        # Assign new figure and redraw canvas
+        # Assign new figure and render it to a pixmap
         self.fig = new_fig
-        self.canvas.setFixedSize(TARGET_WIDTH_PX, TARGET_HEIGHT_PX)
-        self.canvas.figure = self.fig
-        self.canvas.draw()
+        self.fig.tight_layout()
+        
+        buf = io.BytesIO()
+        self.fig.savefig(buf, format='png', pad_inches=0.1, dpi=150)
+        buf.seek(0)
+        
+        pixmap = QPixmap()
+        pixmap.loadFromData(buf.getvalue(), 'png')
+        
+        self.plot_label.setPixmap(pixmap)
 
         # Switch button color
         button.switch_button_color()

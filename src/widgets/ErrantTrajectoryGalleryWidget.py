@@ -24,6 +24,8 @@ import numpy as np
 import os
 import json
 
+from .ScaledLabel import ScaledLabel
+
 
 class ErrantTrajectoryGalleryWidget(QWidget):
     def __init__(self, parent=None):
@@ -34,11 +36,9 @@ class ErrantTrajectoryGalleryWidget(QWidget):
         self.layout = QVBoxLayout(self)
 
         # Photo display for RB overlay images
-        self.photo_label = QLabel("RB Overlay Display")
+        self.photo_label = ScaledLabel("RB Overlay Display")
         self.photo_label.setAlignment(Qt.AlignCenter)
-        self.photo_label.setMinimumHeight(200)
-        self.photo_label.setScaledContents(False)
-        self.layout.addWidget(self.photo_label)
+        self.layout.addWidget(self.photo_label, 1)
 
         # Info display (similar to ErrantParticleGalleryWidget)
         self.info_label = QLabel("Info")
@@ -150,12 +150,7 @@ class ErrantTrajectoryGalleryWidget(QWidget):
 
             # Scale to fit while keeping aspect ratio
             if self.current_pixmap is not None:
-                scaled = self.current_pixmap.scaled(
-                    self.photo_label.size(),
-                    Qt.KeepAspectRatio,
-                    Qt.SmoothTransformation,
-                )
-                self.photo_label.setPixmap(scaled)
+                self.photo_label.setPixmap(self.current_pixmap)
             else:
                 self.photo_label.setText("Failed to generate RB overlay image")
                 self._update_display_text()

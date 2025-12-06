@@ -9,6 +9,7 @@ import sys
 import os
 import platform
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget
+from PySide6.QtGui import QGuiApplication
 from PySide6 import QtWidgets
 from src.widgets.StartScreen import StartScreen
 from src.widgets.ParticleDetectionWindow import ParticleDetectionWindow
@@ -16,7 +17,6 @@ from src.widgets.TrajectoryLinkingWindow import TrajectoryLinkingWindow
 from src.project_manager import ProjectManager
 from src.file_controller import FileController
 from src.config_manager import ConfigManager
-from .utils import SizingUtils
 
 
 class ParticleTrackingAppController(QMainWindow):
@@ -58,13 +58,20 @@ class ParticleTrackingAppController(QMainWindow):
         self.start_screen = StartScreen()
         self.start_screen.project_selected.connect(self.on_project_selected)
 
-        # Add to stacked widget
         self.stacked_widget.addWidget(self.start_screen)
         self.stacked_widget.setCurrentWidget(self.start_screen)
 
         # Resize the main window to fit the start screen
-        x_left, y_up, start_screen_width, start_screen_height = SizingUtils.get_start_screen_geometry()
-        self.setGeometry(x_left, y_up, start_screen_width, start_screen_height)
+        self.start_screen.adjustSize()
+        self.resize(self.start_screen.size())
+        self.center()
+        
+    def center(self):
+        """Center the window on the screen."""
+        screen = QGuiApplication.primaryScreen().geometry()
+        x = (screen.width() - self.width()) / 2
+        y = (screen.height() - self.height()) / 2
+        self.move(int(x), int(y))
 
     def on_project_selected(self, project_path):
         """Handle project selection from start screen."""
@@ -115,7 +122,7 @@ class ParticleTrackingAppController(QMainWindow):
         )
 
         # Connect signals from particle detection window
-        self.particle_detection_window.main_layout.right_panel.openTrajectoryLinking.connect(
+        self.particle_detection_window.right_panel.openTrajectoryLinking.connect(
             self.on_next_to_trajectory_linking
         )
 
@@ -123,10 +130,10 @@ class ParticleTrackingAppController(QMainWindow):
         self.stacked_widget.addWidget(self.particle_detection_window)
         self.stacked_widget.setCurrentWidget(self.particle_detection_window)
 
-        # Resize the main window to fit the detection window
-        x_left, y_up, win_width, win_height = SizingUtils.get_main_window_geometry()
-        self.setGeometry(x_left, y_up, win_width, win_height)
-        # self.win_width, self.win_height = self.get_current_win_dims(self.particle_detection_window)
+        # Resize the main window to a fraction of the screen
+        available_geometry = QGuiApplication.primaryScreen().availableGeometry()
+        self.resize(available_geometry.width() * 0.8, available_geometry.height() * 0.8)
+        self.center()
 
     def show_trajectory_linking_window(self):
         """Show the trajectory linking window and hide others."""
@@ -141,7 +148,7 @@ class ParticleTrackingAppController(QMainWindow):
         )
 
         # Connect signals from trajectory linking window
-        self.trajectory_linking_window.main_layout.right_panel.goBackToDetection.connect(
+        self.trajectory_linking_window.right_panel.goBackToDetection.connect(
             self.on_back_to_particle_detection
         )
 
@@ -149,10 +156,10 @@ class ParticleTrackingAppController(QMainWindow):
         self.stacked_widget.addWidget(self.trajectory_linking_window)
         self.stacked_widget.setCurrentWidget(self.trajectory_linking_window)
 
-        # Resize the main window to fit the linking window
-        # self.resize(1200, 500)
-        # x_left, y_up, _, _ = SizingUtils.get_main_window_geometry()
-        # self.setGeometry(x_left, y_up, self.win_width, self.win_height)
+        # Resize the main window to a fraction of the screen
+        available_geometry = QGuiApplication.primaryScreen().availableGeometry()
+        self.resize(available_geometry.width() * 0.8, available_geometry.height() * 0.8)
+        self.center()
 
     def on_next_to_trajectory_linking(self):
         """Handle signal to switch from particle detection to trajectory linking."""

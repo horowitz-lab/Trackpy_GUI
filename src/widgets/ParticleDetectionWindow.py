@@ -37,20 +37,16 @@ class ParticleDetectionWindow(QMainWindow):
         """Set the config manager for this window."""
         self.config_manager = config_manager
         # Pass config manager to widgets that need it
-        if hasattr(self, "main_layout") and hasattr(
-            self.main_layout, "right_panel"
-        ):
-            self.main_layout.right_panel.set_config_manager(config_manager)
+        if hasattr(self, "right_panel"):
+            self.right_panel.set_config_manager(config_manager)
         if hasattr(self, "frame_player"):
             self.frame_player.set_config_manager(config_manager)
         if hasattr(self, "errant_particle_gallery") and hasattr(
             self.errant_particle_gallery, "set_config_manager"
         ):
             self.errant_particle_gallery.set_config_manager(config_manager)
-        if hasattr(self, "main_layout") and hasattr(
-            self.main_layout, "left_panel"
-        ):
-            self.main_layout.left_panel.set_config_manager(config_manager)
+        if hasattr(self, "left_panel"):
+            self.left_panel.set_config_manager(config_manager)
         # Update metadata display
         self._update_metadata_display()
 
@@ -58,20 +54,16 @@ class ParticleDetectionWindow(QMainWindow):
         """Set the file controller for this window."""
         self.file_controller = file_controller
         # Pass file controller to widgets that need it
-        if hasattr(self, "main_layout") and hasattr(
-            self.main_layout, "right_panel"
-        ):
-            self.main_layout.right_panel.set_file_controller(file_controller)
+        if hasattr(self, "right_panel"):
+            self.right_panel.set_file_controller(file_controller)
         if hasattr(self, "frame_player"):
             self.frame_player.set_file_controller(file_controller)
         if hasattr(self, "errant_particle_gallery") and hasattr(
             self.errant_particle_gallery, "set_file_controller"
         ):
             self.errant_particle_gallery.set_file_controller(file_controller)
-        if hasattr(self, "main_layout") and hasattr(
-            self.main_layout, "left_panel"
-        ):
-            self.main_layout.left_panel.set_file_controller(file_controller)
+        if hasattr(self, "left_panel"):
+            self.left_panel.set_file_controller(file_controller)
 
         # Load existing particle data if available
         self.load_particle_data()
@@ -80,8 +72,14 @@ class ParticleDetectionWindow(QMainWindow):
         # Main Widget
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
+        
+        # Use a QSplitter for resizable panels
+        splitter = QSplitter(Qt.Horizontal)
+        
+        # Main layout will now be the layout of the central widget
         self.main_layout = QHBoxLayout(self.central_widget)
-        self.resize(1200, 500)
+        self.main_layout.addWidget(splitter)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
 
         # Menu Bar
         menubar = self.menuBar()
@@ -94,24 +92,24 @@ class ParticleDetectionWindow(QMainWindow):
         options_menu = menubar.addMenu("Options")
 
         # Left Panel
-        self.main_layout.left_panel = DectectionPlottingWidget()
-        self.main_layout.addWidget(self.main_layout.left_panel)
+        self.left_panel = DectectionPlottingWidget()
+        splitter.addWidget(self.left_panel)
 
         # Middle Panel
-        self.main_layout.middle_panel = QWidget()
-        self.middle_layout = QVBoxLayout(self.main_layout.middle_panel)
+        self.middle_panel = QWidget()
+        middle_layout = QVBoxLayout(self.middle_panel)
 
         self.frame_player = FramePlayerWidget()
-        self.middle_layout.addWidget(self.frame_player)
+        middle_layout.addWidget(self.frame_player, 2) # Add with 2/3 stretch
         self.errant_particle_gallery = ErrantParticleGalleryWidget()
-        self.middle_layout.addWidget(self.errant_particle_gallery)
+        middle_layout.addWidget(self.errant_particle_gallery, 1) # Add with 1/3 stretch
 
         # Set the gallery reference in the frame player
         self.frame_player.set_errant_particle_gallery(
             self.errant_particle_gallery
         )
 
-        self.main_layout.addWidget(self.main_layout.middle_panel)
+        splitter.addWidget(self.middle_panel)
 
         # Right Panel - Create container widget
         right_panel_container = QWidget()
@@ -119,27 +117,29 @@ class ParticleDetectionWindow(QMainWindow):
         right_panel_layout.setContentsMargins(0, 0, 0, 0)
         
         # Detection parameters widget
-        self.main_layout.right_panel = DetectionParametersWidget(self.main_layout.left_panel)
-        right_panel_layout.addWidget(self.main_layout.right_panel)
+        self.right_panel = DetectionParametersWidget(self.left_panel)
+        right_panel_layout.addWidget(self.right_panel)
         
         # Metadata display widget
         self.metadata_widget = self._create_metadata_widget()
         right_panel_layout.addWidget(self.metadata_widget)
         
-        self.main_layout.addWidget(right_panel_container)
+        splitter.addWidget(right_panel_container)
+
+        # Set stretch factors for the splitter
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 2)
+        splitter.setStretchFactor(2, 1)
 
         # Connect signals
-        # self.main_layout.right_panel.allParticlesUpdated.connect(
-        #     self.main_layout.left_panel.refresh_plots
-        # )
-        self.main_layout.right_panel.parameter_changed.connect(
+        self.right_panel.parameter_changed.connect(
             self.clear_processed_data
         )
-        self.main_layout.right_panel.parameter_changed.connect(
+        self.right_panel.parameter_changed.connect(
             self.frame_player.update_feature_size
         )
         self.frame_player.frames_saved.connect(
-            self.main_layout.right_panel.set_total_frames
+            self.right_panel.set_total_frames
         )
         self.errant_particle_gallery.update_required.connect(
             self.frame_player.handle_gallery_update
@@ -147,10 +147,10 @@ class ParticleDetectionWindow(QMainWindow):
         self.frame_player.import_video_requested.connect(self.import_video)
         
         # Connect filtered data updates
-        self.main_layout.left_panel.filtering_widget.filteredParticlesUpdated.connect(
+        self.left_panel.filtering_widget.filteredParticlesUpdated.connect(
             self.frame_player.refresh_frame
         )
-        self.main_layout.left_panel.filtering_widget.filteredParticlesUpdated.connect(
+        self.left_panel.filtering_widget.filteredParticlesUpdated.connect(
             self.errant_particle_gallery.regenerate_errant_particles
         )
 
@@ -164,17 +164,17 @@ class ParticleDetectionWindow(QMainWindow):
         if self.frame_player:
             frame_count = self.frame_player.reload_from_disk()
 
-        if self.main_layout.right_panel:
+        if self.right_panel:
             if frame_count > 0:
-                self.main_layout.right_panel.set_total_frames(frame_count)
+                self.right_panel.set_total_frames(frame_count)
             # Reload parameters from config file
-            self.main_layout.right_panel.load_params()
+            self.right_panel.load_params()
 
         if self.errant_particle_gallery:
             self.errant_particle_gallery.reset_state()
 
-        self.main_layout.left_panel.blank_plot()
-        # self.main_layout.left_panel.refresh_plots()
+        self.left_panel.blank_plot()
+        # self.left_panel.refresh_plots()
         
         # Only apply filters if particle data actually exists
         # Check if all_particles.csv exists and has data before applying filters
@@ -184,7 +184,7 @@ class ParticleDetectionWindow(QMainWindow):
                 particle_data = pd.read_csv(all_particles_path)
                 # Only apply filters if there's actual particle data
                 if not particle_data.empty:
-                    self.main_layout.left_panel.filtering_widget.apply_filters_and_notify()
+                    self.left_panel.filtering_widget.apply_filters_and_notify()
             except (pd.errors.EmptyDataError, Exception):
                 # File exists but is empty or invalid, don't apply filters
                 pass
@@ -230,7 +230,7 @@ class ParticleDetectionWindow(QMainWindow):
             self.file_controller.delete_all_files_in_folder(
                 self.file_controller.annotated_frames_folder
             )
-            self.main_layout.right_panel.clear_processed_frames()
+            self.right_panel.clear_processed_frames()
         except Exception as e:
             print(f"Error cleaning up old frame folders: {e}")
 
@@ -238,7 +238,7 @@ class ParticleDetectionWindow(QMainWindow):
 
     def load_existing_frames(self, num_frames):
         """Load existing frames into the widgets."""
-        self.main_layout.right_panel.set_total_frames(num_frames)
+        self.right_panel.set_total_frames(num_frames)
         self.frame_player.load_frames(num_frames)
 
     def _create_metadata_widget(self):
