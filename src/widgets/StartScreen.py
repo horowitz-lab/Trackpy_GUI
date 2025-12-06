@@ -107,11 +107,6 @@ class StartScreen(QWidget):
                 scaling=scaling,
                 movie_taken_date=movie_taken_date,
             ):
-                QMessageBox.information(
-                    self,
-                    "Project Created",
-                    f"Project '{project_name}' created successfully!\n\nPath: {project_path}",
-                )
                 self.project_selected.emit(project_path)
             else:
                 QMessageBox.critical(
@@ -134,11 +129,6 @@ class StartScreen(QWidget):
             config_path = os.path.join(project_folder, "config.ini")
             if os.path.exists(config_path):
                 if self.project_manager.load_project(project_folder):
-                    QMessageBox.information(
-                        self,
-                        "Project Loaded",
-                        f"Project loaded successfully!\n\nPath: {project_folder}",
-                    )
                     self.project_selected.emit(project_folder)
                 else:
                     QMessageBox.critical(

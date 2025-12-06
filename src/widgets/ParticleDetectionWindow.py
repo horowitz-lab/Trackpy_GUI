@@ -138,15 +138,15 @@ class ParticleDetectionWindow(QMainWindow):
         splitter.setStretchFactor(1, 2)
         splitter.setStretchFactor(2, 1)
         
-        # Make splitter handle wider and black for easy clicking
-        splitter.setHandleWidth(20)
+        # Make splitter handle thinner and elegant black line for easy clicking
+        splitter.setHandleWidth(4)
         splitter.setStyleSheet("""
             QSplitter::handle {
                 background-color: black;
-                border: 1px solid black;
+                border: none;
             }
             QSplitter::handle:hover {
-                background-color: #333333;
+                background-color: #444444;
             }
         """)
 
