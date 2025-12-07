@@ -29,6 +29,6 @@ data/
 frames/
 annotated_frames/
 original_frames/
-particles/
-rb_gallery/
-memory/
+errant_particles/
+errant_distance_links/
+errant_memory_links/

@@ -29,7 +29,7 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
     filteredTrajectoriesUpdated = Signal()
 
     def __init__(self, parent=None):
-        super(GraphingUtils.GraphingPanelWidget, self).__init__()
+        super().__init__(parent)
 
         self.setup_plot_display()
 

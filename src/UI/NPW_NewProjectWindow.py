@@ -136,7 +136,7 @@ class NPWNewProjectWindow(QDialog):
             "A new project folder will be created inside the selected parent folder:\n"
             "• Project folder name: [Project Name]\n"
             "• Project structure:\n"
-            "  - particles/ - Particle images\n"
+            "  - errant_particles/ - Particle images\n"
             "  - original_frames/ - Video frames\n"
             "  - annotated_frames/ - Annotated frames\n"
             "  - rb_gallery/ - Red-blue overlays\n"

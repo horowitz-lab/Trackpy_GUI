@@ -82,7 +82,7 @@ class LWErrantMemoryLinksWidget(QWidget):
         self.layout.addLayout(nav_layout)
 
         # Store state
-        self.memory_folder = None
+        self.errant_memory_links_folder = None
         self.links = []  # This will be a list of dictionaries from the JSON
         self.current_link_idx = 0
         self.current_frame_idx = 0
@@ -94,17 +94,17 @@ class LWErrantMemoryLinksWidget(QWidget):
     def set_file_controller(self, file_controller):
         self.file_controller = file_controller
         if file_controller:
-            self.memory_folder = file_controller.memory_folder
+            self.errant_memory_links_folder = file_controller.errant_memory_links_folder
             self._load_links()
 
     def _load_links(self):
         """Load available memory links from the new JSON metadata file."""
-        if not self.memory_folder:
+        if not self.errant_memory_links_folder:
             self.links = []
             self._update_display()
             return
             
-        json_path = os.path.join(self.memory_folder, "memory_links.json")
+        json_path = os.path.join(self.errant_memory_links_folder, "memory_links.json")
         if not os.path.exists(json_path):
             self.links = []
             self.current_link_frames = []
@@ -139,7 +139,7 @@ class LWErrantMemoryLinksWidget(QWidget):
             self.current_link_frames = []
             return
 
-        link_folder_path = os.path.join(self.memory_folder, link_folder_name)
+        link_folder_path = os.path.join(self.errant_memory_links_folder, link_folder_name)
         
         frame_files = [os.path.join(link_folder_path, f) for f in sorted(os.listdir(link_folder_path)) if f.startswith("frame_") and f.lower().endswith(".jpg")]
 

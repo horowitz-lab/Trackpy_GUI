@@ -63,13 +63,13 @@ class ProjectManager:
 
             # Create project subfolders
             folders = [
-                "particles",
+                "errant_particles",
                 "original_frames",
                 "annotated_frames",
-                "rb_gallery",
+                "errant_distance_links",
                 "data",
                 "videos",
-                "memory",
+                "errant_memory_links",
             ]
 
             for folder in folders:
@@ -173,15 +173,15 @@ class ProjectManager:
             return {}
 
         return {
-            "particles": os.path.join(self.current_project_path, "particles"),
+            "errant_particles": os.path.join(self.current_project_path, "errant_particles"),
             "original_frames": os.path.join(
                 self.current_project_path, "original_frames"
             ),
             "annotated_frames": os.path.join(
                 self.current_project_path, "annotated_frames"
             ),
-            "rb_gallery": os.path.join(
-                self.current_project_path, "rb_gallery"
+            "errant_distance_links": os.path.join(
+                self.current_project_path, "errant_distance_links"
             ),
             "data": os.path.join(self.current_project_path, "data"),
             "videos": os.path.join(self.current_project_path, "videos"),
@@ -198,8 +198,8 @@ class ProjectManager:
 
         # Update paths to be absolute paths relative to project folder
         if "Paths" in config:
-            config["Paths"]["particles_folder"] = os.path.abspath(
-                os.path.join(project_path, "particles")
+            config["Paths"]["errant_particles_folder"] = os.path.abspath(
+                os.path.join(project_path, "errant_particles")
             )
             config["Paths"]["original_frames_folder"] = os.path.abspath(
                 os.path.join(project_path, "original_frames")
@@ -207,14 +207,17 @@ class ProjectManager:
             config["Paths"]["annotated_frames_folder"] = os.path.abspath(
                 os.path.join(project_path, "annotated_frames")
             )
-            config["Paths"]["rb_gallery_folder"] = os.path.abspath(
-                os.path.join(project_path, "rb_gallery")
+            config["Paths"]["errant_distance_links_folder"] = os.path.abspath(
+                os.path.join(project_path, "errant_distance_links")
             )
             config["Paths"]["data_folder"] = os.path.abspath(
                 os.path.join(project_path, "data")
             )
             config["Paths"]["videos_folder"] = os.path.abspath(
                 os.path.join(project_path, "videos")
+            )
+            config["Paths"]["errant_memory_links_folder"] = os.path.abspath(
+                os.path.join(project_path, "errant_memory_links")
             )
 
         with open(config_path, "w") as f:
@@ -237,8 +240,8 @@ class ProjectManager:
 
         # Paths section with absolute paths
         config["Paths"] = {
-            "particles_folder": os.path.abspath(
-                os.path.join(project_path, "particles")
+            "errant_particles_folder": os.path.abspath(
+                os.path.join(project_path, "errant_particles")
             ),
             "original_frames_folder": os.path.abspath(
                 os.path.join(project_path, "original_frames")
@@ -246,15 +249,15 @@ class ProjectManager:
             "annotated_frames_folder": os.path.abspath(
                 os.path.join(project_path, "annotated_frames")
             ),
-            "rb_gallery_folder": os.path.abspath(
-                os.path.join(project_path, "rb_gallery")
+            "errant_distance_links_folder": os.path.abspath(
+                os.path.join(project_path, "errant_distance_links")
             ),
             "data_folder": os.path.abspath(os.path.join(project_path, "data")),
             "videos_folder": os.path.abspath(
                 os.path.join(project_path, "videos")
             ),
-            "memory_folder": os.path.abspath(
-                os.path.join(project_path, "memory")
+            "errant_memory_links_folder": os.path.abspath(
+                os.path.join(project_path, "errant_memory_links")
             ),
         }
 
@@ -295,10 +298,10 @@ Created: {os.path.basename(project_path)}
 Path: {project_path}
 
 # Folder Structure
-- particles/: Particle images and cropped regions
+- errant_particles/: Particle images and cropped regions
 - original_frames/: Extracted video frames
 - annotated_frames/: Frames with particle annotations
-- rb_gallery/: Red-blue overlay images for trajectory validation
+- errant_distance_links/: Red-blue overlay images for trajectory validation
 - data/: CSV and pickle data files
 - videos/: Video files for analysis
 - config.ini: Project-specific configuration

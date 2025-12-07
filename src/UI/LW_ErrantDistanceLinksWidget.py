@@ -90,7 +90,7 @@ class LWErrantDistanceLinksWidget(QWidget):
     def set_config_manager(self, config_manager):
         """Set the config manager for this widget."""
         self.config_manager = config_manager
-        self._update_rb_gallery_path()
+        self._update_errant_distance_links_path()
 
     def set_file_controller(self, file_controller):
         """Set the file controller for this widget."""
@@ -99,24 +99,24 @@ class LWErrantDistanceLinksWidget(QWidget):
             self.original_frames_folder = (
                 self.file_controller.original_frames_folder
             )
-        self._update_rb_gallery_path()
+        self._update_errant_distance_links_path()
 
-    def _update_rb_gallery_path(self):
-        """Update RB gallery path from injected dependencies."""
+    def _update_errant_distance_links_path(self):
+        """Update errant_distance_links path from injected dependencies."""
         if self.file_controller:
-            self.rb_gallery_dir = self.file_controller.rb_gallery_folder
+            self.errant_distance_links_dir = self.file_controller.errant_distance_links_folder
         elif self.config_manager:
-            self.rb_gallery_dir = self.config_manager.get_path(
-                "rb_gallery_folder"
+            self.errant_distance_links_dir = self.config_manager.get_path(
+                "errant_distance_links_folder"
             )
         else:
             # Fall back to default
-            self.rb_gallery_dir = "rb_gallery/"
+            self.errant_distance_links_dir = "errant_distance_links/"
 
         # Reload gallery files if path is set
-        if self.rb_gallery_dir:
+        if self.errant_distance_links_dir:
             self.rb_links = self._load_rb_links(
-                self.rb_gallery_dir
+                self.errant_distance_links_dir
             )
             self.curr_link_idx = (
                 min(
@@ -229,14 +229,14 @@ Search Range: {link_info.get('search_range', 0)} pixels"""
             # Already at first image; do nothing
             pass
 
-    def refresh_rb_gallery(self):
-        """Reload the list of RB overlay image files and refresh display."""
+    def refresh_errant_distance_links(self):
+        """Reload the list of errant distance link image files and refresh display."""
         # Update path first in case it changed
-        self._update_rb_gallery_path()
+        self._update_errant_distance_links_path()
         # Reload files
-        if self.rb_gallery_dir:
+        if self.errant_distance_links_dir:
             self.rb_links = self._load_rb_links(
-                self.rb_gallery_dir
+                self.errant_distance_links_dir
             )
         else:
             self.rb_links = []
@@ -258,7 +258,7 @@ Search Range: {link_info.get('search_range', 0)} pixels"""
     def reset_state(self):
         """Reload gallery files when returning to the linking screen."""
         self.curr_link_idx = 0
-        self._update_rb_gallery_path()
+        self._update_errant_distance_links_path()
         self._display_link(self.curr_link_idx)
 
     def _generate_image_for_link(self, link_info):

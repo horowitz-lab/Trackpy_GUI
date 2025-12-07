@@ -32,7 +32,7 @@ class LWParametersWidget(QWidget):
     particlesDetected = Signal()
     trajectoriesLinked = Signal()
     trajectoryVisualizationCreated = Signal(str)  # Emits image path
-    rbGalleryCreated = Signal()  # Signal that RB gallery was created
+    errantDistanceLinksGalleryCreated = Signal()  # Signal that errant distance links gallery was created
     goBackToDetection = Signal()  # Signal to go back to detection window
     export_and_close = Signal()
 
@@ -331,14 +331,14 @@ class LWParametersWidget(QWidget):
 
             self.progress_label.setText("Working... Creating RB gallery...")
             QApplication.processEvents()
-            self.create_rb_gallery(trajectories_file, data_folder) # RB gallery from filtered trajectories
+            self.create_errant_distance_links_gallery(trajectories_file, data_folder) # RB gallery from filtered trajectories
             
             self.progress_label.setText("Working... Finding high memory links...")
             QApplication.processEvents()
             ParticleProcessing.find_and_save_high_memory_links(trajectories_file, memory, max_links=5)
 
             self.trajectoriesLinked.emit()
-            self.rbGalleryCreated.emit()
+            self.errantDistanceLinksGalleryCreated.emit()
             
             # Hide progress indicator and re-enable button
             self.progress_label.setText("Trajectory linking completed!")
@@ -472,7 +472,7 @@ class LWParametersWidget(QWidget):
         except Exception as e:
             print(f"Error creating trajectory visualization: {e}")
 
-    def create_rb_gallery(self, trajectories_file, data_folder):
+    def create_errant_distance_links_gallery(self, trajectories_file, data_folder):
         """Create RB gallery using particle_processing function."""
         try:
             print(f"🔵 Starting RB gallery creation...")
@@ -482,24 +482,24 @@ class LWParametersWidget(QWidget):
                 original_frames_folder = (
                     self.file_controller.original_frames_folder
                 )
-                rb_gallery_folder = self.file_controller.rb_gallery_folder
+                errant_distance_links_folder = self.file_controller.errant_distance_links_folder
                 print(f"🔵 Using file_controller paths:")
                 print(f"   Frames folder: {original_frames_folder}")
-                print(f"   RB gallery folder: {rb_gallery_folder}")
+                print(f"   RB gallery folder: {errant_distance_links_folder}")
             else:
                 if self.config_manager:
                     original_frames_folder = self.config_manager.get_path(
                         "original_frames_folder"
                     )
-                    rb_gallery_folder = self.config_manager.get_path(
-                        "rb_gallery_folder"
+                    errant_distance_links_folder = self.config_manager.get_path(
+                        "errant_distance_links_folder"
                     )
                 else:
                     original_frames_folder = "original_frames/"
-                    rb_gallery_folder = "rb_gallery/"
+                    errant_distance_links_folder = "rb_gallery/"
                 print(f"⚠️  No file_controller, using config paths:")
                 print(f"   Frames folder: {original_frames_folder}")
-                print(f"   RB gallery folder: {rb_gallery_folder}")
+                print(f"   RB gallery folder: {errant_distance_links_folder}")
 
             # Verify trajectories file exists
             if not os.path.exists(trajectories_file):
@@ -510,10 +510,10 @@ class LWParametersWidget(QWidget):
 
             # Call the RB gallery creation function
             print(f"🔵 Calling particle_processing.create_rb_gallery...")
-            ParticleProcessing.create_rb_gallery(
+            ParticleProcessing.create_errant_distance_links_gallery(
                 trajectories_file=trajectories_file,
                 frames_folder=original_frames_folder,
-                output_folder=rb_gallery_folder,
+                output_folder=errant_distance_links_folder,
             )
             print(f"✅ RB gallery creation completed")
 

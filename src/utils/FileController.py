@@ -34,8 +34,8 @@ class FileController:
 
     def _load_paths(self):
         """Load folder paths from configuration."""
-        self.particles_folder = self.config_manager.get_path(
-            "particles_folder", self.project_path
+        self.errant_particles_folder = self.config_manager.get_path(
+            "errant_particles_folder", self.project_path
         )
         self.original_frames_folder = self.config_manager.get_path(
             "original_frames_folder", self.project_path
@@ -43,8 +43,8 @@ class FileController:
         self.annotated_frames_folder = self.config_manager.get_path(
             "annotated_frames_folder", self.project_path
         )
-        self.rb_gallery_folder = self.config_manager.get_path(
-            "rb_gallery_folder", self.project_path
+        self.errant_distance_links_folder = self.config_manager.get_path(
+            "errant_distance_links_folder", self.project_path
         )
         self.videos_folder = self.config_manager.get_path(
             "videos_folder", self.project_path
@@ -52,8 +52,8 @@ class FileController:
         self.data_folder = self.config_manager.get_path(
             "data_folder", self.project_path
         )
-        self.memory_folder = self.config_manager.get_path(
-            "memory_folder", self.project_path
+        self.errant_memory_links_folder = self.config_manager.get_path(
+            "errant_memory_links_folder", self.project_path
         )
 
     def set_project_path(self, project_path: str):
@@ -90,10 +90,10 @@ class FileController:
         include_errant_particles : bool, optional
             When True, also clears the errant particle gallery folder. Defaults to False.
         """
-        temp_folders = [self.rb_gallery_folder]
+        temp_folders = [self.errant_distance_links_folder]
 
         if include_errant_particles:
-            temp_folders.append(self.particles_folder)
+            temp_folders.append(self.errant_particles_folder)
 
         print("Starting cleanup of temporary folders...")
 
@@ -143,14 +143,14 @@ class FileController:
 
         print("Cleanup completed.")
 
-    def cleanup_rb_gallery(self) -> None:
-        """Delete all files in the rb_gallery folder."""
+    def cleanup_errant_distance_links(self) -> None:
+        """Delete all files in the errant_distance_links folder."""
         try:
-            if os.path.exists(self.rb_gallery_folder):
-                self.delete_all_files_in_folder(self.rb_gallery_folder)
-                print("Cleaned up RB gallery folder")
+            if os.path.exists(self.errant_distance_links_folder):
+                self.delete_all_files_in_folder(self.errant_distance_links_folder)
+                print("Cleaned up errant distance links folder")
         except Exception as e:
-            print(f"Error cleaning up RB gallery: {e}")
+            print(f"Error cleaning up errant distance links: {e}")
 
     def save_particles_data(
         self, particles_df: pd.DataFrame, filename: str = "all_particles.csv"
@@ -194,11 +194,10 @@ class FileController:
             print(f"Trajectories file not found: {file_path}")
             return pd.DataFrame()
 
-    def create_rb_gallery_folder(self) -> str:
-        """Create and return the RB gallery folder path."""
-        self.ensure_folder_exists(self.rb_gallery_folder)
-        return self.rb_gallery_folder
-
+    def create_errant_distance_links_folder(self) -> str:
+        """Create and return the errant distance links folder path."""
+        self.ensure_folder_exists(self.errant_distance_links_folder)
+        return self.errant_distance_links_folder
     def get_frame_path(self, frame_index: int) -> str:
         """Get the path for a specific frame."""
         return os.path.join(

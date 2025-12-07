@@ -364,7 +364,7 @@ def save_errant_particle_crops_for_frame(params):
     """
     Saves cropped images of the 10 most errant particles across ALL frames.
     Finds 5 most errant based on mass and 5 most errant based on feature size.
-    Stores frame information in filenames and metadata.
+    Stores frame information in a single JSON file.
     """
     if file_controller is None:
         return
@@ -392,11 +392,11 @@ def save_errant_particle_crops_for_frame(params):
         return
 
     file_controller.delete_all_files_in_folder(
-        file_controller.particles_folder
+        file_controller.errant_particles_folder
     )
-    file_controller.ensure_folder_exists(file_controller.particles_folder)
+    file_controller.ensure_folder_exists(file_controller.errant_particles_folder)
 
-    # Combine and process all 10 particles
+    errant_particles_data = []
     particle_counter = 0
 
     # Process mass-based errant particles
@@ -447,21 +447,22 @@ def save_errant_particle_crops_for_frame(params):
         base_filename = (
             f"mass_particle_{particle_counter}_frame_{frame_num:05d}"
         )
-        particle_filename = os.path.join(
-            file_controller.particles_folder, f"{base_filename}.png"
+        particle_filename = f"{base_filename}.png"
+        full_particle_path = os.path.join(
+            file_controller.errant_particles_folder, particle_filename
         )
-        cv2.imwrite(particle_filename, particle_image)
+        cv2.imwrite(full_particle_path, particle_image)
 
-        # Save metadata with frame information (frame and position needed for jumping to frame)
-        mass_info_filename = os.path.join(
-            file_controller.particles_folder, f"{base_filename}.txt"
-        )
-        with open(mass_info_filename, "w") as f:
-            f.write(f"frame: {frame_num}\n")
-            f.write(f"x: {particle['x']:.2f}\n")
-            f.write(f"y: {particle['y']:.2f}\n")
-            f.write(f"mass: {particle['mass']:.2f}\n")
-            f.write(f"min_mass: {min_mass}\n")
+
+        particle_info = {
+            "image_file": particle_filename,
+            "frame": frame_num,
+            "x": float(f"{particle['x']:.2f}"),
+            "y": float(f"{particle['y']:.2f}"),
+            "mass": float(f"{particle['mass']:.2f}"),
+            "min_mass": min_mass,
+        }
+        errant_particles_data.append(particle_info)
 
         particle_counter += 1
 
@@ -513,23 +514,28 @@ def save_errant_particle_crops_for_frame(params):
         base_filename = (
             f"size_particle_{particle_counter}_frame_{frame_num:05d}"
         )
-        particle_filename = os.path.join(
-            file_controller.particles_folder, f"{base_filename}.png"
+        particle_filename = f"{base_filename}.png"
+        full_particle_path = os.path.join(
+            file_controller.errant_particles_folder, particle_filename
         )
-        cv2.imwrite(particle_filename, particle_image)
+        cv2.imwrite(full_particle_path, particle_image)
 
-        # Save metadata with frame information (frame and position needed for jumping to frame)
-        size_info_filename = os.path.join(
-            file_controller.particles_folder, f"{base_filename}.txt"
-        )
-        with open(size_info_filename, "w") as f:
-            f.write(f"frame: {frame_num}\n")
-            f.write(f"x: {particle['x']:.2f}\n")
-            f.write(f"y: {particle['y']:.2f}\n")
-            f.write(f"size: {particle['size']:.2f}\n")
-            f.write(f"min_size: {min_size}\n")
+        particle_info = {
+            "image_file": particle_filename,
+            "frame": frame_num,
+            "x": float(f"{particle['x']:.2f}"),
+            "y": float(f"{particle['y']:.2f}"),
+            "size": float(f"{particle['size']:.2f}"),
+            "min_size": min_size,
+        }
+        errant_particles_data.append(particle_info)
 
         particle_counter += 1
+    
+    import json
+    json_path = os.path.join(file_controller.errant_particles_folder, "errant_particles.json")
+    with open(json_path, "w") as f:
+        json.dump(errant_particles_data, f, indent=4)
 
 
 def create_full_frame_rb_overlay(frame1, frame2, threshold_percent=50):
@@ -796,7 +802,7 @@ def create_rb_overlay_image(
     return rb_overlay_rgb
 
 
-def create_rb_gallery(
+def create_errant_distance_links_gallery(
     trajectories_file,
     frames_folder=None,
     output_folder=None,
@@ -815,7 +821,7 @@ def create_rb_gallery(
         return
 
     if output_folder is None:
-        output_folder = file_controller.rb_gallery_folder
+        output_folder = file_controller.errant_distance_links_folder
 
     # Use FileController for folder management
     file_controller.ensure_folder_exists(output_folder)
@@ -1096,9 +1102,9 @@ def find_and_save_high_memory_links(trajectories_file, memory_parameter, max_lin
         print("No high-memory links found")
         return []
     
-    memory_folder = file_controller.memory_folder
-    file_controller.ensure_folder_exists(memory_folder)
-    file_controller.delete_all_files_in_folder(memory_folder)
+    errant_memory_links_folder = file_controller.errant_memory_links_folder
+    file_controller.ensure_folder_exists(errant_memory_links_folder)
+    file_controller.delete_all_files_in_folder(errant_memory_links_folder)
     
     original_frames_folder = file_controller.original_frames_folder
     
@@ -1106,7 +1112,7 @@ def find_and_save_high_memory_links(trajectories_file, memory_parameter, max_lin
 
     for link_idx, link in enumerate(top_links):
         link_folder_name = f"memory_link_{link_idx}"
-        link_folder_path = os.path.join(memory_folder, link_folder_name)
+        link_folder_path = os.path.join(errant_memory_links_folder, link_folder_name)
         file_controller.ensure_folder_exists(link_folder_path)
         
         start_pos = link['start_pos']
@@ -1154,7 +1160,7 @@ def find_and_save_high_memory_links(trajectories_file, memory_parameter, max_lin
                     cv2.imwrite(dest_frame_path, annotated_canvas)
 
     # Save the consolidated metadata to a single JSON file
-    json_path = os.path.join(memory_folder, "memory_links.json")
+    json_path = os.path.join(errant_memory_links_folder, "memory_links.json")
     import json
     try:
         with open(json_path, 'w') as f:
@@ -1163,5 +1169,5 @@ def find_and_save_high_memory_links(trajectories_file, memory_parameter, max_lin
     except Exception as e:
         print(f"❌ Failed to save memory links metadata: {e}")
 
-    print(f"Found {len(top_links)} high-memory links and saved frames to {memory_folder}")
+    print(f"Found {len(top_links)} high-memory links and saved frames to {errant_memory_links_folder}")
     return top_links

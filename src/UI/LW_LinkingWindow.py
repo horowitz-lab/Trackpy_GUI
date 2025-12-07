@@ -61,7 +61,7 @@ class LWLinkingWindow(QMainWindow):
             hasattr(self, "errant_particle_gallery")
             and self.errant_particle_gallery
         ):
-            self.errant_particle_gallery.refresh_rb_gallery()
+            self.errant_particle_gallery.refresh_errant_distance_links()
         if hasattr(self, "left_panel"):
             self.left_panel.set_config_manager(self.config_manager)
             self.left_panel.set_file_controller(self.file_controller)
@@ -139,11 +139,11 @@ class LWLinkingWindow(QMainWindow):
         )
 
         # Connect filtered data updates to refresh relevant widgets
-        self.left_panel.filtering_widget.filteredParticlesUpdated.connect(
+        self.left_panel.filteredTrajectoriesUpdated.connect(
             self.frame_player.refresh_links
         )
-        self.left_panel.filtering_widget.filteredParticlesUpdated.connect(
-            self.errant_particle_gallery.refresh_rb_gallery
+        self.left_panel.filteredTrajectoriesUpdated.connect(
+            self.errant_particle_gallery.refresh_errant_distance_links
         )
 
         # Connect back button signal to return to detection window
@@ -152,8 +152,8 @@ class LWLinkingWindow(QMainWindow):
         )
 
         # Connect RB gallery creation signal to refresh the trajectory gallery
-        self.right_panel.rbGalleryCreated.connect(
-            self.errant_particle_gallery.refresh_rb_gallery
+        self.right_panel.errantDistanceLinksGalleryCreated.connect(
+            self.errant_particle_gallery.refresh_errant_distance_links
         )
 
         # Connect export and close signal

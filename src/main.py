@@ -112,7 +112,7 @@ class ParticleTrackingAppController(QMainWindow):
     def show_particle_detection_window(self):
         """Show the particle detection window and hide others."""
         # Clean up any existing windows
-        self.cleanup_windows(clear_rb_gallery=False)
+        self.cleanup_windows(False)
 
         # Create particle detection window
         self.dw_detection_window = DWDetectionWindow()
@@ -142,7 +142,7 @@ class ParticleTrackingAppController(QMainWindow):
         current_pos = self.pos()
         
         # Clean up any existing windows
-        self.cleanup_windows(clear_rb_gallery=False)
+        self.cleanup_windows(False)
 
         # Create trajectory linking window
         self.lw_linking_window = LWLinkingWindow()
@@ -186,7 +186,7 @@ class ParticleTrackingAppController(QMainWindow):
     def cleanup_windows(self, clear_rb_gallery: bool = True):
         """Clean up existing windows and optionally RB gallery."""
         if clear_rb_gallery:
-            self.cleanup_rb_gallery()
+            self.cleanup_errant_distance_links()
 
         # Close existing windows
         if self.dw_detection_window:
@@ -197,15 +197,15 @@ class ParticleTrackingAppController(QMainWindow):
             self.lw_linking_window.close()
             self.lw_linking_window = None
 
-    def cleanup_rb_gallery(self):
+    def cleanup_errant_distance_links(self):
         """Delete all files in the rb_gallery folder."""
         if self.file_controller:
-            self.file_controller.cleanup_rb_gallery()
+            self.file_controller.cleanup_errant_distance_links()
 
     def closeEvent(self, event):
         """Handle application close event."""
         # Close any open windows but keep generated data on disk
-        self.cleanup_windows(clear_rb_gallery=False)
+        self.cleanup_windows(False)
         super().closeEvent(event)
 
 
