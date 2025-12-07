@@ -25,11 +25,11 @@ from .. import particle_processing
 import io
 from ..widgets.ScaledLabel import ScaledLabel
 
-# Universal graphing label sizes and figure formatting
-matplotlib.rc('xtick', labelsize=12) 
-matplotlib.rc('ytick', labelsize=12)
-matplotlib.rc('axes', titlesize=14, labelsize=14)
-matplotlib.rc('figure', titlesize=16)
+# Universal graphing label sizes and figure formatting - larger fonts for better visibility
+matplotlib.rc('xtick', labelsize=18) 
+matplotlib.rc('ytick', labelsize=18)
+matplotlib.rc('axes', titlesize=22, labelsize=20)
+matplotlib.rc('figure', titlesize=26)
 
 class GraphingButton(QPushButton):
     """Button for graphing controls with highlight state management."""
@@ -102,8 +102,8 @@ class GraphingPanelWidget(QWidget):
 
         self.plot_label = ScaledLabel("No plot to display.")
         self.plot_label.setAlignment(Qt.AlignCenter)
-        # Give the plot label more space - use stretch factor 3 to make it bigger
-        self.layout.addWidget(self.plot_label, 3)
+        # Give the plot label maximum space - use stretch factor 20 to make it fill the screen
+        self.layout.addWidget(self.plot_label, 20)
         self.blank_plot()
 
     def blank_plot(self):
@@ -151,35 +151,48 @@ class GraphingPanelWidget(QWidget):
         # Assign new figure and render it to a pixmap
         self.fig = new_fig
         
-        # Use very high DPI for crisp rendering (800 DPI for maximum quality)
-        target_dpi = 800
+        # Get the actual widget size to generate plot at matching resolution
+        widget_width = self.plot_label.width()
+        widget_height = self.plot_label.height()
         
-        # Calculate figure size based on widget size, but use reasonable minimums
-        if hasattr(self, 'plot_label') and self.plot_label.isVisible():
-            label_size = self.plot_label.size()
-            # Get widget size in pixels
-            width_px = max(label_size.width(), 1000)  # Minimum 1000px
-            height_px = max(label_size.height(), 750)  # Minimum 750px
-            
-            # Convert to inches - use a reasonable size that will look good
-            # Aim for 10-12 inches width for good visibility
-            width_inches = max(width_px / target_dpi, 10.0)
-            height_inches = max(height_px / target_dpi, 7.5)
-            # Cap maximum size to avoid huge files
-            width_inches = min(width_inches, 14.0)
-            height_inches = min(height_inches, 10.5)
-        else:
-            # Use reasonable default if widget not yet sized
-            width_inches = 12.0
-            height_inches = 9.0
+        # If widget hasn't been sized yet, use a reasonable default
+        # This can happen on first plot before widget is shown
+        if widget_width <= 0 or widget_height <= 0:
+            widget_width = 800
+            widget_height = 600
         
-        # Resize the figure to match display size
+        # Account for device pixel ratio for high-DPI displays
+        # This ensures the image looks sharp on retina/high-DPI screens
+        try:
+            from PySide6.QtGui import QGuiApplication
+            screen = QGuiApplication.primaryScreen()
+            if screen:
+                device_pixel_ratio = screen.devicePixelRatio()
+            else:
+                device_pixel_ratio = 1.0
+        except:
+            device_pixel_ratio = 1.0
+        
+        # Calculate target resolution based on actual widget size
+        # Use device pixel ratio to ensure sharpness on high-DPI displays
+        target_width_px = int(widget_width * device_pixel_ratio)
+        target_height_px = int(widget_height * device_pixel_ratio)
+        
+        # Use a reasonable DPI - 100 DPI is standard for screen display
+        # Higher DPI would make the image larger than needed
+        target_dpi = 100
+        
+        # Calculate figure size in inches based on target resolution
+        width_inches = target_width_px / target_dpi
+        height_inches = target_height_px / target_dpi
+        
+        # Resize the figure to the calculated size
         self.fig.set_size_inches(width_inches, height_inches)
         
         # Improve figure formatting - better spacing and layout
         self.fig.tight_layout(pad=1.2)
         
-        # Generate at high DPI for crisp, non-pixelated rendering
+        # Generate at resolution matching widget size
         buf = io.BytesIO()
         self.fig.savefig(
             buf, 

@@ -89,9 +89,9 @@ class TrajectoryLinkingWindow(QMainWindow):
 
         options_menu = menubar.addMenu("Options")
 
-        # Left Panel
+        # Left Panel - make it much wider to show bigger plots
         self.left_panel = TrajectoryPlottingWidget()
-        self.left_panel.setMinimumWidth(200)
+        self.left_panel.setMinimumWidth(400)
         splitter.addWidget(self.left_panel)
 
         # Middle Panel
@@ -112,12 +112,12 @@ class TrajectoryLinkingWindow(QMainWindow):
         self.right_layout = QVBoxLayout(self.right_panel)
         splitter.addWidget(self.right_panel)
 
-        # Set initial sizes for smooth resizing (proportional: 1:2:1)
+        # Set initial sizes for smooth resizing - give left panel more space for plots
         # This prevents the splitter from jumping when clicked
-        splitter.setSizes([300, 600, 300])
+        splitter.setSizes([500, 600, 300])
         
-        # Set stretch factors for the splitter
-        splitter.setStretchFactor(0, 1)
+        # Set stretch factors for the splitter - give left panel more weight
+        splitter.setStretchFactor(0, 2)  # Left panel (plots) gets more space
         splitter.setStretchFactor(1, 2)
         splitter.setStretchFactor(2, 1)
         
