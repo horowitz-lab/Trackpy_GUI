@@ -51,6 +51,7 @@ class DetectionParametersWidget(QWidget):
     allParticlesUpdated = Signal()
     openTrajectoryLinking = Signal()
     parameter_changed = Signal()
+    particles_found = Signal()  # Emitted when Find Particles is clicked
 
     def __init__(self, graphing_panel, parent=None):
         super().__init__(parent)
@@ -62,6 +63,9 @@ class DetectionParametersWidget(QWidget):
         self.layout = QVBoxLayout(self)
 
         self.graphing_panel = graphing_panel
+        
+        # Track previous parameter values to detect actual changes
+        self.previous_params = {}
 
         self.form = QFormLayout()
 
@@ -208,6 +212,13 @@ class DetectionParametersWidget(QWidget):
         self.min_mass_input.setValue(float(params.get("min_mass", 100.0)))
         self.invert_input.setChecked(bool(params.get("invert", False)))
         self.threshold_input.setValue(float(params.get("threshold", 0.0)))
+        # Initialize previous_params with loaded values
+        self.previous_params = {
+            "feature_size": int(params.get("feature_size", 15)),
+            "min_mass": float(params.get("min_mass", 100.0)),
+            "invert": bool(params.get("invert", False)),
+            "threshold": float(params.get("threshold", 0.0)),
+        }
 
     def save_params(self):
         if not self.config_manager:
@@ -221,8 +232,29 @@ class DetectionParametersWidget(QWidget):
             "threshold": self.threshold_input.value(),
             "scaling": current_scaling,  # Preserve existing scaling value
         }
+        
+        # Check if parameters actually changed
+        params_changed = False
+        if not self.previous_params:
+            # First time saving, mark as changed
+            params_changed = True
+        else:
+            # Compare current values with previous values
+            for key in ["feature_size", "min_mass", "invert", "threshold"]:
+                if params[key] != self.previous_params.get(key):
+                    params_changed = True
+                    break
+        
+        # Save params regardless (to persist current values)
         self.config_manager.save_detection_params(params)
-        self.parameter_changed.emit()
+        
+        # Only emit signal if parameters actually changed
+        if params_changed:
+            self.previous_params = params.copy()
+            self.parameter_changed.emit()
+        else:
+            # Update previous params even if no change (to track current state)
+            self.previous_params = params.copy()
 
     def find_particles(self):
         self.save_params()
@@ -230,6 +262,9 @@ class DetectionParametersWidget(QWidget):
             self.progress_display.setText("Project not loaded.")
             return
 
+        # Emit signal to clear gallery when Find Particles is clicked
+        self.particles_found.emit()
+        
         self._backup_and_clear_particles_data()
 
         # Convert 1-based UI input to 0-based frame indexing

@@ -123,6 +123,10 @@ class ParticleDetectionWindow(QMainWindow):
         self.right_panel = DetectionParametersWidget(self.left_panel)
         right_panel_layout.addWidget(self.right_panel)
         
+        # Parameters info box (shows parameters used for current results)
+        self.parameters_info_widget = self._create_parameters_info_widget()
+        right_panel_layout.addWidget(self.parameters_info_widget)
+        
         # Metadata display widget
         self.metadata_widget = self._create_metadata_widget()
         right_panel_layout.addWidget(self.metadata_widget)
@@ -151,11 +155,17 @@ class ParticleDetectionWindow(QMainWindow):
         """)
 
         # Connect signals
-        self.right_panel.parameter_changed.connect(
-            self.clear_processed_data
-        )
+        # Only update feature size when parameters change, don't clear gallery
         self.right_panel.parameter_changed.connect(
             self.frame_player.update_feature_size
+        )
+        # Clear gallery only when Find Particles is clicked
+        self.right_panel.particles_found.connect(
+            self.clear_processed_data
+        )
+        # Update parameters info when particles are found
+        self.right_panel.particles_found.connect(
+            self._update_parameters_info
         )
         self.frame_player.frames_saved.connect(
             self.right_panel.set_total_frames
@@ -204,6 +214,8 @@ class ParticleDetectionWindow(QMainWindow):
                 # Only apply filters if there's actual particle data
                 if not particle_data.empty:
                     self.left_panel.filtering_widget.apply_filters_and_notify()
+                    # Update parameters info if particles exist
+                    self._update_parameters_info()
             except (pd.errors.EmptyDataError, Exception):
                 # File exists but is empty or invalid, don't apply filters
                 pass
@@ -260,6 +272,36 @@ class ParticleDetectionWindow(QMainWindow):
         self.right_panel.set_total_frames(num_frames)
         self.frame_player.load_frames(num_frames)
 
+    def _create_parameters_info_widget(self):
+        """Create the parameters info display widget."""
+        from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
+        
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(5)
+        
+        # Title
+        title_label = QLabel("Detection Parameters Used")
+        title_font = title_label.font()
+        title_font.setBold(True)
+        title_label.setFont(title_font)
+        layout.addWidget(title_label)
+        
+        # Parameters display
+        self.parameters_info_label = QLabel("No particles detected yet")
+        self.parameters_info_label.setWordWrap(True)
+        self.parameters_info_label.setStyleSheet("""
+            QLabel {
+                background-color: #f0f0f0;
+                padding: 8px;
+                border-radius: 4px;
+            }
+        """)
+        layout.addWidget(self.parameters_info_label)
+        
+        return widget
+
     def _create_metadata_widget(self):
         """Create the metadata display widget."""
         from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
@@ -291,6 +333,27 @@ class ParticleDetectionWindow(QMainWindow):
         layout.addStretch()
         
         return widget
+
+    def _update_parameters_info(self):
+        """Update the parameters info display with current detection parameters."""
+        if not self.config_manager:
+            return
+        
+        params = self.config_manager.get_detection_params()
+        
+        feature_size = params.get("feature_size", "-")
+        min_mass = params.get("min_mass", "-")
+        threshold = params.get("threshold", "-")
+        invert = "Yes" if params.get("invert", False) else "No"
+        
+        info_text = (
+            f"Feature size: {feature_size}\n"
+            f"Min mass: {min_mass}\n"
+            f"Threshold: {threshold}\n"
+            f"Invert: {invert}"
+        )
+        
+        self.parameters_info_label.setText(info_text)
 
     def _update_metadata_display(self):
         """Update the metadata display with current config values."""
