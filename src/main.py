@@ -137,6 +137,10 @@ class ParticleTrackingAppController(QMainWindow):
 
     def show_trajectory_linking_window(self):
         """Show the trajectory linking window and hide others."""
+        # Save the current window size and position before switching
+        current_size = self.size()
+        current_pos = self.pos()
+        
         # Clean up any existing windows
         self.cleanup_windows(clear_rb_gallery=False)
 
@@ -156,10 +160,9 @@ class ParticleTrackingAppController(QMainWindow):
         self.stacked_widget.addWidget(self.trajectory_linking_window)
         self.stacked_widget.setCurrentWidget(self.trajectory_linking_window)
 
-        # Resize the main window to a fraction of the screen
-        available_geometry = QGuiApplication.primaryScreen().availableGeometry()
-        self.resize(available_geometry.width() * 0.8, available_geometry.height() * 0.8)
-        self.center()
+        # Preserve the window size and position from the previous window
+        self.resize(current_size)
+        self.move(current_pos)
 
     def on_next_to_trajectory_linking(self):
         """Handle signal to switch from particle detection to trajectory linking."""
@@ -169,7 +172,16 @@ class ParticleTrackingAppController(QMainWindow):
 
     def on_back_to_particle_detection(self):
         """Handle signal to switch from trajectory linking back to particle detection."""
+        # Save the current window size and position before switching
+        current_size = self.size()
+        current_pos = self.pos()
+        
+        # Show particle detection window
         self.show_particle_detection_window()
+        
+        # Preserve the window size and position
+        self.resize(current_size)
+        self.move(current_pos)
 
     def cleanup_windows(self, clear_rb_gallery: bool = True):
         """Clean up existing windows and optionally RB gallery."""
