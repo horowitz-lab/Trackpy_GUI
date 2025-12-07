@@ -132,6 +132,12 @@ class FramePlayerWidget(QWidget):
 
         layout.addWidget(self.frame_container, 1)
 
+        # Frame navigation controls (slider)
+        self.frame_slider = QSlider(Qt.Horizontal)
+        self.frame_slider.setRange(0, 0)
+        self.frame_slider.valueChanged.connect(self.slider_value_changed)
+        layout.addWidget(self.frame_slider)
+
         # Current frame display
         self.current_frame_label = QLabel("Frame: 0 / 0")
         self.current_frame_label.setAlignment(Qt.AlignCenter)
@@ -154,11 +160,6 @@ class FramePlayerWidget(QWidget):
         self.frame_input.setPlaceholderText("Enter frame number")
         self.frame_input.returnPressed.connect(self.go_to_frame)
         nav_layout.addWidget(self.frame_input)
-
-        self.frame_slider = QSlider(Qt.Horizontal)
-        self.frame_slider.setRange(0, 0)
-        self.frame_slider.valueChanged.connect(self.slider_value_changed)
-        nav_layout.addWidget(self.frame_slider)
 
         self.next_button = QPushButton("▶")
         self.next_button.setFixedSize(40, 30)
