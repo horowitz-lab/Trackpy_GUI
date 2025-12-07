@@ -179,24 +179,35 @@ class LWErrantMemoryLinksWidget(QWidget):
 
     def _update_display(self):
         """Update the display labels."""
-        if len(self.current_link_frames) > 0:
-            self.frame_display.setText(f"{self.current_frame_idx} / {len(self.current_link_frames) - 1}")
+        total_frames = len(self.current_link_frames)
+        total_links = len(self.links)
+
+        # Update frame counter
+        if total_frames > 0:
+            self.frame_display.setText(f"{self.current_frame_idx + 1} / {total_frames}")
         else:
             self.frame_display.setText("0 / 0")
 
-        if len(self.links) > 0 and self.current_link_idx < len(self.links):
-            frame_filename = os.path.basename(self.current_link_frames[self.current_frame_idx]) if self.current_link_frames else ""
-            try:
-                frame_num = int(frame_filename.split('_')[1].split('.')[0]) if frame_filename else self.current_frame_idx
-            except (ValueError, IndexError):
-                frame_num = self.current_frame_idx
+        # Update main info label
+        if total_links > 0 and self.current_link_idx < total_links:
+            current_link = self.links[self.current_link_idx]
+            particle_id = current_link.get('particle_id', 'N/A')
             
-            particle_id = self.links[self.current_link_idx].get('particle_id', 'N/A')
+            # Try to get original frame number if available
+            frame_num = self.current_frame_idx + 1 # Default to 1-based index
+            if self.current_link_frames and self.current_frame_idx < len(self.current_link_frames):
+                frame_filename = os.path.basename(self.current_link_frames[self.current_frame_idx])
+                try:
+                    # Assumes format "frame_#####.jpg"
+                    frame_num_original = int(frame_filename.split('_')[1].split('.')[0])
+                    frame_num = frame_num_original
+                except (ValueError, IndexError):
+                    pass # Fallback to index if parsing fails
 
             self.current_display_label.setText(
                 f"Particle ID: {particle_id} | "
-                f"Memory Link: {self.current_link_idx} / {len(self.links) - 1} | "
-                f"Frame: {self.current_frame_idx} / {max(0, len(self.current_link_frames) - 1)} "
+                f"Memory Link: {self.current_link_idx + 1} / {total_links} | "
+                f"Frame: {self.current_frame_idx + 1} / {total_frames} "
                 f"(Original: {frame_num})"
             )
         else:

@@ -376,14 +376,14 @@ class DWFrameGalleryWidget(QWidget):
         """Update the frame display and input"""
         if self.total_frames > 0:
             self.current_frame_label.setText(
-                f"Frame: {self.current_frame_idx} / {self.total_frames - 1}"
+                f"Frame: {self.current_frame_idx + 1} / {self.total_frames}"
             )
             # Only update slider if the value is different to avoid cycles
             if self.frame_slider.value() != self.current_frame_idx:
                 self.frame_slider.setValue(self.current_frame_idx)
         else:
             self.current_frame_label.setText("Frame: 0 / 0")
-        self.frame_input.setText(str(self.current_frame_idx))
+        self.frame_input.setText(str(self.current_frame_idx + 1))
 
     def previous_frame(self):
         """Go to previous frame"""
@@ -398,7 +398,7 @@ class DWFrameGalleryWidget(QWidget):
     def go_to_frame(self):
         """Go to frame specified in input"""
         try:
-            frame_number = int(self.frame_input.text())
+            frame_number = int(self.frame_input.text()) - 1
             if 0 <= frame_number < self.total_frames:
                 self.display_frame(frame_number)
         except ValueError:

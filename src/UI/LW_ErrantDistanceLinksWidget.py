@@ -173,7 +173,8 @@ Search Range: {link_info.get('search_range', 0)} pixels"""
 
     def _update_display_text(self):
         total = len(self.rb_links)
-        text = f"{self.curr_link_idx} / {total}"
+        current_display = self.curr_link_idx + 1 if total > 0 else 0
+        text = f"{current_display} / {total}"
         # Avoid recursive signals while editing
         old_block = self.trajectory_display.blockSignals(True)
         self.trajectory_display.setText(text)
@@ -188,7 +189,7 @@ Search Range: {link_info.get('search_range', 0)} pixels"""
         else:
             first = text
         try:
-            requested = int(first)
+            requested = int(first) - 1
         except ValueError:
             # Restore correct text
             self._update_display_text()

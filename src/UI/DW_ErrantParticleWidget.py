@@ -318,7 +318,8 @@ class DWErrantParticleWidget(QWidget):
 
     def _update_display_text(self):
         total = len(self.particle_files)
-        text = f"{self.curr_particle_idx} / {total}"
+        current_display = self.curr_particle_idx + 1 if total > 0 else 0
+        text = f"{current_display} / {total}"
         # avoid recursive signals while editing
         old_block = self.frame_number_display.blockSignals(True)
         self.frame_number_display.setText(text)
@@ -333,7 +334,7 @@ class DWErrantParticleWidget(QWidget):
         else:
             first = text
         try:
-            requested = int(first)
+            requested = int(first) - 1
         except ValueError:
             # restore correct text
             self._update_display_text()
