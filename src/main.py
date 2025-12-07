@@ -11,9 +11,9 @@ import platform
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget
 from PySide6.QtGui import QGuiApplication
 from PySide6 import QtWidgets
-from src.widgets.StartScreen import StartScreen
-from src.widgets.ParticleDetectionWindow import ParticleDetectionWindow
-from src.widgets.TrajectoryLinkingWindow import TrajectoryLinkingWindow
+from src.widgets.SSW_StartScreenWindow import SSWStartScreenWindow
+from src.widgets.DW_DetectionWindow import DWDetectionWindow
+from src.widgets.LW_LinkingWindow import LWLinkingWindow
 from src.project_manager import ProjectManager
 from src.file_controller import FileController
 from src.config_manager import ConfigManager
@@ -34,9 +34,9 @@ class ParticleTrackingAppController(QMainWindow):
         )
 
         # Initialize windows
-        self.start_screen = None
-        self.particle_detection_window = None
-        self.trajectory_linking_window = None
+        self.ssw_start_screen_window = None
+        self.dw_detection_window = None
+        self.lw_linking_window = None
 
         # Initialize window sizes
         self.win_width = None
@@ -55,15 +55,15 @@ class ParticleTrackingAppController(QMainWindow):
         self.cleanup_windows()
 
         # Create start screen
-        self.start_screen = StartScreen()
-        self.start_screen.project_selected.connect(self.on_project_selected)
+        self.ssw_start_screen_window = SSWStartScreenWindow()
+        self.ssw_start_screen_window.project_selected.connect(self.on_project_selected)
 
-        self.stacked_widget.addWidget(self.start_screen)
-        self.stacked_widget.setCurrentWidget(self.start_screen)
+        self.stacked_widget.addWidget(self.ssw_start_screen_window)
+        self.stacked_widget.setCurrentWidget(self.ssw_start_screen_window)
 
         # Resize the main window to fit the start screen
-        self.start_screen.adjustSize()
-        self.resize(self.start_screen.size())
+        self.ssw_start_screen_window.adjustSize()
+        self.resize(self.ssw_start_screen_window.size())
         self.center()
         
     def center(self):
@@ -95,7 +95,7 @@ class ParticleTrackingAppController(QMainWindow):
             # Check for existing frames
             num_frames = self.file_controller.get_total_frames_count()
             if num_frames > 0:
-                self.particle_detection_window.load_existing_frames(num_frames)
+                self.dw_detection_window.load_existing_frames(num_frames)
             else:
                 # If no frames exist, check if video file exists and auto-extract frames
                 metadata = self.project_config.get_metadata()
@@ -105,7 +105,7 @@ class ParticleTrackingAppController(QMainWindow):
                     video_path = os.path.join(videos_folder, video_filename)
                     if os.path.exists(video_path):
                         # Auto-extract frames from video
-                        self.particle_detection_window.frame_player.save_video_frames(video_path)
+                        self.dw_detection_window.frame_player.save_video_frames(video_path)
         else:
             print(f"Failed to load project: {project_path}")
 
@@ -115,20 +115,20 @@ class ParticleTrackingAppController(QMainWindow):
         self.cleanup_windows(clear_rb_gallery=False)
 
         # Create particle detection window
-        self.particle_detection_window = ParticleDetectionWindow()
-        self.particle_detection_window.set_config_manager(self.project_config)
-        self.particle_detection_window.set_file_controller(
+        self.dw_detection_window = DWDetectionWindow()
+        self.dw_detection_window.set_config_manager(self.project_config)
+        self.dw_detection_window.set_file_controller(
             self.file_controller
         )
 
         # Connect signals from particle detection window
-        self.particle_detection_window.right_panel.openTrajectoryLinking.connect(
+        self.dw_detection_window.right_panel.openTrajectoryLinking.connect(
             self.on_next_to_trajectory_linking
         )
 
         # Add to stacked widget
-        self.stacked_widget.addWidget(self.particle_detection_window)
-        self.stacked_widget.setCurrentWidget(self.particle_detection_window)
+        self.stacked_widget.addWidget(self.dw_detection_window)
+        self.stacked_widget.setCurrentWidget(self.dw_detection_window)
 
         # Resize the main window to a fraction of the screen
         available_geometry = QGuiApplication.primaryScreen().availableGeometry()
@@ -145,20 +145,20 @@ class ParticleTrackingAppController(QMainWindow):
         self.cleanup_windows(clear_rb_gallery=False)
 
         # Create trajectory linking window
-        self.trajectory_linking_window = TrajectoryLinkingWindow()
-        self.trajectory_linking_window.set_config_manager(self.project_config)
-        self.trajectory_linking_window.set_file_controller(
+        self.lw_linking_window = LWLinkingWindow()
+        self.lw_linking_window.set_config_manager(self.project_config)
+        self.lw_linking_window.set_file_controller(
             self.file_controller
         )
 
         # Connect signals from trajectory linking window
-        self.trajectory_linking_window.right_panel.goBackToDetection.connect(
+        self.lw_linking_window.right_panel.goBackToDetection.connect(
             self.on_back_to_particle_detection
         )
 
         # Add to stacked widget
-        self.stacked_widget.addWidget(self.trajectory_linking_window)
-        self.stacked_widget.setCurrentWidget(self.trajectory_linking_window)
+        self.stacked_widget.addWidget(self.lw_linking_window)
+        self.stacked_widget.setCurrentWidget(self.lw_linking_window)
 
         # Preserve the window size and position from the previous window
         self.resize(current_size)
@@ -189,13 +189,13 @@ class ParticleTrackingAppController(QMainWindow):
             self.cleanup_rb_gallery()
 
         # Close existing windows
-        if self.particle_detection_window:
-            self.particle_detection_window.close()
-            self.particle_detection_window = None
+        if self.dw_detection_window:
+            self.dw_detection_window.close()
+            self.dw_detection_window = None
 
-        if self.trajectory_linking_window:
-            self.trajectory_linking_window.close()
-            self.trajectory_linking_window = None
+        if self.lw_linking_window:
+            self.lw_linking_window.close()
+            self.lw_linking_window = None
 
     def cleanup_rb_gallery(self):
         """Delete all files in the rb_gallery folder."""

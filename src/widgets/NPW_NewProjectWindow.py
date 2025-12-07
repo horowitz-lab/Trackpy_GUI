@@ -24,7 +24,7 @@ from ..utils import SizingUtils
 import os
 
 
-class NewProjectWindow(QDialog):
+class NPWNewProjectWindow(QDialog):
     """Dialog for creating a new project."""
 
     def __init__(self, parent=None):

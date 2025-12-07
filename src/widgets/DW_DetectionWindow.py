@@ -20,13 +20,13 @@ from PySide6.QtWidgets import (
 )
 from PySide6 import QtWidgets
 
-from .ErrantParticleGalleryWidget import *
-from .FramePlayerWidget import *
-from .DetectionPlottingWidget import *
-from .DetectionParametersWidget import *
+from .DW_ErrantParticleWidget import *
+from .DW_FrameGalleryWidget import *
+from .DW_PlottingWidget import *
+from .DW_ParametersWidget import *
 
 
-class ParticleDetectionWindow(QMainWindow):
+class DWDetectionWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.config_manager = None
@@ -92,7 +92,7 @@ class ParticleDetectionWindow(QMainWindow):
         options_menu = menubar.addMenu("Options")
 
         # Left Panel - make it much wider to show bigger plots
-        self.left_panel = DectectionPlottingWidget()
+        self.left_panel = DWPlottingWidget()
         self.left_panel.setMinimumWidth(400)
         splitter.addWidget(self.left_panel)
 
@@ -101,9 +101,9 @@ class ParticleDetectionWindow(QMainWindow):
         self.middle_panel.setMinimumWidth(300)
         middle_layout = QVBoxLayout(self.middle_panel)
 
-        self.frame_player = FramePlayerWidget()
+        self.frame_player = DWFrameGalleryWidget()
         middle_layout.addWidget(self.frame_player, 2) # Add with 2/3 stretch
-        self.errant_particle_gallery = ErrantParticleGalleryWidget()
+        self.errant_particle_gallery = DWErrantParticleWidget()
         middle_layout.addWidget(self.errant_particle_gallery, 1) # Add with 1/3 stretch
 
         # Set the gallery reference in the frame player
@@ -120,7 +120,7 @@ class ParticleDetectionWindow(QMainWindow):
         right_panel_layout.setContentsMargins(0, 0, 0, 0)
         
         # Detection parameters widget
-        self.right_panel = DetectionParametersWidget(self.left_panel)
+        self.right_panel = DWParametersWidget(self.left_panel)
         right_panel_layout.addWidget(self.right_panel)
         
         # Parameters info box (shows parameters used for current results)

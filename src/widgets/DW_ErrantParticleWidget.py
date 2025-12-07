@@ -19,10 +19,10 @@ from PySide6.QtWidgets import (
     QWidget,
     QToolButton,
 )
-from .ScaledLabel import ScaledLabel
+from ..utils.ScaledLabel import ScaledLabel
 
 
-class ErrantParticleGalleryWidget(QWidget):
+class DWErrantParticleWidget(QWidget):
     errant_particle_selected = Signal(int)
     update_required = Signal()
 

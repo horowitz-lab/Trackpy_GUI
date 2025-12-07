@@ -24,10 +24,10 @@ import numpy as np
 import os
 import json
 
-from .ScaledLabel import ScaledLabel
+from ..utils.ScaledLabel import ScaledLabel
 
 
-class ErrantTrajectoryGalleryWidget(QWidget):
+class LWErrantDistanceLinksWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.config_manager = None

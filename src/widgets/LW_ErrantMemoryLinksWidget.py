@@ -19,7 +19,7 @@ import os
 import json
 
 
-class TrajectoryPlayerWidget(QWidget):
+class LWErrantMemoryLinksWidget(QWidget):
     """Widget for displaying memory link galleries."""
 
     def __init__(self, parent=None):

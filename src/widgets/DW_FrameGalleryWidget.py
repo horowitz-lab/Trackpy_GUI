@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
 )
 from PySide6.QtGui import QPixmap
-from .ScaledLabel import ScaledLabel
+from ..utils.ScaledLabel import ScaledLabel
 
 
 class SaveFramesThread(QThread):
@@ -63,7 +63,7 @@ class SaveFramesThread(QThread):
                 self.cap.release()
 
 
-class FramePlayerWidget(QWidget):
+class DWFrameGalleryWidget(QWidget):
     """Widget for displaying video frames from a folder of images"""
 
     frames_saved = Signal(int)

@@ -47,7 +47,7 @@ class FindParticlesThread(QThread):
         self.finished.emit(particles)
 
 
-class DetectionParametersWidget(QWidget):
+class DWParametersWidget(QWidget):
     allParticlesUpdated = Signal()
     openTrajectoryLinking = Signal()
     parameter_changed = Signal()

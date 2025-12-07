@@ -28,7 +28,7 @@ from .. import particle_processing
 import pandas as pd
 
 
-class LinkingParametersWidget(QWidget):
+class LWParametersWidget(QWidget):
     particlesDetected = Signal()
     trajectoriesLinked = Signal()
     trajectoryVisualizationCreated = Signal(str)  # Emits image path
