@@ -14,8 +14,11 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QPushButton,
     QHBoxLayout,
+    QProgressBar,
+    QApplication,
 )
-from PySide6.QtCore import Qt, Signal, QThread
+from PySide6.QtGui import QFont
+from PySide6.QtCore import Qt, Signal, QThread, QTimer
 import pandas as pd
 import os
 import shutil
@@ -48,6 +51,7 @@ class DetectionParametersWidget(QWidget):
     allParticlesUpdated = Signal()
     openTrajectoryLinking = Signal()
     parameter_changed = Signal()
+    particles_found = Signal()  # Emitted when Find Particles is clicked
 
     def __init__(self, graphing_panel, parent=None):
         super().__init__(parent)
@@ -59,8 +63,29 @@ class DetectionParametersWidget(QWidget):
         self.layout = QVBoxLayout(self)
 
         self.graphing_panel = graphing_panel
+        
+        # Track previous parameter values to detect actual changes
+        self.previous_params = {}
 
         self.form = QFormLayout()
+
+        # Helper function to create label with info icon
+        def create_label_with_info(label_text, tooltip_text):
+            label_widget = QWidget()
+            label_layout = QHBoxLayout(label_widget)
+            label_layout.setContentsMargins(0, 0, 0, 0)
+            label_layout.setSpacing(4)
+            label = QLabel(label_text)
+            info_icon = QLabel("ⓘ")
+            info_icon.setToolTip(tooltip_text)
+            font = info_icon.font()
+            font.setPointSize(10)
+            info_icon.setFont(font)
+            info_icon.setStyleSheet("color: #0066cc;")
+            label_layout.addWidget(label)
+            label_layout.addWidget(info_icon)
+            label_layout.addStretch()
+            return label_widget
 
         # Inputs
         self.feature_size_input = QSpinBox()
@@ -82,10 +107,10 @@ class DetectionParametersWidget(QWidget):
         self.threshold_input.setSingleStep(1.0)
         self.threshold_input.setToolTip("Clip band-passed data below this value.")
 
-        self.form.addRow("Feature size", self.feature_size_input)
-        self.form.addRow("Min mass", self.min_mass_input)
-        self.form.addRow("Invert", self.invert_input)
-        self.form.addRow("Threshold", self.threshold_input)
+        self.form.addRow(create_label_with_info("Feature size", "Approximate diameter of features (odd integer)."), self.feature_size_input)
+        self.form.addRow(create_label_with_info("Min mass", "Minimum integrated brightness of a feature."), self.min_mass_input)
+        self.form.addRow(create_label_with_info("Invert", "Invert the image to detect dark spots instead of bright features."), self.invert_input)
+        self.form.addRow(create_label_with_info("Threshold", "Clip band-passed data below this value."), self.threshold_input)
 
         self.layout.addLayout(self.form)
         self.layout.addStretch()
@@ -94,7 +119,12 @@ class DetectionParametersWidget(QWidget):
         bottom_controls_layout = QVBoxLayout()
         self.progress_display = QLabel("")
         self.progress_display.setAlignment(Qt.AlignCenter)
+        self.progress_display.setWordWrap(True)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0)  # Indeterminate progress bar
+        self.progress_bar.setVisible(False)
         bottom_controls_layout.addWidget(self.progress_display)
+        bottom_controls_layout.addWidget(self.progress_bar)
 
         frame_inputs_layout = QHBoxLayout()
         self.start_frame_input = QSpinBox()
@@ -103,11 +133,28 @@ class DetectionParametersWidget(QWidget):
         self.step_frame_input.setRange(1, 9999)
         self.start_frame_input.valueChanged.connect(self.update_end_range)
         
-        frame_inputs_layout.addWidget(QLabel("Start:"))
+        # Helper function to create simple label with info icon (no stretch for horizontal layout)
+        def create_simple_label_with_info(label_text, tooltip_text):
+            label_widget = QWidget()
+            label_layout = QHBoxLayout(label_widget)
+            label_layout.setContentsMargins(0, 0, 0, 0)
+            label_layout.setSpacing(4)
+            label = QLabel(label_text)
+            info_icon = QLabel("ⓘ")
+            info_icon.setToolTip(tooltip_text)
+            font = info_icon.font()
+            font.setPointSize(10)
+            info_icon.setFont(font)
+            info_icon.setStyleSheet("color: #0066cc;")
+            label_layout.addWidget(label)
+            label_layout.addWidget(info_icon)
+            return label_widget
+        
+        frame_inputs_layout.addWidget(create_simple_label_with_info("Start:", "First frame number to process (1-based)."))
         frame_inputs_layout.addWidget(self.start_frame_input)
-        frame_inputs_layout.addWidget(QLabel("End:"))
+        frame_inputs_layout.addWidget(create_simple_label_with_info("End:", "Last frame number to process (1-based)."))
         frame_inputs_layout.addWidget(self.end_frame_input)
-        frame_inputs_layout.addWidget(QLabel("Step:"))
+        frame_inputs_layout.addWidget(create_simple_label_with_info("Step:", "Frame step size (process every Nth frame)."))
         frame_inputs_layout.addWidget(self.step_frame_input)
         bottom_controls_layout.addLayout(frame_inputs_layout)
 
@@ -165,6 +212,13 @@ class DetectionParametersWidget(QWidget):
         self.min_mass_input.setValue(float(params.get("min_mass", 100.0)))
         self.invert_input.setChecked(bool(params.get("invert", False)))
         self.threshold_input.setValue(float(params.get("threshold", 0.0)))
+        # Initialize previous_params with loaded values
+        self.previous_params = {
+            "feature_size": int(params.get("feature_size", 15)),
+            "min_mass": float(params.get("min_mass", 100.0)),
+            "invert": bool(params.get("invert", False)),
+            "threshold": float(params.get("threshold", 0.0)),
+        }
 
     def save_params(self):
         if not self.config_manager:
@@ -178,8 +232,29 @@ class DetectionParametersWidget(QWidget):
             "threshold": self.threshold_input.value(),
             "scaling": current_scaling,  # Preserve existing scaling value
         }
+        
+        # Check if parameters actually changed
+        params_changed = False
+        if not self.previous_params:
+            # First time saving, mark as changed
+            params_changed = True
+        else:
+            # Compare current values with previous values
+            for key in ["feature_size", "min_mass", "invert", "threshold"]:
+                if params[key] != self.previous_params.get(key):
+                    params_changed = True
+                    break
+        
+        # Save params regardless (to persist current values)
         self.config_manager.save_detection_params(params)
-        self.parameter_changed.emit()
+        
+        # Only emit signal if parameters actually changed
+        if params_changed:
+            self.previous_params = params.copy()
+            self.parameter_changed.emit()
+        else:
+            # Update previous params even if no change (to track current state)
+            self.previous_params = params.copy()
 
     def find_particles(self):
         self.save_params()
@@ -187,6 +262,9 @@ class DetectionParametersWidget(QWidget):
             self.progress_display.setText("Project not loaded.")
             return
 
+        # Emit signal to clear gallery when Find Particles is clicked
+        self.particles_found.emit()
+        
         self._backup_and_clear_particles_data()
 
         # Convert 1-based UI input to 0-based frame indexing
@@ -203,9 +281,12 @@ class DetectionParametersWidget(QWidget):
             self.progress_display.setText("No frames found in range.")
             return
 
+        # Show progress indicator and disable buttons
         self.save_button.setEnabled(False)
         self.next_button.setEnabled(False)
-        self.progress_display.setText("Starting particle detection...")
+        self.progress_display.setText("Working... Detecting particles. This may take a moment.")
+        self.progress_bar.setVisible(True)
+        QApplication.processEvents()  # Update UI immediately
 
         params = self.config_manager.get_detection_params()
         self.find_particles_thread = FindParticlesThread(frame_paths, params)
@@ -216,17 +297,22 @@ class DetectionParametersWidget(QWidget):
     def on_find_finished(self, particles_df):
         self.save_button.setEnabled(True)
         self.next_button.setEnabled(True)
-        self.progress_display.setText("Particle detection finished.")
         
         if particles_df is not None and not particles_df.empty:
+            self.progress_display.setText("Particle detection completed!")
             self._save_all_particles_df(particles_df)
             self.allParticlesUpdated.emit()
             self.graphing_panel.filtering_widget.apply_filters_and_notify() # Trigger filter application
         else:
             # Even if no particles are found, clear existing data and refresh
+            self.progress_display.setText("Particle detection completed (no particles found).")
             self._save_all_particles_df(pd.DataFrame())
             self.allParticlesUpdated.emit()
             self.graphing_panel.filtering_widget.apply_filters_and_notify()
+        
+        # Hide progress bar and clear message after a moment
+        self.progress_bar.setVisible(False)
+        QTimer.singleShot(2000, lambda: self.progress_display.setText(""))
 
     def _backup_and_clear_particles_data(self):
         """Backs up all_particles.csv and then clears it."""
