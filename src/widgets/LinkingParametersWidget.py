@@ -17,7 +17,11 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QPushButton,
     QCheckBox,
+    QHBoxLayout,
+    QProgressBar,
+    QApplication,
 )
+from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt, Signal
 import os
 from .. import particle_processing
@@ -46,6 +50,24 @@ class LinkingParametersWidget(QWidget):
 
         self.form = QFormLayout()
 
+        # Helper function to create label with info icon
+        def create_label_with_info(label_text, tooltip_text):
+            label_widget = QWidget()
+            label_layout = QHBoxLayout(label_widget)
+            label_layout.setContentsMargins(0, 0, 0, 0)
+            label_layout.setSpacing(4)
+            label = QLabel(label_text)
+            info_icon = QLabel("ⓘ")
+            info_icon.setToolTip(tooltip_text)
+            font = info_icon.font()
+            font.setPointSize(10)
+            info_icon.setFont(font)
+            info_icon.setStyleSheet("color: #0066cc;")
+            label_layout.addWidget(label)
+            label_layout.addWidget(info_icon)
+            label_layout.addStretch()
+            return label_widget
+
         # Inputs for trajectory linking parameters
         self.search_range_input = QSpinBox()
         self.search_range_input.setRange(1, 1000)
@@ -69,15 +91,27 @@ class LinkingParametersWidget(QWidget):
         )
 
         self.sub_drift = QCheckBox()
+        self.sub_drift.setToolTip("Subtract drift from trajectories to correct for overall motion.")
 
-        self.form.addRow("Search range", self.search_range_input)
-        self.form.addRow("Memory", self.memory_input)
+        self.form.addRow(create_label_with_info("Search range", "Maximum distance a particle can move between frames (pixels)."), self.search_range_input)
+        self.form.addRow(create_label_with_info("Memory", "Number of frames a particle can disappear and still be linked."), self.memory_input)
         self.form.addRow(
-            "Min trajectory length", self.min_trajectory_length_input
+            create_label_with_info("Min trajectory length", "Minimum number of frames for a valid trajectory."), self.min_trajectory_length_input
         )
-        self.form.addRow("Subtract Drift", self.sub_drift)
+        self.form.addRow(create_label_with_info("Subtract Drift", "Subtract drift from trajectories to correct for overall motion."), self.sub_drift)
 
         self.layout.addLayout(self.form)
+
+        # Progress indicator
+        self.progress_label = QLabel("")
+        self.progress_label.setAlignment(Qt.AlignCenter)
+        self.progress_label.setWordWrap(True)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0)  # Indeterminate progress bar
+        self.progress_bar.setVisible(False)
+        self.progress_label.setVisible(False)
+        self.layout.addWidget(self.progress_label)
+        self.layout.addWidget(self.progress_bar)
 
         # Buttons
         self.buttons_layout = QVBoxLayout()
@@ -199,6 +233,13 @@ class LinkingParametersWidget(QWidget):
             print("Please run 'Find Particles' and 'Apply Filters' first.")
             return
         
+        # Show progress indicator and disable button
+        self.find_trajectories_button.setEnabled(False)
+        self.progress_label.setText("Working... Linking trajectories. This may take a moment.")
+        self.progress_label.setVisible(True)
+        self.progress_bar.setVisible(True)
+        QApplication.processEvents()  # Update UI immediately
+        
         try:
             import trackpy as tp
             import pandas as pd
@@ -212,12 +253,18 @@ class LinkingParametersWidget(QWidget):
                 all_particles_df = pd.read_csv(all_particles_file)
                 if not all_particles_df.empty:
                     print("Linking ALL particles for unfiltered view...")
+                    self.progress_label.setText("Working... Linking all particles...")
+                    QApplication.processEvents()
                     trajectories_all = tp.link_df(all_particles_df, search_range=search_range, memory=memory)
                     print(trajectories_all)
                     
+                    self.progress_label.setText("Working... Filtering trajectories...")
+                    QApplication.processEvents()
                     trajectories_all = tp.filter_stubs(trajectories_all, min_trajectory_length)
                     print(trajectories_all)
                     if self.sub_drift.isChecked():
+                        self.progress_label.setText("Working... Calculating and subtracting drift...")
+                        QApplication.processEvents()
                         self.calc_drift(trajectories_all)
                         # scaling = self.config_manager.get_detection_params().get("scaling", 1.0)
                         # # scaling = float(params.get("scaling", 1.0))
@@ -243,18 +290,26 @@ class LinkingParametersWidget(QWidget):
 
             # --- Process FILTERED_PARTICLES.CSV for filtered trajectories ---
             print("Loading FILTERED particles for trajectory linking...")
+            self.progress_label.setText("Working... Loading filtered particles...")
+            QApplication.processEvents()
             filtered_particles_df = pd.read_csv(filtered_particles_file)
             print(f"Loaded {len(filtered_particles_df)} filtered particles.")
 
             print(f"Linking filtered particles with search_range={search_range}, memory={memory}")
+            self.progress_label.setText("Working... Linking filtered particles...")
+            QApplication.processEvents()
             trajectories_filtered = tp.link_df(filtered_particles_df, search_range=search_range, memory=memory)
             print(f"Created {trajectories_filtered['particle'].nunique()} filtered trajectories")
 
             print(f"Filtering filtered trajectories shorter than {min_trajectory_length} frames...")
+            self.progress_label.setText("Working... Filtering trajectories...")
+            QApplication.processEvents()
             trajectories_filtered = tp.filter_stubs(trajectories_filtered, min_trajectory_length)
             print(f"After filtering: {trajectories_filtered['particle'].nunique()} filtered trajectories")
 
             if self.sub_drift.isChecked():
+                self.progress_label.setText("Working... Calculating and subtracting drift...")
+                QApplication.processEvents()
                 self.calc_drift(trajectories_filtered)
 
             self.linked_trajectories = trajectories_filtered # Store the filtered linked trajectories
@@ -270,17 +325,37 @@ class LinkingParametersWidget(QWidget):
             # Here we can simply re-use the all_trajectories_file visualization name.
             # I will pass trajectories_all for this part.
             if 'trajectories_all' in locals():
+                self.progress_label.setText("Working... Creating trajectory visualization...")
+                QApplication.processEvents()
                 self.create_trajectory_visualization(trajectories_all, data_folder, "trajectory_visualization.png")
 
+            self.progress_label.setText("Working... Creating RB gallery...")
+            QApplication.processEvents()
             self.create_rb_gallery(trajectories_file, data_folder) # RB gallery from filtered trajectories
+            
+            self.progress_label.setText("Working... Finding high memory links...")
+            QApplication.processEvents()
             particle_processing.find_and_save_high_memory_links(trajectories_file, memory, max_links=5)
 
             self.trajectoriesLinked.emit()
             self.rbGalleryCreated.emit()
+            
+            # Hide progress indicator and re-enable button
+            self.progress_label.setText("Trajectory linking completed!")
+            QApplication.processEvents()
+            self.progress_bar.setVisible(False)
+            self.find_trajectories_button.setEnabled(True)
+            # Clear the success message after a moment
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(2000, lambda: self.progress_label.setVisible(False))
 
         except Exception as e:
             print(f"Error linking trajectories: {e}")
             self.linked_trajectories = None
+            # Hide progress indicator and re-enable button on error
+            self.progress_label.setText(f"Error: {str(e)}")
+            self.progress_bar.setVisible(False)
+            self.find_trajectories_button.setEnabled(True)
 
     def create_trajectory_visualization(self, trajectories_df, output_folder, filename="trajectory_visualization.png"):
         """Create a trajectory visualization on white background and save as image."""
