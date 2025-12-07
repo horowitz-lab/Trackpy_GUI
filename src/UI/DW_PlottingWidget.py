@@ -22,13 +22,13 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 import os
 from copy import copy
-from .. import particle_processing
+from ..utils import ParticleProcessing
 import pandas as pd
 
 from ..utils import GraphingUtils
-from .FilteringWidget import FilteringWidget
+from .DW_LW_FilteringWidget import DWLWFilteringWidget
 
-class DectectionPlottingWidget(GraphingUtils.GraphingPanelWidget):
+class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
     def __init__(self, parent=None):
         super(GraphingUtils.GraphingPanelWidget, self).__init__()
 
@@ -96,7 +96,7 @@ class DectectionPlottingWidget(GraphingUtils.GraphingPanelWidget):
         self.layout.addWidget(self.graphing_buttons)
         
         # Add filtering widget below the graphs
-        self.filtering_widget = FilteringWidget(source_data_file="all_particles.csv")
+        self.filtering_widget = DWLWFilteringWidget(source_data_file="all_particles.csv")
         self.layout.addWidget(self.filtering_widget)
         
         # Add stretch below the buttons

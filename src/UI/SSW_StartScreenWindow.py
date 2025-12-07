@@ -17,10 +17,10 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QPixmap, QIcon
 import os
-from ..project_manager import ProjectManager
+from ..utils.ProjectManager import ProjectManager
 
 
-class StartScreen(QWidget):
+class SSWStartScreenWindow(QWidget):
     """Main start screen widget for project management."""
 
     project_selected = Signal(
@@ -86,10 +86,10 @@ class StartScreen(QWidget):
 
     def create_new_project(self):
         """Open dialog to create a new project."""
-        from .NewProjectWindow import NewProjectWindow
+        from .NPW_NewProjectWindow import NPWNewProjectWindow
 
-        dialog = NewProjectWindow(parent=self.window())
-        if dialog.exec() == NewProjectWindow.Accepted:
+        dialog = NPWNewProjectWindow(parent=self.window())
+        if dialog.exec() == NPWNewProjectWindow.Accepted:
             project_path = dialog.get_project_path()
             project_name = dialog.get_project_name()
             movie_taker = dialog.get_movie_taker()

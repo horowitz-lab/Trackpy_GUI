@@ -17,13 +17,13 @@ from PySide6.QtWidgets import (
     QSplitter,
     QHBoxLayout,
 )
-from .ErrantTrajectoryGalleryWidget import *
-from .TrajectoryPlayerWidget import *
-from .TrajectoryPlottingWidget import *
-from .LinkingParametersWidget import *
+from .LW_ErrantDistanceLinksWidget import *
+from .LW_ErrantMemoryLinksWidget import *
+from .LW_PlottingWidget import *
+from .LW_ParametersWidget import *
 
 
-class TrajectoryLinkingWindow(QMainWindow):
+class LWLinkingWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.config_manager = None
@@ -61,7 +61,7 @@ class TrajectoryLinkingWindow(QMainWindow):
             hasattr(self, "errant_particle_gallery")
             and self.errant_particle_gallery
         ):
-            self.errant_particle_gallery.refresh_rb_gallery()
+            self.errant_particle_gallery.refresh_errant_distance_links()
         if hasattr(self, "left_panel"):
             self.left_panel.set_config_manager(self.config_manager)
             self.left_panel.set_file_controller(self.file_controller)
@@ -90,7 +90,7 @@ class TrajectoryLinkingWindow(QMainWindow):
         options_menu = menubar.addMenu("Options")
 
         # Left Panel - make it much wider to show bigger plots
-        self.left_panel = TrajectoryPlottingWidget()
+        self.left_panel = LWPlottingWidget()
         self.left_panel.setMinimumWidth(400)
         splitter.addWidget(self.left_panel)
 
@@ -99,15 +99,15 @@ class TrajectoryLinkingWindow(QMainWindow):
         self.middle_panel.setMinimumWidth(300)
         self.middle_layout = QVBoxLayout(self.middle_panel)
 
-        self.frame_player = TrajectoryPlayerWidget()
+        self.frame_player = LWErrantMemoryLinksWidget()
         self.middle_layout.addWidget(self.frame_player, 1) # Add with 1/2 stretch
-        self.errant_particle_gallery = ErrantTrajectoryGalleryWidget()
+        self.errant_particle_gallery = LWErrantDistanceLinksWidget()
         self.middle_layout.addWidget(self.errant_particle_gallery, 1) # Add with 1/2 stretch
 
         splitter.addWidget(self.middle_panel)
 
         # Right Panel
-        self.right_panel = LinkingParametersWidget(self.left_panel)
+        self.right_panel = LWParametersWidget(self.left_panel)
         self.right_panel.setMinimumWidth(200)
         self.right_layout = QVBoxLayout(self.right_panel)
         splitter.addWidget(self.right_panel)
@@ -139,11 +139,11 @@ class TrajectoryLinkingWindow(QMainWindow):
         )
 
         # Connect filtered data updates to refresh relevant widgets
-        self.left_panel.filtering_widget.filteredParticlesUpdated.connect(
+        self.left_panel.filteredTrajectoriesUpdated.connect(
             self.frame_player.refresh_links
         )
-        self.left_panel.filtering_widget.filteredParticlesUpdated.connect(
-            self.errant_particle_gallery.refresh_rb_gallery
+        self.left_panel.filteredTrajectoriesUpdated.connect(
+            self.errant_particle_gallery.refresh_errant_distance_links
         )
 
         # Connect back button signal to return to detection window
@@ -152,8 +152,8 @@ class TrajectoryLinkingWindow(QMainWindow):
         )
 
         # Connect RB gallery creation signal to refresh the trajectory gallery
-        self.right_panel.rbGalleryCreated.connect(
-            self.errant_particle_gallery.refresh_rb_gallery
+        self.right_panel.errantDistanceLinksGalleryCreated.connect(
+            self.errant_particle_gallery.refresh_errant_distance_links
         )
 
         # Connect export and close signal

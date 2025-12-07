@@ -21,9 +21,9 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 import os
 from copy import copy
-from .. import particle_processing
+from . import ParticleProcessing
 import io
-from ..widgets.ScaledLabel import ScaledLabel
+from .ScaledLabel import ScaledLabel
 
 # Universal graphing label sizes and figure formatting - larger fonts for better visibility
 matplotlib.rc('xtick', labelsize=18) 

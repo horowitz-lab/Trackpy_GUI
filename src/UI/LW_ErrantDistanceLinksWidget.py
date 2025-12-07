@@ -24,10 +24,10 @@ import numpy as np
 import os
 import json
 
-from .ScaledLabel import ScaledLabel
+from ..utils.ScaledLabel import ScaledLabel
 
 
-class ErrantTrajectoryGalleryWidget(QWidget):
+class LWErrantDistanceLinksWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.config_manager = None
@@ -90,7 +90,7 @@ class ErrantTrajectoryGalleryWidget(QWidget):
     def set_config_manager(self, config_manager):
         """Set the config manager for this widget."""
         self.config_manager = config_manager
-        self._update_rb_gallery_path()
+        self._update_errant_distance_links_path()
 
     def set_file_controller(self, file_controller):
         """Set the file controller for this widget."""
@@ -99,24 +99,24 @@ class ErrantTrajectoryGalleryWidget(QWidget):
             self.original_frames_folder = (
                 self.file_controller.original_frames_folder
             )
-        self._update_rb_gallery_path()
+        self._update_errant_distance_links_path()
 
-    def _update_rb_gallery_path(self):
-        """Update RB gallery path from injected dependencies."""
+    def _update_errant_distance_links_path(self):
+        """Update errant_distance_links path from injected dependencies."""
         if self.file_controller:
-            self.rb_gallery_dir = self.file_controller.rb_gallery_folder
+            self.errant_distance_links_dir = self.file_controller.errant_distance_links_folder
         elif self.config_manager:
-            self.rb_gallery_dir = self.config_manager.get_path(
-                "rb_gallery_folder"
+            self.errant_distance_links_dir = self.config_manager.get_path(
+                "errant_distance_links_folder"
             )
         else:
             # Fall back to default
-            self.rb_gallery_dir = "rb_gallery/"
+            self.errant_distance_links_dir = "errant_distance_links/"
 
         # Reload gallery files if path is set
-        if self.rb_gallery_dir:
+        if self.errant_distance_links_dir:
             self.rb_links = self._load_rb_links(
-                self.rb_gallery_dir
+                self.errant_distance_links_dir
             )
             self.curr_link_idx = (
                 min(
@@ -173,7 +173,8 @@ Search Range: {link_info.get('search_range', 0)} pixels"""
 
     def _update_display_text(self):
         total = len(self.rb_links)
-        text = f"{self.curr_link_idx} / {total}"
+        current_display = self.curr_link_idx + 1 if total > 0 else 0
+        text = f"{current_display} / {total}"
         # Avoid recursive signals while editing
         old_block = self.trajectory_display.blockSignals(True)
         self.trajectory_display.setText(text)
@@ -188,7 +189,7 @@ Search Range: {link_info.get('search_range', 0)} pixels"""
         else:
             first = text
         try:
-            requested = int(first)
+            requested = int(first) - 1
         except ValueError:
             # Restore correct text
             self._update_display_text()
@@ -228,14 +229,14 @@ Search Range: {link_info.get('search_range', 0)} pixels"""
             # Already at first image; do nothing
             pass
 
-    def refresh_rb_gallery(self):
-        """Reload the list of RB overlay image files and refresh display."""
+    def refresh_errant_distance_links(self):
+        """Reload the list of errant distance link image files and refresh display."""
         # Update path first in case it changed
-        self._update_rb_gallery_path()
+        self._update_errant_distance_links_path()
         # Reload files
-        if self.rb_gallery_dir:
+        if self.errant_distance_links_dir:
             self.rb_links = self._load_rb_links(
-                self.rb_gallery_dir
+                self.errant_distance_links_dir
             )
         else:
             self.rb_links = []
@@ -257,7 +258,7 @@ Search Range: {link_info.get('search_range', 0)} pixels"""
     def reset_state(self):
         """Reload gallery files when returning to the linking screen."""
         self.curr_link_idx = 0
-        self._update_rb_gallery_path()
+        self._update_errant_distance_links_path()
         self._display_link(self.curr_link_idx)
 
     def _generate_image_for_link(self, link_info):
@@ -322,7 +323,7 @@ Search Range: {link_info.get('search_range', 0)} pixels"""
             padded_crop1 = create_padded_crop(full_frame1)
             padded_crop2 = create_padded_crop(full_frame2)
 
-            from ..particle_processing import create_rb_overlay_image
+            from ..utils.ParticleProcessing import create_rb_overlay_image
 
             rb_image = create_rb_overlay_image(
                 padded_crop1,

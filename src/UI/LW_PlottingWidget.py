@@ -18,18 +18,18 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 import os
 from copy import copy
-from .. import particle_processing
+from ..utils import ParticleProcessing
 import pandas as pd
 
 from ..utils import GraphingUtils
-from .FilteringWidget import FilteringWidget
+from .DW_LW_FilteringWidget import DWLWFilteringWidget
 
 
-class TrajectoryPlottingWidget(GraphingUtils.GraphingPanelWidget):
+class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
     filteredTrajectoriesUpdated = Signal()
 
     def __init__(self, parent=None):
-        super(GraphingUtils.GraphingPanelWidget, self).__init__()
+        super().__init__(parent)
 
         self.setup_plot_display()
 
@@ -82,7 +82,7 @@ class TrajectoryPlottingWidget(GraphingUtils.GraphingPanelWidget):
         
         # Add filtering widget below the graphs
         # Use all_particles.csv to match particle detection window
-        self.filtering_widget = FilteringWidget(source_data_file="all_particles.csv")
+        self.filtering_widget = DWLWFilteringWidget(source_data_file="all_particles.csv")
         self.filtering_widget.filteredParticlesUpdated.connect(self.filteredTrajectoriesUpdated.emit)
         self.layout.addWidget(self.filtering_widget)
         

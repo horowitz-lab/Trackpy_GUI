@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
 )
 from PySide6.QtGui import QPixmap
-from .ScaledLabel import ScaledLabel
+from ..utils.ScaledLabel import ScaledLabel
 
 
 class SaveFramesThread(QThread):
@@ -63,7 +63,7 @@ class SaveFramesThread(QThread):
                 self.cap.release()
 
 
-class FramePlayerWidget(QWidget):
+class DWFrameGalleryWidget(QWidget):
     """Widget for displaying video frames from a folder of images"""
 
     frames_saved = Signal(int)
@@ -132,6 +132,12 @@ class FramePlayerWidget(QWidget):
 
         layout.addWidget(self.frame_container, 1)
 
+        # Frame navigation controls (slider)
+        self.frame_slider = QSlider(Qt.Horizontal)
+        self.frame_slider.setRange(0, 0)
+        self.frame_slider.valueChanged.connect(self.slider_value_changed)
+        layout.addWidget(self.frame_slider)
+
         # Current frame display
         self.current_frame_label = QLabel("Frame: 0 / 0")
         self.current_frame_label.setAlignment(Qt.AlignCenter)
@@ -154,11 +160,6 @@ class FramePlayerWidget(QWidget):
         self.frame_input.setPlaceholderText("Enter frame number")
         self.frame_input.returnPressed.connect(self.go_to_frame)
         nav_layout.addWidget(self.frame_input)
-
-        self.frame_slider = QSlider(Qt.Horizontal)
-        self.frame_slider.setRange(0, 0)
-        self.frame_slider.valueChanged.connect(self.slider_value_changed)
-        nav_layout.addWidget(self.frame_slider)
 
         self.next_button = QPushButton("▶")
         self.next_button.setFixedSize(40, 30)
@@ -375,14 +376,14 @@ class FramePlayerWidget(QWidget):
         """Update the frame display and input"""
         if self.total_frames > 0:
             self.current_frame_label.setText(
-                f"Frame: {self.current_frame_idx} / {self.total_frames - 1}"
+                f"Frame: {self.current_frame_idx + 1} / {self.total_frames}"
             )
             # Only update slider if the value is different to avoid cycles
             if self.frame_slider.value() != self.current_frame_idx:
                 self.frame_slider.setValue(self.current_frame_idx)
         else:
             self.current_frame_label.setText("Frame: 0 / 0")
-        self.frame_input.setText(str(self.current_frame_idx))
+        self.frame_input.setText(str(self.current_frame_idx + 1))
 
     def previous_frame(self):
         """Go to previous frame"""
@@ -397,7 +398,7 @@ class FramePlayerWidget(QWidget):
     def go_to_frame(self):
         """Go to frame specified in input"""
         try:
-            frame_number = int(self.frame_input.text())
+            frame_number = int(self.frame_input.text()) - 1
             if 0 <= frame_number < self.total_frames:
                 self.display_frame(frame_number)
         except ValueError:

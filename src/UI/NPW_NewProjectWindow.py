@@ -24,7 +24,7 @@ from ..utils import SizingUtils
 import os
 
 
-class NewProjectWindow(QDialog):
+class NPWNewProjectWindow(QDialog):
     """Dialog for creating a new project."""
 
     def __init__(self, parent=None):
@@ -136,7 +136,7 @@ class NewProjectWindow(QDialog):
             "A new project folder will be created inside the selected parent folder:\n"
             "• Project folder name: [Project Name]\n"
             "• Project structure:\n"
-            "  - particles/ - Particle images\n"
+            "  - errant_particles/ - Particle images\n"
             "  - original_frames/ - Video frames\n"
             "  - annotated_frames/ - Annotated frames\n"
             "  - rb_gallery/ - Red-blue overlays\n"

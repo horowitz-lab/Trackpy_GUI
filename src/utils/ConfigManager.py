@@ -38,13 +38,12 @@ class ConfigManager:
     def _create_default_config(self):
         """Create a default configuration."""
         self.config["Paths"] = {
-            "particles_folder": "particles/",
+            "data_folder": "data/",
+            "errant_particles_folder": "errant_particles/",
             "original_frames_folder": "original_frames/",
             "annotated_frames_folder": "annotated_frames/",
-            "rb_gallery_folder": "rb_gallery/",
-            "data_folder": "data/",
-            "videos_folder": "videos/",
-            "memory_folder": "memory/",
+            "errant_distance_links_folder": "errant_distance_links/",
+            "errant_memory_links_folder": "errant_memory_links/",
         }
 
         self.config["Detection"] = {

@@ -277,7 +277,7 @@ class CompoundFilterCard(QFrame):
         layout.addWidget(delete_button)
 
 
-class FilteringWidget(QWidget):
+class DWLWFilteringWidget(QWidget):
     """Widget for managing particle data filters."""
     filteredParticlesUpdated = Signal()
 
