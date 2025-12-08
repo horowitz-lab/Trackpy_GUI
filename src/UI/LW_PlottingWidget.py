@@ -93,19 +93,6 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
         """Sets linking data and plots trajectories."""
         self.data = linked_particles
         self.self_plot(self.get_trajectories, self.trajectory_button)
-    
-    # def refresh_plots(self):
-    #     """Reload data from all_trajectories.csv and refresh plots."""
-    #     if self.file_controller:
-    #         try:
-    #             self.data = self.file_controller.load_trajectories_data("all_trajectories.csv")
-    #             if not self.data.empty:
-    #                 self.self_plot(self.get_trajectories, self.trajectory_button)
-    #             else:
-    #                 self.blank_plot()
-    #         except pd.errors.EmptyDataError:
-    #             self.data = pd.DataFrame()
-    #             self.blank_plot()
 
     def set_file_controller(self, file_controller):
         """Override to also set file controller for filtering widget."""
@@ -133,18 +120,18 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
             import pandas as pd
 
             # Use particle data to match particle detection window
-            if self.file_controller:
-                plot_data = self.file_controller.load_particles_data("all_particles.csv")
-            else:
-                plot_data = self.data
+            # if self.file_controller:
+            #     plot_data = self.file_controller.load_particles_data("all_particles.csv")
+            # else:
+            #     plot_data = self.data
             
-            if plot_data is None or plot_data.empty:
-                self.check_for_empty_data()
-                return None
+            # if plot_data is None or plot_data.empty:
+            self.check_for_empty_data()
+                # return None
 
             # Create the plot
             scaling = self.config_manager.get_detection_params().get("scaling", 1.0)
-            drift = tp.compute_drift(plot_data, smoothing=15)*scaling
+            drift = tp.compute_drift(self.data, smoothing=15)*scaling
             ax = drift.plot()
 
             ax.set_xlabel("Frame")
@@ -167,21 +154,21 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
             import pandas as pd
 
             # Use particle data to match particle detection window
-            if self.file_controller:
-                plot_data = self.file_controller.load_particles_data("all_particles.csv")
-            else:
-                plot_data = self.data
+            # if self.file_controller:
+            #     plot_data = self.file_controller.load_particles_data("all_particles.csv")
+            # else:
+            #     plot_data = self.data
             
-            if plot_data is None or plot_data.empty:
-                self.check_for_empty_data()
-                return None
+            # if plot_data is None or plot_data.empty:
+            self.check_for_empty_data()
+                # return None
 
             params = self.config_manager.get_detection_params()
             scaling = params.get("scaling")
 
             # Create the plot
             fig, ax = plt.subplots()
-            tp.plot_traj(plot_data, mpp = scaling, ax=ax)
+            tp.plot_traj(self.data, mpp = scaling, ax=ax)
 
             ax.set_xlabel("X [microns per px]")
             ax.set_ylabel("Y [microns per px]")

@@ -192,24 +192,9 @@ class LWParametersWidget(QWidget):
             import trackpy as tp
             scaling = self.config_manager.get_detection_params().get("scaling", 1.0)
             particle_data = particle_data.copy()
-            
-            # ⭐️ FIX: Check if the index is a simple RangeIndex (meaning structure was lost).
-            # If so, reset the index to the required MultiIndex.
-            if isinstance(particle_data.index, pd.RangeIndex):
-                if 'particle' in particle_data.columns and 'frame' in particle_data.columns:
-                    particle_data = particle_data.set_index(['frame', 'particle'])
-            # if 'particle' in particle_data.columns and 'frame' in particle_data.columns:
-            #     particle_data = particle_data.copy().set_index(['frame', 'particle'], drop=False)
-            # else:
-            #      # Should not happen with linked data, but a safeguard
-            #     particle_data = particle_data.copy().set_index('frame', drop=False)
             drift = tp.compute_drift(particle_data, smoothing=15)*scaling
-            # if 'particle' in particle_data.columns and 'frame' in particle_data.columns:
-            #     particle_data = particle_data.set_index(['frame', 'particle'], drop=False)
-            print(drift)
-            print(particle_data.head())
+
             particle_data = tp.subtract_drift(particle_data, drift)
-            print(particle_data.head())
             particle_data = particle_data.reset_index(drop=True)
             return particle_data
         except Exception as e:
@@ -261,28 +246,13 @@ class LWParametersWidget(QWidget):
                     self.progress_label.setText("Working... Filtering trajectories...")
                     QApplication.processEvents()
                     trajectories_all = tp.filter_stubs(trajectories_all, min_trajectory_length)
-                    print(trajectories_all)
                     if self.sub_drift.isChecked():
-                        self.progress_label.setText("Working... Calculating and subtracting drift...")
-                        QApplication.processEvents()
-                        self.calc_drift(trajectories_all)
-                        # scaling = self.config_manager.get_detection_params().get("scaling", 1.0)
-                        # # scaling = float(params.get("scaling", 1.0))
-                        # drift = tp.compute_drift(trajectories_all, smoothing=15)*scaling
-                        # # drift_all = tp.compute_drift(trajectories_all)
-                        # trajectories_all = tp.subtract_drift(trajectories_all, drift)
-                        # trajectories_all = trajectories_all.reset_index(drop=True)
-                        # if "particle" in trajectories_all.columns:
-                        #     trajectories_all = trajectories_all.drop(columns=["particle"])
-                        # if "frame" in trajectories_all.columns:
-                        #     trajectories_all = trajectories_all.drop(columns=["frame"])
-                        # trajectories_all = trajectories_all.reset_index(drop=False)
+                        trajectories_all = self.calc_drift(trajectories_all)
 
                     # Save all_trajectories.csv
                     all_trajectories_file = os.path.join(data_folder, "all_trajectories.csv")
                     trajectories_all.to_csv(all_trajectories_file, index=False)
                     print(f"Saved ALL trajectories to: {all_trajectories_file}")
-                    self.trajectory_plotting.get_linked_particles(trajectories_all) # Pass unfiltered data to plotting
                 else:
                     print("No data in all_particles.csv for unfiltered trajectory generation.")
             else:
@@ -308,11 +278,10 @@ class LWParametersWidget(QWidget):
             print(f"After filtering: {trajectories_filtered['particle'].nunique()} filtered trajectories")
 
             if self.sub_drift.isChecked():
-                self.progress_label.setText("Working... Calculating and subtracting drift...")
-                QApplication.processEvents()
-                self.calc_drift(trajectories_filtered)
+                trajectories_filtered = self.calc_drift(trajectories_filtered)
 
             self.linked_trajectories = trajectories_filtered # Store the filtered linked trajectories
+            self.trajectory_plotting.get_linked_particles(trajectories_filtered) # Pass unfiltered data to plotting
             print(trajectories_all.head())
             print(trajectories_filtered.head())
             # Save filtered trajectories.csv
