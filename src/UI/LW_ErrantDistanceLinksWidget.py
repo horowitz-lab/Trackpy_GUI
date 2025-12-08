@@ -157,10 +157,21 @@ class LWErrantDistanceLinksWidget(QWidget):
                 return
 
             # Populate info text from metadata
+            # Get scaling to convert pixels to microns
+            scaling = 1.0  # Default to 1.0 if not available
+            if self.config_manager:
+                scaling = self.config_manager.get_detection_params().get("scaling", 1.0)
+            
+            # Convert jump distance and search range from pixels to microns
+            jump_dist_pixels = link_info.get('jump_dist', 0)
+            jump_dist_microns = jump_dist_pixels * scaling
+            search_range_pixels = link_info.get('search_range', 0)
+            search_range_microns = search_range_pixels * scaling
+            
             info_text = f"""Particle ID: {link_info.get('particle_id')}
 Frame Transition: {link_info.get('frame_i')} → {link_info.get('frame_i1')}
-Jump Distance: {link_info.get('jump_dist', 0):.2f} pixels
-Search Range: {link_info.get('search_range', 0)} pixels"""
+Jump Distance: {jump_dist_microns:.2f} μm
+Search Range: {search_range_microns:.2f} μm"""
             self.info_label.setText(info_text)
 
             self._update_display_text()

@@ -39,12 +39,20 @@ class FindParticlesThread(QThread):
 
     def run(self):
         """Run particle detection on frames and return particles, but do not save."""
-        particles = ParticleProcessing.find_particles_in_frames(
-            self.frame_paths,
-            self.params,
-            progress_callback=self.processing_frame,
-        )
-        self.finished.emit(particles)
+        try:
+            particles = ParticleProcessing.find_particles_in_frames(
+                self.frame_paths,
+                self.params,
+                progress_callback=self.processing_frame,
+            )
+            # Always emit finished signal, even if particles is None or empty
+            if particles is None:
+                particles = pd.DataFrame()
+            self.finished.emit(particles)
+        except Exception as e:
+            print(f"Error in particle detection: {e}")
+            # Emit empty DataFrame on error to ensure progress bar stops
+            self.finished.emit(pd.DataFrame())
 
 
 class DWParametersWidget(QWidget):
@@ -311,16 +319,22 @@ class DWParametersWidget(QWidget):
         self.find_particles_thread.start()
 
     def on_find_finished(self, particles_df):
+        # Always re-enable buttons and hide progress bar first
         self.save_button.setEnabled(True)
         self.next_button.setEnabled(True)
+        self.progress_bar.setVisible(False)
         
-        if particles_df is not None and not particles_df.empty:
+        # Handle None case - convert to empty DataFrame
+        if particles_df is None:
+            particles_df = pd.DataFrame()
+        
+        if not particles_df.empty:
             self.progress_display.setText("Particle detection completed!")
             self._save_all_particles_df(particles_df)
             self.allParticlesUpdated.emit()
             self.graphing_panel.filtering_widget.apply_filters_and_notify() # Trigger filter application
         else:
-            # Even if no particles are found, clear existing data and refresh
+            # Even if no particles are found, save empty DataFrame and refresh
             self.progress_display.setText("Particle detection completed (no particles found).")
             self._save_all_particles_df(pd.DataFrame())
             self.allParticlesUpdated.emit()
@@ -329,8 +343,7 @@ class DWParametersWidget(QWidget):
         # Update frame info display
         self._update_frame_info()
         
-        # Hide progress bar and clear message after a moment
-        self.progress_bar.setVisible(False)
+        # Clear message after a moment
         QTimer.singleShot(2000, lambda: self.progress_display.setText(""))
 
     def _backup_and_clear_particles_data(self):
