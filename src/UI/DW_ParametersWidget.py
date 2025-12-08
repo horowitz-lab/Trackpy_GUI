@@ -347,20 +347,25 @@ class DWParametersWidget(QWidget):
         if particles_df is None:
             particles_df = pd.DataFrame()
         
+        # Save particles to file
         if not particles_df.empty:
             self.progress_display.setText("Particle detection completed!")
             self._save_all_particles_df(particles_df)
-            self.allParticlesUpdated.emit()
-            self.graphing_panel.filtering_widget.apply_filters_and_notify() # Trigger filter application
         else:
-            # Even if no particles are found, save empty DataFrame and refresh
+            # Even if no particles are found, save empty DataFrame
             self.progress_display.setText("Particle detection completed (no particles found).")
             self._save_all_particles_df(pd.DataFrame())
+        
+        # Use centralized refresh function to update all UI elements
+        # Get the detection window to call refresh function
+        detection_window = self.window()
+        if detection_window and hasattr(detection_window, 'refresh_detection_ui'):
+            detection_window.refresh_detection_ui(particles_df, block_signals=False)
+        else:
+            # Fallback to old method if detection window not available
             self.allParticlesUpdated.emit()
             self.graphing_panel.filtering_widget.apply_filters_and_notify()
-        
-        # Update frame info display
-        self._update_frame_info()
+            self._update_frame_info()
         
         # Clear message after a moment
         QTimer.singleShot(2000, lambda: self.progress_display.setText(""))
