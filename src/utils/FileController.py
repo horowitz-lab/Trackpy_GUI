@@ -194,6 +194,10 @@ class FileController:
             print(f"Trajectories file not found: {file_path}")
             return pd.DataFrame()
 
+    def get_data_file_path(self, filename: str) -> str:
+        """Get the full path to a file in the data folder."""
+        return os.path.join(self.data_folder, filename)
+
     def create_errant_distance_links_folder(self) -> str:
         """Create and return the errant distance links folder path."""
         self.ensure_folder_exists(self.errant_distance_links_folder)

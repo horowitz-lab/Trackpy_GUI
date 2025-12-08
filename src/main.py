@@ -264,8 +264,7 @@ class ParticleTrackingAppController(QMainWindow):
                 return False
             
             particles_df = pd.read_csv(spreadsheet_path)
-            all_particles_path = os.path.join(self.file_controller.data_folder, "all_particles.csv")
-            particles_df.to_csv(all_particles_path, index=False)
+            self.file_controller.save_particles_data(particles_df)
             
             # 2. Load and replace the config file FIRST
             if not os.path.exists(config_file_path):
@@ -365,13 +364,12 @@ class ParticleTrackingAppController(QMainWindow):
             os.makedirs(save_folder, exist_ok=True)
             
             # Save all_particles.csv
-            all_particles_path = os.path.join(self.file_controller.data_folder, "all_particles.csv")
+            all_particles_path = self.file_controller.get_data_file_path("all_particles.csv")
+            save_particles_path = os.path.join(save_folder, "all_particles.csv")
             if os.path.exists(all_particles_path):
-                save_particles_path = os.path.join(save_folder, "all_particles.csv")
                 shutil.copy2(all_particles_path, save_particles_path)
             else:
                 # Save empty DataFrame if file doesn't exist
-                save_particles_path = os.path.join(save_folder, "all_particles.csv")
                 pd.DataFrame().to_csv(save_particles_path, index=False)
             
             # Save config.ini - include current frame range if detection window exists

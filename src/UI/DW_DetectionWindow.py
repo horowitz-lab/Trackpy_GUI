@@ -295,7 +295,7 @@ class DWDetectionWindow(QMainWindow):
         
         # Only apply filters if particle data actually exists
         # Check if all_particles.csv exists and has data before applying filters
-        all_particles_path = os.path.join(self.file_controller.data_folder, "all_particles.csv")
+        all_particles_path = self.file_controller.get_data_file_path("all_particles.csv")
         if os.path.exists(all_particles_path):
             try:
                 particle_data = pd.read_csv(all_particles_path)

@@ -136,6 +136,78 @@ def find_particles_in_frames(image_paths, params=None, progress_callback=None):
     return combined_features
 
 
+def _process_errant_particle(particle, particle_counter, particle_type, min_mass=None, min_size=None):
+    """
+    Process a single errant particle: crop, resize, draw crosshair, and save.
+    
+    Parameters
+    ----------
+    particle : pandas.Series
+        Particle data row
+    particle_counter : int
+        Counter for particle numbering
+    particle_type : str
+        Type of particle ("mass" or "size")
+    min_mass : float, optional
+        Minimum mass value for mass-based particles
+    min_size : float, optional
+        Minimum size value for size-based particles
+        
+    Returns
+    -------
+    dict or None
+        Particle info dictionary, or None if processing failed
+    """
+    frame_num = int(particle["frame"])
+    x, y = particle["x"], particle["y"]
+
+    image_path = file_controller.get_frame_path(frame_num)
+    image_to_crop = cv2.imread(image_path)
+    if image_to_crop is None:
+        return None
+
+    # Calculate crop boundaries - 4x more zoomed in (25 pixels on each side, then resize to 200x200)
+    final_display_size = 200
+    crop_radius = 25
+    x_min = max(0, int(x) - crop_radius)
+    y_min = max(0, int(y) - crop_radius)
+    x_max = min(image_to_crop.shape[1], int(x) + crop_radius)
+    y_max = min(image_to_crop.shape[0], int(y) + crop_radius)
+
+    particle_image = image_to_crop[y_min:y_max, x_min:x_max]
+    particle_image = cv2.resize(particle_image, (final_display_size, final_display_size))
+
+    # Draw crosshair at center
+    center_x = final_display_size // 2
+    center_y = final_display_size // 2
+    cross_size = 5
+    cv2.line(particle_image, (center_x - cross_size, center_y), (center_x + cross_size, center_y), (255, 255, 255), 1)
+    cv2.line(particle_image, (center_x, center_y - cross_size), (center_x, center_y + cross_size), (255, 255, 255), 1)
+
+    # Save with frame number in filename
+    base_filename = f"{particle_type}_particle_{particle_counter}_frame_{frame_num:05d}"
+    particle_filename = f"{base_filename}.png"
+    full_particle_path = os.path.join(file_controller.errant_particles_folder, particle_filename)
+    cv2.imwrite(full_particle_path, particle_image)
+
+    # Create particle info dictionary
+    particle_info = {
+        "image_file": particle_filename,
+        "frame": frame_num,
+        "x": float(f"{particle['x']:.2f}"),
+        "y": float(f"{particle['y']:.2f}"),
+    }
+    
+    if particle_type == "mass" and min_mass is not None:
+        particle_info["mass"] = float(f"{particle['mass']:.2f}")
+        particle_info["min_mass"] = min_mass
+    elif particle_type == "size" and min_size is not None:
+        particle_info["size"] = float(f"{particle['size']:.2f}")
+        particle_info["min_size"] = min_size
+    
+    return particle_info
+
+
 def save_errant_particle_crops_for_frame(params):
     """
     Saves cropped images of the 10 most errant particles across ALL frames.
@@ -150,7 +222,6 @@ def save_errant_particle_crops_for_frame(params):
     if all_particles.empty:
         return
 
-    # feature_size = int(params.get("feature_size", 15))
     min_size = all_particles['size'].min()
     min_mass = float(params.get("min_mass", 100.0))
 
@@ -158,18 +229,14 @@ def save_errant_particle_crops_for_frame(params):
     all_particles["mass_diff"] = all_particles["mass"] - min_mass
     all_particles["size_diff"] = abs(all_particles["size"] - min_size)
 
-    # Get top 5 most errant by mass (lowest mass, most negative mass_diff)
+    # Get top 5 most errant by mass and size
     top_5_mass_particles = all_particles.nsmallest(5, "mass_diff")
-
-    # Get top 5 most errant by size (smallest size_diff)
     top_5_size_particles = all_particles.nsmallest(5, "size_diff")
 
     if top_5_mass_particles.empty and top_5_size_particles.empty:
         return
 
-    file_controller.delete_all_files_in_folder(
-        file_controller.errant_particles_folder
-    )
+    file_controller.delete_all_files_in_folder(file_controller.errant_particles_folder)
     file_controller.ensure_folder_exists(file_controller.errant_particles_folder)
 
     errant_particles_data = []
@@ -177,141 +244,114 @@ def save_errant_particle_crops_for_frame(params):
 
     # Process mass-based errant particles
     for idx, particle in top_5_mass_particles.iterrows():
-        frame_num = int(particle["frame"])
-        x, y, size = particle["x"], particle["y"], particle["size"]
-
-        image_path = file_controller.get_frame_path(frame_num)
-        image_to_crop = cv2.imread(image_path)
-        if image_to_crop is None:
-            continue
-
-        # Calculate crop boundaries - 4x more zoomed in (25 pixels on each side, then resize to 200x200)
-        final_display_size = 200
-        crop_radius = 25  # 4x more zoomed: 100/4 = 25 pixels on each side
-        x_min = max(0, int(x) - crop_radius)
-        y_min = max(0, int(y) - crop_radius)
-        x_max = min(image_to_crop.shape[1], int(x) + crop_radius)
-        y_max = min(image_to_crop.shape[0], int(y) + crop_radius)
-
-        particle_image = image_to_crop[y_min:y_max, x_min:x_max]
-
-        # Resize to exactly 200x200 for display
-        particle_image = cv2.resize(
-            particle_image, (final_display_size, final_display_size)
-        )
-
-        # Draw crosshair at center
-        center_x = final_display_size // 2
-        center_y = final_display_size // 2
-        cross_size = 5
-        cv2.line(
-            particle_image,
-            (center_x - cross_size, center_y),
-            (center_x + cross_size, center_y),
-            (255, 255, 255),
-            1,
-        )
-        cv2.line(
-            particle_image,
-            (center_x, center_y - cross_size),
-            (center_x, center_y + cross_size),
-            (255, 255, 255),
-            1,
-        )
-
-        # Save with frame number in filename
-        base_filename = (
-            f"mass_particle_{particle_counter}_frame_{frame_num:05d}"
-        )
-        particle_filename = f"{base_filename}.png"
-        full_particle_path = os.path.join(
-            file_controller.errant_particles_folder, particle_filename
-        )
-        cv2.imwrite(full_particle_path, particle_image)
-
-
-        particle_info = {
-            "image_file": particle_filename,
-            "frame": frame_num,
-            "x": float(f"{particle['x']:.2f}"),
-            "y": float(f"{particle['y']:.2f}"),
-            "mass": float(f"{particle['mass']:.2f}"),
-            "min_mass": min_mass,
-        }
-        errant_particles_data.append(particle_info)
-
-        particle_counter += 1
+        particle_info = _process_errant_particle(particle, particle_counter, "mass", min_mass=min_mass)
+        if particle_info:
+            errant_particles_data.append(particle_info)
+            particle_counter += 1
 
     # Process size-based errant particles
     for idx, particle in top_5_size_particles.iterrows():
-        frame_num = int(particle["frame"])
-        x, y, size = particle["x"], particle["y"], particle["size"]
-
-        image_path = file_controller.get_frame_path(frame_num)
-        image_to_crop = cv2.imread(image_path)
-        if image_to_crop is None:
-            continue
-
-        # Calculate crop boundaries - 4x more zoomed in (25 pixels on each side, then resize to 200x200)
-        final_display_size = 200
-        crop_radius = 25  # 4x more zoomed: 100/4 = 25 pixels on each side
-        x_min = max(0, int(x) - crop_radius)
-        y_min = max(0, int(y) - crop_radius)
-        x_max = min(image_to_crop.shape[1], int(x) + crop_radius)
-        y_max = min(image_to_crop.shape[0], int(y) + crop_radius)
-
-        particle_image = image_to_crop[y_min:y_max, x_min:x_max]
-
-        # Resize to exactly 200x200 for display
-        particle_image = cv2.resize(
-            particle_image, (final_display_size, final_display_size)
-        )
-
-        # Draw crosshair at center
-        center_x = final_display_size // 2
-        center_y = final_display_size // 2
-        cross_size = 5
-        cv2.line(
-            particle_image,
-            (center_x - cross_size, center_y),
-            (center_x + cross_size, center_y),
-            (255, 255, 255),
-            1,
-        )
-        cv2.line(
-            particle_image,
-            (center_x, center_y - cross_size),
-            (center_x, center_y + cross_size),
-            (255, 255, 255),
-            1,
-        )
-
-        # Save with frame number in filename
-        base_filename = (
-            f"size_particle_{particle_counter}_frame_{frame_num:05d}"
-        )
-        particle_filename = f"{base_filename}.png"
-        full_particle_path = os.path.join(
-            file_controller.errant_particles_folder, particle_filename
-        )
-        cv2.imwrite(full_particle_path, particle_image)
-
-        particle_info = {
-            "image_file": particle_filename,
-            "frame": frame_num,
-            "x": float(f"{particle['x']:.2f}"),
-            "y": float(f"{particle['y']:.2f}"),
-            "size": float(f"{particle['size']:.2f}"),
-            "min_size": min_size,
-        }
-        errant_particles_data.append(particle_info)
-
-        particle_counter += 1
+        particle_info = _process_errant_particle(particle, particle_counter, "size", min_size=min_size)
+        if particle_info:
+            errant_particles_data.append(particle_info)
+            particle_counter += 1
     
     import json
     json_path = os.path.join(file_controller.errant_particles_folder, "errant_particles.json")
     with open(json_path, "w") as f:
         json.dump(errant_particles_data, f, indent=4)
+
+
+def _apply_thresholding(gray1, gray2, threshold_percent, invert):
+    """
+    Apply thresholding to two grayscale images.
+    
+    Parameters
+    ----------
+    gray1, gray2 : numpy array
+        Grayscale images to threshold
+    threshold_percent : float
+        Threshold percentage (0-100)
+    invert : bool
+        Whether particles are bright on dark background
+        
+    Returns
+    -------
+    tuple
+        (thresh1, thresh2) thresholded images with white background and dark particles
+    """
+    percentile = 100 - threshold_percent
+    threshold_val1 = np.percentile(gray1.flatten(), percentile)
+    threshold_val2 = np.percentile(gray2.flatten(), percentile)
+    
+    # Both invert and non-invert cases use THRESH_BINARY_INV
+    # The logic is the same regardless of invert setting
+    _, thresh1 = cv2.threshold(gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV)
+    _, thresh2 = cv2.threshold(gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV)
+    
+    # Ensure background is white (255) and particles are dark (0)
+    white_pixels1 = np.sum(thresh1 == 255)
+    white_pixels2 = np.sum(thresh2 == 255)
+    
+    if white_pixels1 < (thresh1.size * 0.5):
+        thresh1 = cv2.bitwise_not(thresh1)
+    if white_pixels2 < (thresh2.size * 0.5):
+        thresh2 = cv2.bitwise_not(thresh2)
+    
+    return thresh1, thresh2
+
+
+def _get_invert_setting():
+    """Get invert setting from detection parameters."""
+    if (
+        file_controller
+        and hasattr(file_controller, "config_manager")
+        and file_controller.config_manager
+    ):
+        detection_params = file_controller.config_manager.get_detection_params()
+        return detection_params.get("invert", False)
+    return False
+
+
+def _create_rb_overlay_from_thresholds(thresh1, thresh2, height, width):
+    """
+    Create red-blue overlay from thresholded images.
+    
+    Parameters
+    ----------
+    thresh1, thresh2 : numpy array
+        Thresholded images (white background, dark particles)
+    height, width : int
+        Dimensions for the overlay
+        
+    Returns
+    -------
+    numpy array
+        RB overlay image (RGB format)
+    """
+    # Create white background RGB image
+    rb_overlay = np.ones((height, width, 3), dtype=np.uint8) * 255
+    
+    # Create red image for frame 1: dark pixels (particles) become red
+    red_overlay = rb_overlay.copy()
+    particle_mask1 = thresh1 == 0
+    red_overlay[particle_mask1, 0] = 0  # B channel
+    red_overlay[particle_mask1, 1] = 0  # G channel
+    red_overlay[particle_mask1, 2] = 255  # R channel (red)
+    
+    # Create blue image for frame 2: dark pixels (particles) become blue
+    blue_overlay = rb_overlay.copy()
+    particle_mask2 = thresh2 == 0
+    blue_overlay[particle_mask2, 0] = 255  # B channel (blue)
+    blue_overlay[particle_mask2, 1] = 0  # G channel
+    blue_overlay[particle_mask2, 2] = 0  # R channel
+    
+    # Overlay at 50% opacity
+    alpha = 0.5
+    rb_overlay = (alpha * red_overlay + (1 - alpha) * blue_overlay).astype(np.uint8)
+    
+    # Convert BGR to RGB
+    return cv2.cvtColor(rb_overlay, cv2.COLOR_BGR2RGB)
 
 
 def create_full_frame_rb_overlay(frame1, frame2, threshold_percent=50):
@@ -340,94 +380,16 @@ def create_full_frame_rb_overlay(frame1, frame2, threshold_percent=50):
 
     height, width = frame1.shape[:2]
 
-    # Get invert setting from detection parameters
-    if (
-        file_controller
-        and hasattr(file_controller, "config_manager")
-        and file_controller.config_manager
-    ):
-        detection_params = (
-            file_controller.config_manager.get_detection_params()
-        )
-        invert = detection_params.get("invert", False)
-    else:
-        invert = False
-
     # Convert to grayscale for thresholding
     gray1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
     gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
 
-    # Apply percentile-based thresholding
-    # Calculate threshold value based on percentile
-    percentile = 100 - threshold_percent  # Inverse: 10% means 90th percentile
-
-    # Get threshold values
-    threshold_val1 = np.percentile(gray1.flatten(), percentile)
-    threshold_val2 = np.percentile(gray2.flatten(), percentile)
-
     # Apply thresholding
-    if invert:
-        # Particles are bright on dark background
-        _, thresh1 = cv2.threshold(
-            gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV
-        )
-        _, thresh2 = cv2.threshold(
-            gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV
-        )
-    else:
-        # Particles are dark on bright background
-        _, thresh1 = cv2.threshold(
-            gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV
-        )
-        _, thresh2 = cv2.threshold(
-            gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV
-        )
+    invert = _get_invert_setting()
+    thresh1, thresh2 = _apply_thresholding(gray1, gray2, threshold_percent, invert)
 
-    # Ensure background is white (255) and particles are dark (0)
-    white_pixels1 = np.sum(thresh1 == 255)
-    white_pixels2 = np.sum(thresh2 == 255)
-
-    if white_pixels1 < (thresh1.size * 0.5):
-        thresh1 = cv2.bitwise_not(thresh1)
-    if white_pixels2 < (thresh2.size * 0.5):
-        thresh2 = cv2.bitwise_not(thresh2)
-
-    # Create white background RGB image
-    rb_overlay = (
-        np.ones((height, width, 3), dtype=np.uint8) * 255
-    )  # White background
-
-    # Create colored versions for overlay
-    # Frame 1: Red particles
-    # Frame 2: Blue particles
-
-    # Create red image for frame 1: dark pixels (particles) become red
-    # In BGR format: red = [0, 0, 255] (B=0, G=0, R=255)
-    red_overlay = rb_overlay.copy()
-    particle_mask1 = thresh1 == 0  # Dark pixels are particles
-    red_overlay[particle_mask1, 0] = 0  # B channel
-    red_overlay[particle_mask1, 1] = 0  # G channel
-    red_overlay[particle_mask1, 2] = 255  # R channel (red)
-
-    # Create blue image for frame 2: dark pixels (particles) become blue
-    # In BGR format: blue = [255, 0, 0] (B=255, G=0, R=0)
-    blue_overlay = rb_overlay.copy()
-    particle_mask2 = thresh2 == 0  # Dark pixels are particles
-    blue_overlay[particle_mask2, 0] = 255  # B channel (blue)
-    blue_overlay[particle_mask2, 1] = 0  # G channel
-    blue_overlay[particle_mask2, 2] = 0  # R channel
-
-    # Overlay at 50% opacity: blend red and blue
-    # Formula: result = alpha * image1 + (1 - alpha) * image2
-    alpha = 0.5
-    rb_overlay = (alpha * red_overlay + (1 - alpha) * blue_overlay).astype(
-        np.uint8
-    )
-
-    # Convert BGR to RGB for return
-    rb_overlay_rgb = cv2.cvtColor(rb_overlay, cv2.COLOR_BGR2RGB)
-
-    return rb_overlay_rgb
+    # Create RB overlay
+    return _create_rb_overlay_from_thresholds(thresh1, thresh2, height, width)
 
 
 def create_rb_overlay_image(
@@ -464,102 +426,16 @@ def create_rb_overlay_image(
     if crop2.shape[:2] != target_size:
         crop2 = cv2.resize(crop2, target_size)
 
-    # Get invert setting from detection parameters
-    if (
-        file_controller
-        and hasattr(file_controller, "config_manager")
-        and file_controller.config_manager
-    ):
-        detection_params = (
-            file_controller.config_manager.get_detection_params()
-        )
-        invert = detection_params.get("invert", False)
-    else:
-        invert = False
-
     # Convert to grayscale for thresholding
     gray1 = cv2.cvtColor(crop1, cv2.COLOR_BGR2GRAY)
     gray2 = cv2.cvtColor(crop2, cv2.COLOR_BGR2GRAY)
 
-    # Apply percentile-based thresholding
-    # For dark background: threshold_percent means top X% brightest pixels become dark (particles)
-    # For bright background: threshold_percent means top X% brightest pixels become dark (particles)
-
-    # Calculate threshold value based on percentile
-    # threshold_percent = 10 means top 10% brightest pixels
-    percentile = 100 - threshold_percent  # Inverse: 10% means 90th percentile
-
-    # Get threshold values
-    threshold_val1 = np.percentile(gray1.flatten(), percentile)
-    threshold_val2 = np.percentile(gray2.flatten(), percentile)
-
     # Apply thresholding
-    if invert:
-        # Particles are bright on dark background
-        # Top X% brightest pixels become dark (0), rest becomes white (255)
-        _, thresh1 = cv2.threshold(
-            gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV
-        )
-        _, thresh2 = cv2.threshold(
-            gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV
-        )
-    else:
-        # Particles are dark on bright background
-        # Top X% brightest pixels become dark (0), rest becomes white (255)
-        # We want to threshold so that pixels BRIGHTER than threshold become dark
-        # This means: values > threshold become dark (0), rest becomes white (255)
-        _, thresh1 = cv2.threshold(
-            gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV
-        )
-        _, thresh2 = cv2.threshold(
-            gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV
-        )
+    invert = _get_invert_setting()
+    thresh1, thresh2 = _apply_thresholding(gray1, gray2, threshold_percent, invert)
 
-    # Ensure background is white (255) and particles are dark (0)
-    # Check if we need to invert based on which is more common (white background should be majority)
-    white_pixels1 = np.sum(thresh1 == 255)
-    white_pixels2 = np.sum(thresh2 == 255)
-
-    # If less than 50% white, assume background is black - invert to get white background
-    if white_pixels1 < (thresh1.size * 0.5):
-        thresh1 = cv2.bitwise_not(thresh1)
-    if white_pixels2 < (thresh2.size * 0.5):
-        thresh2 = cv2.bitwise_not(thresh2)
-
-    # Create white background RGB image
-    rb_overlay = (
-        np.ones((crop_size, crop_size, 3), dtype=np.uint8) * 255
-    )  # White background
-
-    # Create colored versions for overlay
-    # Frame 1 (frame_i): Red particles
-    # Frame 2 (frame_i1): Blue particles
-
-    # Create red image for frame 1: dark pixels (particles) become red
-    # In BGR format: red = [0, 0, 255] (B=0, G=0, R=255)
-    red_overlay = rb_overlay.copy()
-    particle_mask1 = thresh1 == 0  # Dark pixels are particles
-    red_overlay[particle_mask1, 0] = 0    # B channel
-    red_overlay[particle_mask1, 1] = 0    # G channel
-    red_overlay[particle_mask1, 2] = 255  # R channel (red)
-
-    # Create blue image for frame 2: dark pixels (particles) become blue
-    # In BGR format: blue = [255, 0, 0] (B=255, G=0, R=0)
-    blue_overlay = rb_overlay.copy()
-    particle_mask2 = thresh2 == 0  # Dark pixels are particles
-    blue_overlay[particle_mask2, 0] = 255  # B channel (blue)
-    blue_overlay[particle_mask2, 1] = 0    # G channel
-    blue_overlay[particle_mask2, 2] = 0    # R channel
-
-    # Overlay at 50% opacity: blend red and blue
-    # Formula: result = alpha * image1 + (1 - alpha) * image2
-    alpha = 0.5
-    rb_overlay = (alpha * red_overlay + (1 - alpha) * blue_overlay).astype(
-        np.uint8
-    )
-
-    # Convert BGR to RGB
-    rb_overlay_rgb = cv2.cvtColor(rb_overlay, cv2.COLOR_BGR2RGB)
+    # Create RB overlay
+    rb_overlay_rgb = _create_rb_overlay_from_thresholds(thresh1, thresh2, crop_size, crop_size)
 
     # Calculate the midpoint between the two particle positions
     mid_x = int((x1 + x2) / 2)
