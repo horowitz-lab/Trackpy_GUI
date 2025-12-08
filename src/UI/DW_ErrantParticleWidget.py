@@ -17,7 +17,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QVBoxLayout,
     QWidget,
-    QToolButton,
 )
 
 from ..utils.ScaledLabel import ScaledLabel
@@ -52,14 +51,12 @@ class DWErrantParticleWidget(QWidget):
 
         # --- Frame Navigation ---
         self.frame_nav_layout = QHBoxLayout()
-        self.prev_frame_button = QToolButton()
-        self.prev_frame_button.setArrowType(Qt.LeftArrow)
+        self.prev_frame_button = QPushButton("◀")
         self.frame_number_display = QLineEdit("0 / 0")
         self.curr_particle_idx = 0
         self.frame_number_display.setReadOnly(False)
         self.frame_number_display.setAlignment(Qt.AlignCenter)
-        self.next_frame_button = QToolButton()
-        self.next_frame_button.setArrowType(Qt.RightArrow)
+        self.next_frame_button = QPushButton("▶")
         self.prev_frame_button.clicked.connect(self.prev_particle)
         self.next_frame_button.clicked.connect(self.next_particle)
         self.frame_number_display.returnPressed.connect(
