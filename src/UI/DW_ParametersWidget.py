@@ -198,11 +198,14 @@ class DWParametersWidget(QWidget):
         self.next_button.clicked.connect(self.next_step)
         self.load_params()
 
-        # Connect signals for saving parameters
-        self.feature_size_input.editingFinished.connect(self.save_params)
-        self.min_mass_input.editingFinished.connect(self.save_params)
-        self.threshold_input.editingFinished.connect(self.save_params)
-        self.invert_input.stateChanged.connect(self.save_params)
+        # Parameters are NOT automatically saved to config when edited
+        # They are only saved when "Find Particles" is clicked or "Next" is clicked
+        # This prevents accidental changes to the config file
+        # However, we still emit parameter_changed for visual feedback (e.g., feature size update)
+        self.feature_size_input.editingFinished.connect(self._on_parameter_edited)
+        self.min_mass_input.editingFinished.connect(self._on_parameter_edited)
+        self.threshold_input.editingFinished.connect(self._on_parameter_edited)
+        self.invert_input.stateChanged.connect(self._on_parameter_edited)
 
     def set_config_manager(self, config_manager):
         self.config_manager = config_manager
@@ -244,6 +247,12 @@ class DWParametersWidget(QWidget):
             "threshold": float(params.get("threshold", 0.0)),
         }
 
+    def _on_parameter_edited(self):
+        """Handle parameter editing - emit signal for visual feedback but don't save to config."""
+        # Emit signal for visual feedback (e.g., feature size update in frame player)
+        # but do NOT save to config file - that only happens when "Find Particles" is clicked
+        self.parameter_changed.emit()
+
     def save_params(self):
         if not self.config_manager:
             return
@@ -281,10 +290,20 @@ class DWParametersWidget(QWidget):
             self.previous_params = params.copy()
 
     def find_particles(self):
-        self.save_params()
         if not self.file_controller:
             self.progress_display.setText("Project not loaded.")
             return
+
+        # CRITICAL: Save current state for undo BEFORE doing anything else
+        # This saves the CURRENT config file (with old parameters) before we update it
+        # Get the main window to call save function
+        main_window = self.window()
+        if main_window and hasattr(main_window, 'save_current_state'):
+            main_window.save_current_state()
+        
+        # NOW save the new parameters to the config file
+        # This updates the config with the values from the input widgets
+        self.save_params()
 
         # Emit signal to clear gallery when Find Particles is clicked
         self.particles_found.emit()

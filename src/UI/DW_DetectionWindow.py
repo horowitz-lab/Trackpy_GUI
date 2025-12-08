@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QSplitter,
     QHBoxLayout,
     QGroupBox,
+    QPushButton,
 )
 from PySide6 import QtWidgets
 
@@ -32,6 +33,7 @@ class DWDetectionWindow(QMainWindow):
         super().__init__()
         self.config_manager = None
         self.file_controller = None
+        self.main_controller = None  # Reference to main controller for undo
         self.setup_ui()
 
     def set_config_manager(self, config_manager):
@@ -48,8 +50,11 @@ class DWDetectionWindow(QMainWindow):
             self.errant_particle_gallery.set_config_manager(config_manager)
         if hasattr(self, "left_panel"):
             self.left_panel.set_config_manager(config_manager)
-        # Update metadata display
-        self._update_metadata_display()
+        # Update metadata and parameters displays
+        if hasattr(self, "_update_metadata_display"):
+            self._update_metadata_display()
+        if hasattr(self, "_update_parameters_info"):
+            self._update_parameters_info()
 
     def set_file_controller(self, file_controller):
         """Set the file controller for this window."""
@@ -127,6 +132,12 @@ class DWDetectionWindow(QMainWindow):
         self.metadata_widget = self._create_metadata_widget()
         right_panel_layout.addWidget(self.metadata_widget)
         
+        # Undo button
+        self.undo_button = QPushButton("Undo")
+        self.undo_button.setToolTip("Restore previous particle analysis state")
+        self.undo_button.clicked.connect(self.undo_last_state)
+        right_panel_layout.addWidget(self.undo_button, alignment=Qt.AlignRight)
+        
         # Next button below metadata
         right_panel_layout.addStretch()
         right_panel_layout.addWidget(self.right_panel.next_button, alignment=Qt.AlignRight)
@@ -182,6 +193,9 @@ class DWDetectionWindow(QMainWindow):
         self.left_panel.filtering_widget.filteredParticlesUpdated.connect(
             self.errant_particle_gallery.regenerate_errant_particles
         )
+        
+        # Update undo button state
+        self.update_undo_button_state()
 
 
     def load_particle_data(self):
@@ -376,3 +390,19 @@ class DWDetectionWindow(QMainWindow):
         self.person_doing_analysis_label.setText(f"Person Doing Analysis: {person_doing_analysis}")
         self.movie_taken_date_label.setText(f"Movie Taken Date: {movie_taken_date}")
         self.movie_filename_label.setText(f"Movie Filename: {movie_filename}")
+    
+    def update_undo_button_state(self):
+        """Update the undo button enabled state based on whether save exists."""
+        if hasattr(self, 'undo_button'):
+            # Use stored main controller reference
+            if self.main_controller and hasattr(self.main_controller, 'has_undo_state'):
+                self.undo_button.setEnabled(self.main_controller.has_undo_state())
+            else:
+                self.undo_button.setEnabled(False)
+    
+    def undo_last_state(self):
+        """Restore the previous state using undo functionality."""
+        if self.main_controller and hasattr(self.main_controller, 'undo_last_state'):
+            if self.main_controller.undo_last_state():
+                # Update undo button state after undo
+                self.update_undo_button_state()
