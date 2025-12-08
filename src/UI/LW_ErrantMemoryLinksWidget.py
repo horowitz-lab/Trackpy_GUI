@@ -44,7 +44,7 @@ class LWErrantMemoryLinksWidget(QWidget):
         # Legend/key for cross markers (placed right after video frame)
         legend_layout = QHBoxLayout()
         legend_layout.addStretch()
-        
+
         # Helper function to create label with info icon
         def create_legend_item(label_text, color, tooltip_text):
             item_widget = QWidget()
@@ -62,24 +62,24 @@ class LWErrantMemoryLinksWidget(QWidget):
             item_layout.addWidget(label)
             item_layout.addWidget(info_icon)
             return item_widget
-        
+
         # Create legend items
         disappears_item = create_legend_item(
             "Disappears",
             "#EBC83F",  # Dark Yellow
-            "The last location of the particle before it disappears from the linking data for a few frames"
+            "The last location of the particle before it disappears from the linking data for a few frames",
         )
         reappears_item = create_legend_item(
             "Reappears",
             "#228B22",  # Green (slightly lighter than dark green)
-            "The first location of the particle after it reappears in the linking data after being absent for a few frames"
+            "The first location of the particle after it reappears in the linking data after being absent for a few frames",
         )
-        
+
         legend_layout.addWidget(disappears_item)
         legend_layout.addSpacing(20)  # Add spacing between items
         legend_layout.addWidget(reappears_item)
         legend_layout.addStretch()
-        
+
         self.layout.addLayout(legend_layout)
 
         # Current link and frame display
@@ -151,7 +151,7 @@ class LWErrantMemoryLinksWidget(QWidget):
             self.links = []
             self._update_display()
             return
-            
+
         json_path = os.path.join(self.errant_memory_links_folder, "memory_links.json")
         if not os.path.exists(json_path):
             self.links = []
@@ -161,7 +161,7 @@ class LWErrantMemoryLinksWidget(QWidget):
             return
 
         try:
-            with open(json_path, 'r') as f:
+            with open(json_path, "r") as f:
                 self.links = json.load(f)
         except (IOError, json.JSONDecodeError) as e:
             print(f"Error loading memory links metadata: {e}")
@@ -188,8 +188,12 @@ class LWErrantMemoryLinksWidget(QWidget):
             return
 
         link_folder_path = os.path.join(self.errant_memory_links_folder, link_folder_name)
-        
-        frame_files = [os.path.join(link_folder_path, f) for f in sorted(os.listdir(link_folder_path)) if f.startswith("frame_") and f.lower().endswith(".jpg")]
+
+        frame_files = [
+            os.path.join(link_folder_path, f)
+            for f in sorted(os.listdir(link_folder_path))
+            if f.startswith("frame_") and f.lower().endswith(".jpg")
+        ]
 
         self.current_link_frames = frame_files
         if len(self.current_link_frames) > 0:
@@ -200,8 +204,7 @@ class LWErrantMemoryLinksWidget(QWidget):
 
     def _display_current_frame(self):
         """Display the current pre-annotated frame."""
-        if (self.current_frame_idx < 0 or 
-            self.current_frame_idx >= len(self.current_link_frames)):
+        if self.current_frame_idx < 0 or self.current_frame_idx >= len(self.current_link_frames):
             self.photo_label.setPixmap(QPixmap())
             self.photo_label.setText("No Frames")
             return
@@ -211,9 +214,9 @@ class LWErrantMemoryLinksWidget(QWidget):
             self.photo_label.setPixmap(QPixmap())
             self.photo_label.setText("Frame file not found")
             return
-        
+
         pixmap = QPixmap(frame_path)
-        
+
         if not pixmap.isNull():
             scaled_pixmap = pixmap.scaled(
                 self.photo_label.size(),
@@ -239,18 +242,18 @@ class LWErrantMemoryLinksWidget(QWidget):
         # Update main info label
         if total_links > 0 and self.current_link_idx < total_links:
             current_link = self.links[self.current_link_idx]
-            particle_id = current_link.get('particle_id', 'N/A')
-            
+            particle_id = current_link.get("particle_id", "N/A")
+
             # Try to get original frame number if available
-            frame_num = self.current_frame_idx + 1 # Default to 1-based index
+            frame_num = self.current_frame_idx + 1  # Default to 1-based index
             if self.current_link_frames and self.current_frame_idx < len(self.current_link_frames):
                 frame_filename = os.path.basename(self.current_link_frames[self.current_frame_idx])
                 try:
                     # Assumes format "frame_#####.jpg"
-                    frame_num_original = int(frame_filename.split('_')[1].split('.')[0])
+                    frame_num_original = int(frame_filename.split("_")[1].split(".")[0])
                     frame_num = frame_num_original
                 except (ValueError, IndexError):
-                    pass # Fallback to index if parsing fails
+                    pass  # Fallback to index if parsing fails
 
             self.current_display_label.setText(
                 f"Particle ID: {particle_id} | "
@@ -259,7 +262,9 @@ class LWErrantMemoryLinksWidget(QWidget):
                 f"(Original: {frame_num})"
             )
         else:
-            self.current_display_label.setText("Particle ID: N/A | Memory Link: 0 / 0 | Frame: 0 / 0")
+            self.current_display_label.setText(
+                "Particle ID: N/A | Memory Link: 0 / 0 | Frame: 0 / 0"
+            )
 
     def previous_link(self):
         if len(self.links) > 0 and self.current_link_idx > 0:
@@ -280,7 +285,10 @@ class LWErrantMemoryLinksWidget(QWidget):
             self._update_display()
 
     def next_frame(self):
-        if len(self.current_link_frames) > 0 and self.current_frame_idx < len(self.current_link_frames) - 1:
+        if (
+            len(self.current_link_frames) > 0
+            and self.current_frame_idx < len(self.current_link_frames) - 1
+        ):
             self.current_frame_idx += 1
             self._display_current_frame()
             self._update_display()

@@ -135,9 +135,7 @@ class ConfigManager:
             with open(save_path, "w") as f:
                 self.config.write(f)
 
-    def get_path(
-        self, path_key: str, project_path: Optional[str] = None
-    ) -> str:
+    def get_path(self, path_key: str, project_path: Optional[str] = None) -> str:
         """
         Get a path from configuration, always returning absolute paths.
 
@@ -172,8 +170,7 @@ class ConfigManager:
         return {
             "feature_size": int(self.get("Detection", "feature_size", 27)),
             "min_mass": float(self.get("Detection", "min_mass", 1300.0)),
-            "invert": self.get("Detection", "invert", "false").lower()
-            == "true",
+            "invert": self.get("Detection", "invert", "false").lower() == "true",
             "threshold": float(self.get("Detection", "threshold", 0.0)),
             "frame_idx": int(self.get("Detection", "frame_idx", 0)),
             "scaling": float(self.get("Detection", "scaling", 1.0)),
@@ -184,9 +181,7 @@ class ConfigManager:
         return {
             "search_range": int(self.get("Linking", "search_range", 10)),
             "memory": int(self.get("Linking", "memory", 10)),
-            "min_trajectory_length": int(
-                self.get("Linking", "min_trajectory_length", 10)
-            ),
+            "min_trajectory_length": int(self.get("Linking", "min_trajectory_length", 10)),
             "drift": self.get("Linking", "drift", "false").lower() == "true",
         }
 
@@ -204,9 +199,7 @@ class ConfigManager:
 
     def is_project_config(self) -> bool:
         """Check if this is a project-specific config."""
-        return self.config_path is not None and os.path.exists(
-            self.config_path
-        )
+        return self.config_path is not None and os.path.exists(self.config_path)
 
     def get_metadata(self) -> Dict[str, str]:
         """Get metadata as a dictionary."""
@@ -216,7 +209,7 @@ class ConfigManager:
             "movie_taken_date": self.get("Metadata", "movie_taken_date", ""),
             "movie_filename": self.get("Metadata", "movie_filename", ""),
         }
-    
+
     def get_frame_range(self) -> Dict[str, int]:
         """Get frame range parameters as a dictionary."""
         return {
@@ -224,7 +217,7 @@ class ConfigManager:
             "end_frame": int(self.get("Detection", "end_frame", 1)),
             "step_frame": int(self.get("Detection", "step_frame", 1)),
         }
-    
+
     def save_frame_range(self, start_frame: int, end_frame: int, step_frame: int):
         """Save frame range parameters."""
         self.set("Detection", "start_frame", str(start_frame))

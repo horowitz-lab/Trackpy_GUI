@@ -4,6 +4,7 @@ Trajectory Linking Window
 Description: Main window for Trajectory Linkning. Imports trajectory linking widgets.
              Generated boiler plate code using Cursor.
 """
+
 import pandas as pd
 import os
 from PySide6.QtCore import Qt
@@ -18,6 +19,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QGroupBox,
     QFrame,
+    QLabel,
 )
 from .LW_ErrantDistanceLinksWidget import *
 from .LW_ErrantMemoryLinksWidget import *
@@ -69,10 +71,10 @@ class LWLinkingWindow(QMainWindow):
         # Main Widget
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
-        
+
         # Use a QSplitter for resizable panels
         splitter = QSplitter(Qt.Horizontal)
-        
+
         # Main layout will now be the layout of the central widget
         self.main_layout = QHBoxLayout(self.central_widget)
         self.main_layout.addWidget(splitter)
@@ -94,9 +96,9 @@ class LWLinkingWindow(QMainWindow):
         self.middle_layout = QVBoxLayout(self.middle_panel)
 
         self.frame_player = LWErrantMemoryLinksWidget()
-        self.middle_layout.addWidget(self.frame_player, 1) # Add with 1/2 stretch
+        self.middle_layout.addWidget(self.frame_player, 1)  # Add with 1/2 stretch
         self.errant_particle_gallery = LWErrantDistanceLinksWidget()
-        self.middle_layout.addWidget(self.errant_particle_gallery, 1) # Add with 1/2 stretch
+        self.middle_layout.addWidget(self.errant_particle_gallery, 1)  # Add with 1/2 stretch
 
         splitter.addWidget(self.middle_panel)
 
@@ -105,47 +107,48 @@ class LWLinkingWindow(QMainWindow):
         right_panel_container.setMinimumWidth(200)
         right_panel_layout = QVBoxLayout(right_panel_container)
         right_panel_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         # Linking parameters widget
         self.right_panel = LWParametersWidget(self.left_panel)
         right_panel_layout.addWidget(self.right_panel)
-        
+
         # All action buttons right after parameters widget
         # Find Trajectories button
         find_trajectories_button = self.right_panel.find_trajectories_button
         find_trajectories_button.setParent(None)
         right_panel_layout.addWidget(find_trajectories_button, alignment=Qt.AlignRight)
-        
+
         # Parameters info box (shows parameters used for current results)
         self.parameters_info_widget = self._create_parameters_info_widget()
         right_panel_layout.addWidget(self.parameters_info_widget)
-        
+
         # Frame range info widget (shows frames links were found between)
         self.frame_range_widget = self._create_frame_range_widget()
         right_panel_layout.addWidget(self.frame_range_widget)
-        
+
         # Metadata display widget
         self.metadata_widget = self._create_metadata_widget()
         right_panel_layout.addWidget(self.metadata_widget)
-        
+
         # Navigation buttons (Back and Export/Close) at bottom corner
         right_panel_layout.addStretch()
         self._move_buttons_to_bottom(right_panel_layout)
-        
+
         splitter.addWidget(right_panel_container)
 
         # Set initial sizes for smooth resizing - give left panel more space for plots
         # This prevents the splitter from jumping when clicked
         splitter.setSizes([500, 600, 300])
-        
+
         # Set stretch factors for the splitter - give left panel more weight
         splitter.setStretchFactor(0, 2)  # Left panel (plots) gets more space
         splitter.setStretchFactor(1, 2)
         splitter.setStretchFactor(2, 1)
-        
+
         # Make splitter handle thinner and elegant black line for easy clicking
         splitter.setHandleWidth(4)
-        splitter.setStyleSheet("""
+        splitter.setStyleSheet(
+            """
             QSplitter::handle {
                 background-color: black;
                 border: none;
@@ -153,7 +156,8 @@ class LWLinkingWindow(QMainWindow):
             QSplitter::handle:hover {
                 background-color: #444444;
             }
-        """)
+        """
+        )
 
         # Connect trajectory linking signal to refresh UI when trajectories are found
         # Use centralized refresh function
@@ -163,14 +167,10 @@ class LWLinkingWindow(QMainWindow):
 
         # Connect filtered data updates to automatically re-run find_trajectories when filters change
         # This ensures trajectories are re-linked with the filtered particle data
-        self.left_panel.filteredTrajectoriesUpdated.connect(
-            self._on_filters_changed
-        )
+        self.left_panel.filteredTrajectoriesUpdated.connect(self._on_filters_changed)
 
         # Connect back button signal to return to detection window
-        self.right_panel.goBackToDetection.connect(
-            self.go_back_to_detection
-        )
+        self.right_panel.goBackToDetection.connect(self.go_back_to_detection)
 
         # Connect RB gallery creation signal to refresh the trajectory gallery
         self.right_panel.errantDistanceLinksGalleryCreated.connect(
@@ -178,9 +178,7 @@ class LWLinkingWindow(QMainWindow):
         )
 
         # Connect export and close signal
-        self.right_panel.export_and_close.connect(
-            self.on_export_and_close
-        )
+        self.right_panel.export_and_close.connect(self.on_export_and_close)
 
     def export_all_data(self):
         """
@@ -191,9 +189,7 @@ class LWLinkingWindow(QMainWindow):
             print("File controller not set")
             return False
 
-        directory = QFileDialog.getExistingDirectory(
-            self, "Select Export Directory"
-        )
+        directory = QFileDialog.getExistingDirectory(self, "Select Export Directory")
         if not directory:
             return False
 
@@ -203,15 +199,23 @@ class LWLinkingWindow(QMainWindow):
         }
 
         for name, filename in data_sources.items():
-            source_path = os.path.join(
-                self.file_controller.data_folder, filename
-            )
-            if not os.path.exists(source_path):
-                print(f"Source file not found, skipping: {filename}")
-                continue
-
+            # Use FileController to load data
             try:
-                df = pd.read_csv(source_path)
+                if filename == "all_particles.csv":
+                    df = self.file_controller.load_particles_data(filename)
+                elif filename == "trajectories.csv":
+                    df = self.file_controller.load_trajectories_data(filename)
+                else:
+                    # Fallback for other files
+                    source_path = self.file_controller.get_data_file_path(filename)
+                    if not os.path.exists(source_path):
+                        print(f"Source file not found, skipping: {filename}")
+                        continue
+                    df = pd.read_csv(source_path)
+
+                if df.empty:
+                    print(f"Source file is empty, skipping: {filename}")
+                    continue
 
                 # Export to CSV
                 csv_path = os.path.join(directory, f"{name}.csv")
@@ -236,111 +240,108 @@ class LWLinkingWindow(QMainWindow):
         """Emit signal to switch back to particle detection window."""
         if hasattr(self, "frame_player") and self.frame_player:
             self.frame_player.reset_state()
-        if (
-            hasattr(self, "errant_particle_gallery")
-            and self.errant_particle_gallery
-        ):
+        if hasattr(self, "errant_particle_gallery") and self.errant_particle_gallery:
             self.errant_particle_gallery.reset_state()
 
     def _create_frame_range_widget(self):
         """Create the frame range info display widget."""
-        from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
-        
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(5)
-        
+
         # Frame range display (initially empty, will show when trajectories are found)
         self.frame_range_label = QLabel("")
         self.frame_range_label.setWordWrap(True)
-        self.frame_range_label.setStyleSheet("""
+        self.frame_range_label.setStyleSheet(
+            """
             QLabel {
                 background-color: #f0f0f0;
                 padding: 8px;
                 border-radius: 4px;
             }
-        """)
+        """
+        )
         layout.addWidget(self.frame_range_label)
-        
+
         return widget
 
     def _create_parameters_info_widget(self):
         """Create the parameters info display widget."""
-        from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
-        
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(5)
-        
+
         # Title
         title_label = QLabel("Parameters")
         title_font = title_label.font()
         title_font.setBold(True)
         title_label.setFont(title_font)
         layout.addWidget(title_label)
-        
+
         # Parameters display in a group box (no title to avoid redundancy)
         parameters_group = QGroupBox()
         parameters_layout = QVBoxLayout(parameters_group)
-        
+
         self.parameters_info_label = QLabel("No trajectories linked yet")
         self.parameters_info_label.setWordWrap(True)
-        self.parameters_info_label.setStyleSheet("""
+        self.parameters_info_label.setStyleSheet(
+            """
             QLabel {
                 background-color: #f0f0f0;
                 padding: 8px;
                 border-radius: 4px;
             }
-        """)
+        """
+        )
         parameters_layout.addWidget(self.parameters_info_label)
-        
+
         layout.addWidget(parameters_group)
-        
+
         return widget
 
     def _create_metadata_widget(self):
         """Create the metadata display widget."""
-        from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
-        
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(5)
-        
+
         # Title
         title_label = QLabel("Project Metadata")
         title_font = title_label.font()
         title_font.setBold(True)
         title_label.setFont(title_font)
         layout.addWidget(title_label)
-        
+
         # Metadata fields
         self.movie_taker_label = QLabel()
         self.person_doing_analysis_label = QLabel()
         self.movie_taken_date_label = QLabel()
         self.movie_filename_label = QLabel()
         self.movie_filename_label.setWordWrap(True)
-        
+
         layout.addWidget(self.movie_taker_label)
         layout.addWidget(self.person_doing_analysis_label)
         layout.addWidget(self.movie_taken_date_label)
         layout.addWidget(self.movie_filename_label)
-        
+
         layout.addStretch()
-        
+
         return widget
 
-    def refresh_linking_ui(self, trajectories_df=None, config_manager=None, update_plots=True, update_info=True):
+    def refresh_linking_ui(
+        self, trajectories_df=None, config_manager=None, update_plots=True, update_info=True
+    ):
         """
         Centralized function to refresh all UI elements after loading new trajectory data.
-        
+
         This is used by:
         - Find Trajectories (after linking completes)
         - Filter application (when filters change)
         - Undo functionality (when restoring trajectories)
-        
+
         Parameters
         ----------
         trajectories_df : pd.DataFrame, optional
@@ -355,87 +356,90 @@ class LWLinkingWindow(QMainWindow):
         # Update config manager if provided
         if config_manager:
             self.set_config_manager(config_manager)
-        
+
         # Determine trajectory data source: provided -> stored in right_panel -> load from file
-        if trajectories_df is None and hasattr(self, 'right_panel'):
-            if hasattr(self.right_panel, 'linked_trajectories') and self.right_panel.linked_trajectories is not None:
+        if trajectories_df is None and hasattr(self, "right_panel"):
+            if (
+                hasattr(self.right_panel, "linked_trajectories")
+                and self.right_panel.linked_trajectories is not None
+            ):
                 trajectories_df = self.right_panel.linked_trajectories
-        
-        # Load trajectories from file if still not available
+
+        # Load trajectories from file if still not available using FileController
         if trajectories_df is None and self.file_controller:
-            trajectories_path = os.path.join(self.file_controller.data_folder, "trajectories.csv")
-            if os.path.exists(trajectories_path):
-                try:
-                    trajectories_df = pd.read_csv(trajectories_path)
-                except Exception as e:
-                    print(f"Error loading trajectories: {e}")
-                    trajectories_df = pd.DataFrame()
-            else:
+            try:
+                trajectories_df = self.file_controller.load_trajectories_data("trajectories.csv")
+            except Exception as e:
+                print(f"Error loading trajectories: {e}")
                 trajectories_df = pd.DataFrame()
-        
+
         # Update trajectory plots if requested
         if update_plots:
             # If we have trajectory data, update the plotting widget
-            if trajectories_df is not None and not trajectories_df.empty and hasattr(self, 'right_panel'):
+            if (
+                trajectories_df is not None
+                and not trajectories_df.empty
+                and hasattr(self, "right_panel")
+            ):
                 # Update trajectory plotting widget
-                if hasattr(self.right_panel, 'trajectory_plotting'):
+                if hasattr(self.right_panel, "trajectory_plotting"):
                     self.right_panel.trajectory_plotting.get_linked_particles(trajectories_df)
-                
+
                 # Store trajectories in right panel if not already stored
-                if hasattr(self.right_panel, 'linked_trajectories'):
+                if hasattr(self.right_panel, "linked_trajectories"):
                     self.right_panel.linked_trajectories = trajectories_df
-            
+
             # Refresh frame player links (always refresh, even if no data)
-            if hasattr(self, 'frame_player') and self.frame_player:
+            if hasattr(self, "frame_player") and self.frame_player:
                 self.frame_player.refresh_links()
-            
+
             # Refresh errant distance links gallery (always refresh, even if no data)
-            if hasattr(self, 'errant_particle_gallery') and self.errant_particle_gallery:
+            if hasattr(self, "errant_particle_gallery") and self.errant_particle_gallery:
                 self.errant_particle_gallery.refresh_errant_distance_links()
-        
+
         # Update info displays if requested
         if update_info:
             self._update_parameters_info()
             self._update_frame_range_info()
-    
+
     def _on_filters_changed(self):
         """Handle filter changes - automatically re-run find_trajectories with filtered data."""
         # Only auto-run if trajectories have been found at least once
         # Check if trajectories.csv exists or if linked_trajectories is set
-        if hasattr(self, 'right_panel') and hasattr(self.right_panel, 'linked_trajectories'):
+        if hasattr(self, "right_panel") and hasattr(self.right_panel, "linked_trajectories"):
             if self.right_panel.linked_trajectories is not None:
                 # Trajectories exist, so automatically re-run find_trajectories
                 # This will use the newly filtered particles
-                if hasattr(self.right_panel, 'find_trajectories'):
+                if hasattr(self.right_panel, "find_trajectories"):
                     self.right_panel.find_trajectories()
         elif self.file_controller:
             # Check if trajectories file exists
             trajectories_path = os.path.join(self.file_controller.data_folder, "trajectories.csv")
             if os.path.exists(trajectories_path):
                 # Trajectories exist, so automatically re-run find_trajectories
-                if hasattr(self, 'right_panel') and hasattr(self.right_panel, 'find_trajectories'):
+                if hasattr(self, "right_panel") and hasattr(self.right_panel, "find_trajectories"):
                     self.right_panel.find_trajectories()
-    
+
     def _update_parameters_info(self):
         """Update the parameters info display with current linking parameters and detection parameters."""
         if not self.config_manager or not self.file_controller:
             return
-        
+
         linking_params = self.config_manager.get_linking_params()
         detection_params = self.config_manager.get_detection_params()
-        
+
         # Linking parameters
         search_range = linking_params.get("search_range", "-")
         memory = linking_params.get("memory", "-")
         min_trajectory_length = linking_params.get("min_trajectory_length", "-")
         drift = "Yes" if linking_params.get("drift", False) else "No"
-        
+
         # Detection parameters
         feature_size = detection_params.get("feature_size", "-")
         min_mass = detection_params.get("min_mass", "-")
         threshold = detection_params.get("threshold", "-")
         invert = "Yes" if detection_params.get("invert", False) else "No"
-        
+
         # Create HTML formatted text with separator line
         info_text = (
             f"<b>Linking:</b><br>"
@@ -450,7 +454,7 @@ class LWLinkingWindow(QMainWindow):
             f"Threshold: {threshold}<br>"
             f"Invert: {invert}"
         )
-        
+
         self.parameters_info_label.setText(info_text)
 
     def _update_frame_range_info(self):
@@ -458,16 +462,13 @@ class LWLinkingWindow(QMainWindow):
         if not self.file_controller:
             self.frame_range_label.setText("")
             return
-        
-        # Only show frame range if trajectories exist
-        trajectories_file = os.path.join(self.file_controller.data_folder, "trajectories.csv")
-        
-        if not os.path.exists(trajectories_file):
-            self.frame_range_label.setText("")
-            return
-        
+
+        # Only show frame range if trajectories exist - use FileController
         try:
-            df = pd.read_csv(trajectories_file)
+            df = self.file_controller.load_trajectories_data("trajectories.csv")
+            if df.empty:
+                self.frame_range_label.setText("")
+                return
             if df is not None and not df.empty and "frame" in df.columns:
                 # Calculate statistics
                 frames = sorted(df["frame"].unique())
@@ -477,7 +478,7 @@ class LWLinkingWindow(QMainWindow):
                 max_frame = frames_1indexed[-1]
                 total_trajectories = df["particle"].nunique() if "particle" in df.columns else 0
                 total_links = len(df)
-                
+
                 # Format frame range
                 if len(frames_1indexed) == 1:
                     frame_range_text = f"Frame {min_frame}"
@@ -487,7 +488,7 @@ class LWLinkingWindow(QMainWindow):
                 else:
                     # Non-consecutive frames
                     frame_range_text = f"Frames {min_frame}-{max_frame} (non-consecutive)"
-                
+
                 # Create comprehensive info text
                 info_text = (
                     f"Frames used: {total_frames_used} | "
@@ -506,14 +507,14 @@ class LWLinkingWindow(QMainWindow):
         """Update the metadata display with current config values."""
         if not self.config_manager:
             return
-        
+
         metadata = self.config_manager.get_metadata()
-        
+
         movie_taker = metadata.get("movie_taker", "") or "-"
         person_doing_analysis = metadata.get("person_doing_analysis", "") or "-"
         movie_taken_date = metadata.get("movie_taken_date", "") or "-"
         movie_filename = metadata.get("movie_filename", "") or "-"
-        
+
         self.movie_taker_label.setText(f"Movie Taker: {movie_taker}")
         self.person_doing_analysis_label.setText(f"Person Doing Analysis: {person_doing_analysis}")
         self.movie_taken_date_label.setText(f"Movie Taken Date: {movie_taken_date}")
@@ -524,16 +525,16 @@ class LWLinkingWindow(QMainWindow):
         # Get remaining buttons from the parameters widget (Find Trajectories is already placed above)
         back_button = self.right_panel.back_button
         export_close_button = self.right_panel.export_close_button
-        
+
         # Create a container widget for buttons at the bottom
         buttons_container = QWidget()
         buttons_layout = QVBoxLayout(buttons_container)
         buttons_layout.setContentsMargins(10, 10, 10, 10)
         buttons_layout.setSpacing(5)
-        
+
         # Add remaining buttons to the new layout
         buttons_layout.addWidget(back_button, alignment=Qt.AlignRight)
         buttons_layout.addWidget(export_close_button, alignment=Qt.AlignRight)
-        
+
         # Add buttons container to the main layout
         layout.addWidget(buttons_container)

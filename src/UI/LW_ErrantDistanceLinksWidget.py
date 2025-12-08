@@ -25,6 +25,7 @@ import os
 import json
 
 from ..utils.ScaledLabel import ScaledLabel
+from ..utils.ParticleProcessing import create_rb_overlay_image
 
 
 class LWErrantDistanceLinksWidget(QWidget):
@@ -68,17 +69,13 @@ class LWErrantDistanceLinksWidget(QWidget):
         self.next_button = QPushButton("▶")
         self.prev_button.clicked.connect(self.prev_link)
         self.next_button.clicked.connect(self.next_link)
-        self.trajectory_display.returnPressed.connect(
-            self._jump_to_input_link
-        )
-        self.trajectory_display.editingFinished.connect(
-            self._jump_to_input_link
-        )
+        self.trajectory_display.returnPressed.connect(self._jump_to_input_link)
+        self.trajectory_display.editingFinished.connect(self._jump_to_input_link)
         self.nav_layout.addWidget(self.prev_button)
         self.nav_layout.addWidget(self.trajectory_display)
         self.nav_layout.addWidget(self.next_button)
         self.layout.addLayout(self.nav_layout)
-        
+
         # This list will hold the metadata for the links to be displayed
         self.rb_links = []
         self.current_pixmap = None
@@ -96,9 +93,7 @@ class LWErrantDistanceLinksWidget(QWidget):
         """Set the file controller for this widget."""
         self.file_controller = file_controller
         if self.file_controller:
-            self.original_frames_folder = (
-                self.file_controller.original_frames_folder
-            )
+            self.original_frames_folder = self.file_controller.original_frames_folder
         self._update_errant_distance_links_path()
 
     def _update_errant_distance_links_path(self):
@@ -115,9 +110,7 @@ class LWErrantDistanceLinksWidget(QWidget):
 
         # Reload gallery files if path is set
         if self.errant_distance_links_dir:
-            self.rb_links = self._load_rb_links(
-                self.errant_distance_links_dir
-            )
+            self.rb_links = self._load_rb_links(self.errant_distance_links_dir)
             self.curr_link_idx = (
                 min(
                     self.curr_link_idx,
@@ -134,7 +127,7 @@ class LWErrantDistanceLinksWidget(QWidget):
         if not os.path.exists(metadata_path):
             return []
         try:
-            with open(metadata_path, 'r') as f:
+            with open(metadata_path, "r") as f:
                 return json.load(f)
         except (IOError, json.JSONDecodeError) as e:
             print(f"Error loading RB links metadata: {e}")
@@ -161,13 +154,13 @@ class LWErrantDistanceLinksWidget(QWidget):
             scaling = 1.0  # Default to 1.0 if not available
             if self.config_manager:
                 scaling = self.config_manager.get_detection_params().get("scaling", 1.0)
-            
+
             # Convert jump distance and search range from pixels to microns
-            jump_dist_pixels = link_info.get('jump_dist', 0)
+            jump_dist_pixels = link_info.get("jump_dist", 0)
             jump_dist_microns = jump_dist_pixels * scaling
-            search_range_pixels = link_info.get('search_range', 0)
+            search_range_pixels = link_info.get("search_range", 0)
             search_range_microns = search_range_pixels * scaling
-            
+
             info_text = f"""Particle ID: {link_info.get('particle_id')}
 Frame Transition: {link_info.get('frame_i')} → {link_info.get('frame_i1')}
 Jump Distance: {jump_dist_microns:.2f} μm
@@ -246,16 +239,12 @@ Search Range: {search_range_microns:.2f} μm"""
         self._update_errant_distance_links_path()
         # Reload files
         if self.errant_distance_links_dir:
-            self.rb_links = self._load_rb_links(
-                self.errant_distance_links_dir
-            )
+            self.rb_links = self._load_rb_links(self.errant_distance_links_dir)
         else:
             self.rb_links = []
         # Clamp current index within bounds
         if self.rb_links:
-            self.curr_link_idx = min(
-                self.curr_link_idx, len(self.rb_links) - 1
-            )
+            self.curr_link_idx = min(self.curr_link_idx, len(self.rb_links) - 1)
         else:
             self.curr_link_idx = 0
         self._display_link(self.curr_link_idx)
@@ -288,12 +277,8 @@ Search Range: {search_range_microns:.2f} μm"""
             if any(v is None for v in [frame_i, frame_i1, x_i, y_i, x_i1, y_i1]):
                 return None
 
-            frame1_filename = os.path.join(
-                self.original_frames_folder, f"frame_{frame_i:05d}.jpg"
-            )
-            frame2_filename = os.path.join(
-                self.original_frames_folder, f"frame_{frame_i1:05d}.jpg"
-            )
+            frame1_filename = os.path.join(self.original_frames_folder, f"frame_{frame_i:05d}.jpg")
+            frame2_filename = os.path.join(self.original_frames_folder, f"frame_{frame_i1:05d}.jpg")
 
             if not os.path.exists(frame1_filename) or not os.path.exists(frame2_filename):
                 return None
@@ -317,7 +302,7 @@ Search Range: {search_range_microns:.2f} μm"""
             # Function to create padded crops
             def create_padded_crop(full_frame):
                 canvas = np.zeros((crop_size, crop_size, 3), dtype=np.uint8)
-                
+
                 src_x_start = max(0, crop_origin_x)
                 src_y_start = max(0, crop_origin_y)
                 src_x_end = min(full_frame.shape[1], crop_origin_x + crop_size)
@@ -328,13 +313,13 @@ Search Range: {search_range_microns:.2f} μm"""
                 dest_x_end = dest_x_start + (src_x_end - src_x_start)
                 dest_y_end = dest_y_start + (src_y_end - src_y_start)
 
-                canvas[dest_y_start:dest_y_end, dest_x_start:dest_x_end] = full_frame[src_y_start:src_y_end, src_x_start:src_x_end]
+                canvas[dest_y_start:dest_y_end, dest_x_start:dest_x_end] = full_frame[
+                    src_y_start:src_y_end, src_x_start:src_x_end
+                ]
                 return canvas
 
             padded_crop1 = create_padded_crop(full_frame1)
             padded_crop2 = create_padded_crop(full_frame2)
-
-            from ..utils.ParticleProcessing import create_rb_overlay_image
 
             rb_image = create_rb_overlay_image(
                 padded_crop1,

@@ -48,9 +48,7 @@ class SaveFramesThread(QThread):
                 if not ret:
                     break
 
-                frame_path = os.path.join(
-                    self.output_folder, f"frame_{frame_idx:05d}.jpg"
-                )
+                frame_path = os.path.join(self.output_folder, f"frame_{frame_idx:05d}.jpg")
                 cv2.imwrite(frame_path, frame)
                 frame_idx += 1
 
@@ -67,9 +65,7 @@ class DWFrameGalleryWidget(QWidget):
     """Widget for displaying video frames from a folder of images"""
 
     frames_saved = Signal(int)
-    frame_changed = Signal(
-        int
-    )  # Emits current frame number when frame changes
+    frame_changed = Signal(int)  # Emits current frame number when frame changes
 
     def __init__(self):
         super().__init__()
@@ -83,31 +79,21 @@ class DWFrameGalleryWidget(QWidget):
         """Set the config manager and update folder paths."""
         self.config_manager = config_manager
         if config_manager:
-            self.original_frames_folder = config_manager.get_path(
-                "original_frames_folder"
-            )
-            self.annotated_frames_folder = config_manager.get_path(
-                "annotated_frames_folder"
-            )
+            self.original_frames_folder = config_manager.get_path("original_frames_folder")
+            self.annotated_frames_folder = config_manager.get_path("annotated_frames_folder")
             self.update_feature_size()
 
     def update_feature_size(self):
         """Update feature size from config."""
         if self.config_manager:
-            self.feature_size = self.config_manager.get_detection_params().get(
-                "feature_size", 15
-            )
+            self.feature_size = self.config_manager.get_detection_params().get("feature_size", 15)
 
     def set_file_controller(self, file_controller):
         """Set the file controller."""
         self.file_controller = file_controller
         if file_controller:
-            self.original_frames_folder = (
-                file_controller.original_frames_folder
-            )
-            self.annotated_frames_folder = (
-                file_controller.annotated_frames_folder
-            )
+            self.original_frames_folder = file_controller.original_frames_folder
+            self.annotated_frames_folder = file_controller.annotated_frames_folder
 
     def set_errant_particle_gallery(self, gallery_widget):
         """Set the errant particle gallery widget."""
@@ -183,9 +169,7 @@ class DWFrameGalleryWidget(QWidget):
         self.annotate_toggle.setChecked(False)
         self.video_loaded = True
 
-        self.save_thread = SaveFramesThread(
-            video_path, self.original_frames_folder
-        )
+        self.save_thread = SaveFramesThread(video_path, self.original_frames_folder)
         self.save_thread.save_complete.connect(self.on_save_complete)
         self.save_thread.start()
 
@@ -216,10 +200,7 @@ class DWFrameGalleryWidget(QWidget):
         the player to the particle's frame. Otherwise, it just refreshes
         the current frame.
         """
-        if (
-            self.errant_particle_gallery
-            and self.errant_particle_gallery.is_show_on_frame_checked()
-        ):
+        if self.errant_particle_gallery and self.errant_particle_gallery.is_show_on_frame_checked():
             info = self.errant_particle_gallery.get_current_particle_info()
             if info and info.get("frame") is not None:
                 self.display_frame(info.get("frame"))
@@ -253,9 +234,7 @@ class DWFrameGalleryWidget(QWidget):
 
         if self.total_frames > 0:
             self.frame_slider.setRange(0, self.total_frames - 1)
-            self.current_frame_idx = min(
-                self.current_frame_idx, self.total_frames - 1
-            )
+            self.current_frame_idx = min(self.current_frame_idx, self.total_frames - 1)
         else:
             self.current_frame_idx = 0
 
@@ -271,7 +250,7 @@ class DWFrameGalleryWidget(QWidget):
         """
         if not (0 <= frame_number < self.total_frames):
             # if self.total_frames == 0:
-                    # self.frame_label.setText("No video loaded")
+            # self.frame_label.setText("No video loaded")
             self.update_frame_display()
             return
 
@@ -280,9 +259,7 @@ class DWFrameGalleryWidget(QWidget):
 
         # Delete old annotated frames
         if self.file_controller:
-            self.file_controller.delete_all_files_in_folder(
-                self.annotated_frames_folder
-            )
+            self.file_controller.delete_all_files_in_folder(self.annotated_frames_folder)
 
         # 1. Get original frame path
         original_frame_path = os.path.join(
@@ -297,10 +274,7 @@ class DWFrameGalleryWidget(QWidget):
         # 2. Get UI states
         show_annotations = self.annotate_toggle.isChecked()
         highlight_info = None
-        if (
-            self.errant_particle_gallery
-            and self.errant_particle_gallery.is_show_on_frame_checked()
-        ):
+        if self.errant_particle_gallery and self.errant_particle_gallery.is_show_on_frame_checked():
             info = self.errant_particle_gallery.get_current_particle_info()
             if info and info.get("frame") == frame_number:
                 highlight_info = info
@@ -317,7 +291,9 @@ class DWFrameGalleryWidget(QWidget):
             else:
                 # Annotate with particle circles
                 if show_annotations:
-                    particle_data = self.file_controller.load_particles_data("filtered_particles.csv")
+                    particle_data = self.file_controller.load_particles_data(
+                        "filtered_particles.csv"
+                    )
                     if not particle_data.empty:
                         particles_in_frame = particle_data[particle_data["frame"] == frame_number]
                         if not particles_in_frame.empty:
@@ -362,7 +338,6 @@ class DWFrameGalleryWidget(QWidget):
         self.update_frame_display()
         self.frame_changed.emit(frame_number)
 
-
     def update_frame_display(self):
         """Update the frame display and input"""
         if self.total_frames > 0:
@@ -400,4 +375,3 @@ class DWFrameGalleryWidget(QWidget):
         # prevent recursive calls if display_frame updates the slider
         if value != self.current_frame_idx:
             self.display_frame(value)
-

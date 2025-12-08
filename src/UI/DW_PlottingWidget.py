@@ -1,7 +1,7 @@
 """
 Graphing Panel for the ParticleDetectionWindow
 
-Description: Graphing panel showing the subpixel bias, filtering parameters, 
+Description: Graphing panel showing the subpixel bias, filtering parameters,
              and histograms of all particles based on current tracking parameters.
 
 """
@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QMenu,
     QSpinBox,
-    QFormLayout
+    QFormLayout,
 )
 from PySide6.QtGui import QAction
 from PySide6.QtCore import Qt
@@ -27,6 +27,10 @@ import pandas as pd
 
 from ..utils import GraphingUtils
 from .DW_LW_FilteringWidget import DWLWFilteringWidget
+import trackpy as tp
+import cv2
+import pandas as pd
+
 
 class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
     def __init__(self, parent=None):
@@ -64,9 +68,7 @@ class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
 
         self.ecc_button = GraphingUtils.GraphingButton(text="Eccentricity", parent=self)
         self.ecc_button.clicked.connect(
-            lambda: self.self_plot(
-                self.get_eccentricity_count, self.ecc_button
-            )
+            lambda: self.self_plot(self.get_eccentricity_count, self.ecc_button)
         )
         self.hist_layout.addWidget(self.ecc_button, alignment=Qt.AlignTop)
 
@@ -82,9 +84,7 @@ class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
         # Allow user to select bin number for histograms
         self.hist_bins = QSpinBox(value=self.bins)
         self.hist_bins.setRange(1, 50)
-        self.hist_bins.setToolTip(
-            "Number of bins for the histograms."
-        )
+        self.hist_bins.setToolTip("Number of bins for the histograms.")
 
         self.hist_bin_row.addRow("Bins: ", self.hist_bins)
         self.hist_layout.addLayout(self.hist_bin_row)
@@ -94,11 +94,11 @@ class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
         self.hist_layout.addStretch(1)
 
         self.layout.addWidget(self.graphing_buttons)
-        
+
         # Add filtering widget below the graphs
         self.filtering_widget = DWLWFilteringWidget(source_data_file="all_particles.csv")
         self.layout.addWidget(self.filtering_widget)
-        
+
         # Add stretch below the buttons
         self.layout.addStretch(1)
 
@@ -106,17 +106,17 @@ class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
         """Sets paritcle data and plots subpixel bias."""
         self.data = particles
         self.self_plot(self.get_subpixel_bias, self.sb_button)
-      
+
     def set_file_controller(self, file_controller):
         """Override to also set file controller for filtering widget."""
         super().set_file_controller(file_controller)
-        if hasattr(self, 'filtering_widget'):
+        if hasattr(self, "filtering_widget"):
             self.filtering_widget.set_file_controller(file_controller)
-            if file_controller and hasattr(file_controller, 'project_path'):
+            if file_controller and hasattr(file_controller, "project_path"):
                 self.filtering_widget.project_path = file_controller.project_path
         # Load particle data when file controller is set
         self.load_particle_data()
-    
+
     def load_particle_data(self):
         """Load particle data from file controller if available."""
         if self.file_controller:
@@ -131,10 +131,6 @@ class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
     def get_mass_count(self, page=None):
         """Creates a histogram of all current particles mass."""
         try:
-            import trackpy as tp
-            import cv2
-            import pandas as pd
-
             # Check if particles were found before plotting
             self.check_for_empty_data()
 
@@ -159,10 +155,6 @@ class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
     def get_eccentricity_count(self, page=None):
         """Creates a histogram of all current particles eccentricity."""
         try:
-            import trackpy as tp
-            import cv2
-            import pandas as pd
-
             # Check if particles were found before plotting
             self.check_for_empty_data()
 
@@ -187,10 +179,6 @@ class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
     def get_subpixel_bias(self, page=None):
         """Creates a plot of the subpixel bias of all current particles."""
         try:
-            import trackpy as tp
-            import cv2
-            import pandas as pd
-
             # Check if particles were found before plotting
             self.check_for_empty_data()
 
@@ -198,9 +186,7 @@ class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
             tp.subpx_bias(self.data)
 
             temp_fig = plt.gcf()
-            temp_fig.subplots_adjust(
-                top=0.900, bottom=0.100, left=0.090, right=0.950, wspace=0.250
-            )
+            temp_fig.subplots_adjust(top=0.900, bottom=0.100, left=0.090, right=0.950, wspace=0.250)
             temp_fig.suptitle("Subpixel Bias")
 
             # Return the figure instead of the DataFrame

@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..utils.ScaledLabel import ScaledLabel
+from ..utils import ParticleProcessing
 
 
 class DWErrantParticleWidget(QWidget):
@@ -58,21 +59,15 @@ class DWErrantParticleWidget(QWidget):
         self.next_frame_button = QPushButton("▶")
         self.prev_frame_button.clicked.connect(self.prev_particle)
         self.next_frame_button.clicked.connect(self.next_particle)
-        self.frame_number_display.returnPressed.connect(
-            self._jump_to_input_particle
-        )
-        self.frame_number_display.editingFinished.connect(
-            self._jump_to_input_particle
-        )
+        self.frame_number_display.returnPressed.connect(self._jump_to_input_particle)
+        self.frame_number_display.editingFinished.connect(self._jump_to_input_particle)
         self.frame_nav_layout.addWidget(self.prev_frame_button)
         self.frame_nav_layout.addWidget(self.frame_number_display)
         self.frame_nav_layout.addWidget(self.next_frame_button)
 
         # Add "Show particle on frame" checkbox
         self.show_particle_checkbox = QCheckBox("Show particle on frame")
-        self.show_particle_checkbox.stateChanged.connect(
-            self._on_show_particle_checkbox_changed
-        )
+        self.show_particle_checkbox.stateChanged.connect(self._on_show_particle_checkbox_changed)
         self.frame_nav_layout.addWidget(self.show_particle_checkbox)
 
         self.layout.addLayout(self.frame_nav_layout)
@@ -107,8 +102,6 @@ class DWErrantParticleWidget(QWidget):
         params = self.config_manager.get_detection_params()
 
         # This function now uses filtered_particles.csv internally
-        from ..utils import ParticleProcessing
-
         ParticleProcessing.save_errant_particle_crops_for_frame(params)
 
         self.refresh_particles()
@@ -141,9 +134,7 @@ class DWErrantParticleWidget(QWidget):
 
         # clamp current index within bounds
         if self.particle_data:
-            self.curr_particle_idx = min(
-                self.curr_particle_idx, len(self.particle_data) - 1
-            )
+            self.curr_particle_idx = min(self.curr_particle_idx, len(self.particle_data) - 1)
         else:
             self.curr_particle_idx = 0
         self._display_particle(self.curr_particle_idx)
@@ -152,15 +143,11 @@ class DWErrantParticleWidget(QWidget):
         """Clears all displayed errant particles and deletes the corresponding files."""
         if self.file_controller:
             try:
-                self.file_controller.delete_all_files_in_folder(
-                    self.particles_dir
-                )
+                self.file_controller.delete_all_files_in_folder(self.particles_dir)
                 self.particle_data = []
                 self.curr_particle_idx = 0
                 self._display_particle(self.curr_particle_idx)
-                print(
-                    f"Cleared errant particle gallery and deleted files in {self.particles_dir}"
-                )
+                print(f"Cleared errant particle gallery and deleted files in {self.particles_dir}")
             except Exception as e:
                 print(f"Error clearing errant particle gallery: {e}")
 
@@ -170,7 +157,6 @@ class DWErrantParticleWidget(QWidget):
         self.curr_particle_idx = 0
         self.particle_data = []
         self.refresh_particles()
-
 
     def _display_particle(self, index):
         """Update UI to display particle image and index if within bounds."""
