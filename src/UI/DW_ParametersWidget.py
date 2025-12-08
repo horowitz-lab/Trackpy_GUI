@@ -23,6 +23,7 @@ import pandas as pd
 import os
 import shutil
 from ..utils import ParticleProcessing
+from ..utils.UIUtils import create_label_with_info
 
 
 class FindParticlesThread(QThread):
@@ -77,24 +78,6 @@ class DWParametersWidget(QWidget):
 
         self.form = QFormLayout()
 
-        # Helper function to create label with info icon
-        def create_label_with_info(label_text, tooltip_text):
-            label_widget = QWidget()
-            label_layout = QHBoxLayout(label_widget)
-            label_layout.setContentsMargins(0, 0, 0, 0)
-            label_layout.setSpacing(4)
-            label = QLabel(label_text)
-            info_icon = QLabel("ⓘ")
-            info_icon.setToolTip(tooltip_text)
-            font = info_icon.font()
-            font.setPointSize(10)
-            info_icon.setFont(font)
-            info_icon.setStyleSheet("color: #0033cc;")
-            label_layout.addWidget(label)
-            label_layout.addWidget(info_icon)
-            label_layout.addStretch()
-            return label_widget
-
         # Inputs
         self.feature_size_input = QSpinBox()
         self.feature_size_input.setRange(1, 9999)
@@ -141,28 +124,11 @@ class DWParametersWidget(QWidget):
         self.step_frame_input.setRange(1, 9999)
         self.start_frame_input.valueChanged.connect(self.update_end_range)
         
-        # Helper function to create simple label with info icon (no stretch for horizontal layout)
-        def create_simple_label_with_info(label_text, tooltip_text):
-            label_widget = QWidget()
-            label_layout = QHBoxLayout(label_widget)
-            label_layout.setContentsMargins(0, 0, 0, 0)
-            label_layout.setSpacing(4)
-            label = QLabel(label_text)
-            info_icon = QLabel("ⓘ")
-            info_icon.setToolTip(tooltip_text)
-            font = info_icon.font()
-            font.setPointSize(10)
-            info_icon.setFont(font)
-            info_icon.setStyleSheet("color: #0033cc;")
-            label_layout.addWidget(label)
-            label_layout.addWidget(info_icon)
-            return label_widget
-        
-        frame_inputs_layout.addWidget(create_simple_label_with_info("Start:", "First frame number to process (1-based)."))
+        frame_inputs_layout.addWidget(create_label_with_info("Start:", "First frame number to process (1-based).", add_stretch=False))
         frame_inputs_layout.addWidget(self.start_frame_input)
-        frame_inputs_layout.addWidget(create_simple_label_with_info("End:", "Last frame number to process (1-based)."))
+        frame_inputs_layout.addWidget(create_label_with_info("End:", "Last frame number to process (1-based).", add_stretch=False))
         frame_inputs_layout.addWidget(self.end_frame_input)
-        frame_inputs_layout.addWidget(create_simple_label_with_info("Step:", "Frame step size (process every Nth frame)."))
+        frame_inputs_layout.addWidget(create_label_with_info("Step:", "Frame step size (process every Nth frame).", add_stretch=False))
         frame_inputs_layout.addWidget(self.step_frame_input)
         bottom_controls_layout.addLayout(frame_inputs_layout)
 
@@ -375,9 +341,8 @@ class DWParametersWidget(QWidget):
 
     def _backup_and_clear_particles_data(self):
         """Backs up all_particles.csv and then clears it."""
-        data_folder = self.file_controller.data_folder
-        all_particles_path = os.path.join(data_folder, "all_particles.csv")
-        old_all_particles_path = os.path.join(data_folder, "old_all_particles.csv")
+        all_particles_path = self.file_controller.get_data_file_path("all_particles.csv")
+        old_all_particles_path = self.file_controller.get_data_file_path("old_all_particles.csv")
 
         if os.path.exists(all_particles_path):
             shutil.copyfile(all_particles_path, old_all_particles_path)
@@ -386,15 +351,8 @@ class DWParametersWidget(QWidget):
         pd.DataFrame().to_csv(all_particles_path, index=False)
 
     def _save_all_particles_df(self, df):
-        all_particles_path = os.path.join(self.file_controller.data_folder, "all_particles.csv")
-        df.to_csv(all_particles_path, index=False)
+        self.file_controller.save_particles_data(df)
         self.graphing_panel.set_particles(df) # Update graph with raw data
-
-    def _apply_filters_and_refresh(self):
-        """Applies filters to generate filtered_particles.csv and notifies UI."""
-        # This method is now effectively replaced by calling graphing_panel.filtering_widget.apply_filters_and_notify()
-        # The logic is handled by the FilteringWidget itself.
-        pass
 
     def _update_frame_info(self):
         """Update the frame info display with frames where particles were detected."""
@@ -402,7 +360,7 @@ class DWParametersWidget(QWidget):
             self.frame_info_label.setText("")
             return
         
-        all_particles_path = os.path.join(self.file_controller.data_folder, "all_particles.csv")
+        all_particles_path = self.file_controller.get_data_file_path("all_particles.csv")
         if os.path.exists(all_particles_path):
             try:
                 particle_data = pd.read_csv(all_particles_path)

@@ -307,7 +307,7 @@ class DWLWFilteringWidget(QWidget):
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(5)
         # Use appropriate title based on source data file
-        if self.source_data_file == "all_trajectories.csv" or self.source_data_file == "trajectories.csv":
+        if self.source_data_file == "trajectories.csv":
             title_text = "Trajectory Filters"
         else:
             title_text = "Particle Filters"
@@ -367,7 +367,7 @@ class DWLWFilteringWidget(QWidget):
             return
         try:
             # Use source_data_file to determine which file to load
-            if self.source_data_file == "all_trajectories.csv" or self.source_data_file == "trajectories.csv":
+            if self.source_data_file == "trajectories.csv":
                 data = self.file_controller.load_trajectories_data(self.source_data_file)
             else:
                 data = self.file_controller.load_particles_data(self.source_data_file)
@@ -546,12 +546,11 @@ class DWLWFilteringWidget(QWidget):
         if not self.file_controller:
             print("File controller not set")
             return None
-        # try:
         # Use source_data_file to determine which file to load
         # For trajectories, use load_trajectories_data, for particles use load_particles_data
-        if self.source_data_file == "all_trajectories.csv" or self.source_data_file == "trajectories.csv":
+        if self.source_data_file == "trajectories.csv":
             data = self.file_controller.load_trajectories_data(self.source_data_file)
-            output_filename = "trajectories.csv"  # Save filtered trajectories to trajectories.csv
+            output_filename = "trajectories.csv"
         else:
             # Default to particles
             data = self.file_controller.load_particles_data(self.source_data_file)
@@ -571,9 +570,6 @@ class DWLWFilteringWidget(QWidget):
         print(f"  Filtered: {len(filtered_data)} particles")
         self.update_particle_labels(original_count, len(filtered_data))
         return filtered_data
-        # except Exception as e:
-        #     print(f"Error applying filters: {e}")
-        #     return None
 
 def apply_single_filter(df: pd.DataFrame, filter_obj: Filter) -> pd.Series:
     """Apply a single filter and return a boolean mask."""

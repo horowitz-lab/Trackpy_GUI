@@ -25,11 +25,11 @@ from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt, Signal
 import os
 from ..utils import ParticleProcessing
+from ..utils.UIUtils import create_label_with_info
 import pandas as pd
 
 
 class LWParametersWidget(QWidget):
-    particlesDetected = Signal()
     trajectoriesLinked = Signal()
     trajectoryVisualizationCreated = Signal(str)  # Emits image path
     errantDistanceLinksGalleryCreated = Signal()  # Signal that errant distance links gallery was created
@@ -49,24 +49,6 @@ class LWParametersWidget(QWidget):
         self.layout = QVBoxLayout(self)
 
         self.form = QFormLayout()
-
-        # Helper function to create label with info icon
-        def create_label_with_info(label_text, tooltip_text):
-            label_widget = QWidget()
-            label_layout = QHBoxLayout(label_widget)
-            label_layout.setContentsMargins(0, 0, 0, 0)
-            label_layout.setSpacing(4)
-            label = QLabel(label_text)
-            info_icon = QLabel("ⓘ")
-            info_icon.setToolTip(tooltip_text)
-            font = info_icon.font()
-            font.setPointSize(10)
-            info_icon.setFont(font)
-            info_icon.setStyleSheet("color: #0033cc;")
-            label_layout.addWidget(label)
-            label_layout.addWidget(info_icon)
-            label_layout.addStretch()
-            return label_widget
 
         # Inputs for trajectory linking parameters
         self.search_range_input = QSpinBox()
@@ -114,25 +96,14 @@ class LWParametersWidget(QWidget):
         self.layout.addWidget(self.progress_bar)
 
         # Buttons
-        self.buttons_layout = QVBoxLayout()
-
         self.find_trajectories_button = QPushButton("Find Trajectories")
         self.find_trajectories_button.clicked.connect(self.find_trajectories)
-        self.buttons_layout.addWidget(
-            self.find_trajectories_button, alignment=Qt.AlignRight
-        )
 
         self.back_button = QPushButton("Back")
         self.back_button.clicked.connect(self.go_back)
-        self.buttons_layout.addWidget(
-            self.back_button, alignment=Qt.AlignRight
-        )
 
         self.export_close_button = QPushButton("Export & Close")
         self.export_close_button.clicked.connect(self.export_and_close.emit)
-        self.buttons_layout.addWidget(
-            self.export_close_button, alignment=Qt.AlignRight
-        )
 
         # Buttons layout will be moved to parent window, so don't add it to main layout
         # The buttons will be accessed from LW_LinkingWindow
@@ -211,8 +182,8 @@ class LWParametersWidget(QWidget):
         linking_params = self.config_manager.get_linking_params()
         data_folder = self.file_controller.data_folder
 
-        all_particles_file = os.path.join(data_folder, "all_particles.csv")
-        filtered_particles_file = os.path.join(data_folder, "filtered_particles.csv")
+        all_particles_file = self.file_controller.get_data_file_path("all_particles.csv")
+        filtered_particles_file = self.file_controller.get_data_file_path("filtered_particles.csv")
 
         if not os.path.exists(filtered_particles_file):
             print(f"Filtered particles file not found: {filtered_particles_file}")
@@ -234,26 +205,22 @@ class LWParametersWidget(QWidget):
             memory = int(linking_params.get("memory", 10))
             min_trajectory_length = int(linking_params.get("min_trajectory_length", 10))
 
-            # --- Process ALL_PARTICLES.CSV for unfiltered trajectories ---
+            # --- Process ALL_PARTICLES.CSV for unfiltered trajectory visualization ---
+            trajectories_all = None
             if os.path.exists(all_particles_file):
                 all_particles_df = pd.read_csv(all_particles_file)
                 if not all_particles_df.empty:
-                    print("Linking ALL particles for unfiltered view...")
+                    print("Linking ALL particles for unfiltered visualization...")
                     self.progress_label.setText("Working... Linking all particles...")
                     QApplication.processEvents()
                     trajectories_all = tp.link_df(all_particles_df, search_range=search_range, memory=memory)
-                    print(trajectories_all)
                     
                     self.progress_label.setText("Working... Filtering trajectories...")
                     QApplication.processEvents()
                     trajectories_all = tp.filter_stubs(trajectories_all, min_trajectory_length)
                     if self.sub_drift.isChecked():
                         trajectories_all = self.calc_drift(trajectories_all)
-
-                    # Save all_trajectories.csv
-                    all_trajectories_file = os.path.join(data_folder, "all_trajectories.csv")
-                    trajectories_all.to_csv(all_trajectories_file, index=False)
-                    print(f"Saved ALL trajectories to: {all_trajectories_file}")
+                    print(f"Created {trajectories_all['particle'].nunique()} unfiltered trajectories for visualization")
                 else:
                     print("No data in all_particles.csv for unfiltered trajectory generation.")
             else:
@@ -284,26 +251,20 @@ class LWParametersWidget(QWidget):
             # Store the filtered linked trajectories
             self.linked_trajectories = trajectories_filtered
             
-            print(trajectories_all.head())
-            print(trajectories_filtered.head())
-            
             # Save filtered trajectories.csv
-            trajectories_file = os.path.join(data_folder, "trajectories.csv")
-            trajectories_filtered.to_csv(trajectories_file, index=False)
+            trajectories_file = self.file_controller.get_data_file_path("trajectories.csv")
+            self.file_controller.save_trajectories_data(trajectories_filtered)
             print(f"Saved FILTERED trajectories to: {trajectories_file}")
 
-            # Create trajectory visualization (using filtered trajectories for this part)
-            # The requirement is to visualize all_particles.csv, which is done above.
-            # Here we can simply re-use the all_trajectories_file visualization name.
-            # I will pass trajectories_all for this part.
-            if 'trajectories_all' in locals():
+            # Create trajectory visualization using unfiltered trajectories
+            if trajectories_all is not None:
                 self.progress_label.setText("Working... Creating trajectory visualization...")
                 QApplication.processEvents()
                 self.create_trajectory_visualization(trajectories_all, data_folder, "trajectory_visualization.png")
 
             self.progress_label.setText("Working... Creating RB gallery...")
             QApplication.processEvents()
-            self.create_errant_distance_links_gallery(trajectories_file, data_folder) # RB gallery from filtered trajectories
+            self.create_errant_distance_links_gallery(trajectories_file, data_folder)
             
             self.progress_label.setText("Working... Finding high memory links...")
             QApplication.processEvents()
@@ -497,10 +458,6 @@ class LWParametersWidget(QWidget):
             print(f"❌ Error creating RB gallery: {e}")
             print(f"❌ Traceback:")
             traceback.print_exc()
-
-    def refresh_trajectories(self):
-        """Re-run the trajectory finding process."""
-        self.find_trajectories()
 
     def go_back(self):
         """Emit signal to go back to particle detection window."""
