@@ -8,6 +8,7 @@ Description: Interactive UI for defining filters on particle data and automatica
 import os
 import configparser
 import pandas as pd
+import uuid
 from dataclasses import dataclass
 from typing import List, Optional, Callable
 from PySide6.QtWidgets import (
@@ -31,6 +32,7 @@ from PySide6.QtGui import QFont
 @dataclass
 class Filter:
     """Data class representing a single filter."""
+
     parameter: str
     operator: str
     value: float
@@ -38,13 +40,13 @@ class Filter:
 
     def __post_init__(self):
         if self.filter_id is None:
-            import uuid
             self.filter_id = str(uuid.uuid4())[:8]
 
 
 @dataclass
 class CompoundFilter:
     """Data class representing a compound filter with two filters and an operator."""
+
     filter1: Filter
     filter2: Filter
     operator: str  # "AND", "OR", "XOR"
@@ -52,7 +54,6 @@ class CompoundFilter:
 
     def __post_init__(self):
         if self.filter_id is None:
-            import uuid
             self.filter_id = str(uuid.uuid4())[:8]
 
 
@@ -123,14 +124,14 @@ class CompoundFilterCreatorDialog(QDialog):
         self.created_compound_filter = None
 
         layout = QVBoxLayout(self)
-        
+
         # Filter 1
         filter1_label = QLabel("Filter 1:")
         filter1_label_font = QFont()
         filter1_label_font.setBold(True)
         filter1_label.setFont(filter1_label_font)
         layout.addWidget(filter1_label)
-        
+
         param1_layout = QHBoxLayout()
         param1_layout.addWidget(QLabel("Parameter:"))
         self.parameter1_combo = QComboBox()
@@ -151,27 +152,27 @@ class CompoundFilterCreatorDialog(QDialog):
         self.value1_input.setPlaceholderText("Enter numeric value")
         value1_layout.addWidget(self.value1_input)
         layout.addLayout(value1_layout)
-        
+
         # Operator between filters
         op_label = QLabel("Compound Operator:")
         op_label_font = QFont()
         op_label_font.setBold(True)
         op_label.setFont(op_label_font)
         layout.addWidget(op_label)
-        
+
         compound_op_layout = QHBoxLayout()
         self.compound_operator_combo = QComboBox()
         self.compound_operator_combo.addItems(["AND", "OR", "XOR"])
         compound_op_layout.addWidget(self.compound_operator_combo)
         layout.addLayout(compound_op_layout)
-        
+
         # Filter 2
         filter2_label = QLabel("Filter 2:")
         filter2_label_font = QFont()
         filter2_label_font.setBold(True)
         filter2_label.setFont(filter2_label_font)
         layout.addWidget(filter2_label)
-        
+
         param2_layout = QHBoxLayout()
         param2_layout.addWidget(QLabel("Parameter:"))
         self.parameter2_combo = QComboBox()
@@ -208,25 +209,25 @@ class CompoundFilterCreatorDialog(QDialog):
             value1 = float(self.value1_input.text())
             value2 = float(self.value2_input.text())
         except ValueError:
-            QMessageBox.warning(self, "Invalid Value", "Please enter valid numeric values for both filters.")
+            QMessageBox.warning(
+                self, "Invalid Value", "Please enter valid numeric values for both filters."
+            )
             return
-        
+
         filter1 = Filter(
             parameter=self.parameter1_combo.currentText(),
             operator=self.operator1_combo.currentText(),
-            value=value1
+            value=value1,
         )
         filter2 = Filter(
             parameter=self.parameter2_combo.currentText(),
             operator=self.operator2_combo.currentText(),
-            value=value2
+            value=value2,
         )
-        
+
         compound_operator = self.compound_operator_combo.currentText()
         self.created_compound_filter = CompoundFilter(
-            filter1=filter1,
-            filter2=filter2,
-            operator=compound_operator
+            filter1=filter1, filter2=filter2, operator=compound_operator
         )
         self.accept()
 
@@ -279,6 +280,7 @@ class CompoundFilterCard(QFrame):
 
 class DWLWFilteringWidget(QWidget):
     """Widget for managing particle data filters."""
+
     filteredParticlesUpdated = Signal()
 
     def __init__(self, source_data_file: str = "all_particles.csv", parent=None):
@@ -288,7 +290,17 @@ class DWLWFilteringWidget(QWidget):
         self.compound_filters: List[CompoundFilter] = []
         self.file_controller = None
         self.source_data_file = source_data_file
-        self.available_parameters = ["mass", "size", "ecc", "x", "y", "frame", "signal", "raw_mass", "ep"]
+        self.available_parameters = [
+            "mass",
+            "size",
+            "ecc",
+            "x",
+            "y",
+            "frame",
+            "signal",
+            "raw_mass",
+            "ep",
+        ]
         self.setup_ui()
 
     def set_file_controller(self, file_controller):
@@ -297,7 +309,7 @@ class DWLWFilteringWidget(QWidget):
             self.project_path = file_controller.project_path
             self.load_filters_from_disk()
             self.update_available_parameters()
-    
+
     def set_source_data_file(self, filename: str):
         """Set the source data file to filter (e.g., 'all_particles.csv')."""
         self.source_data_file = filename
@@ -317,13 +329,13 @@ class DWLWFilteringWidget(QWidget):
         title_font.setPointSize(12)
         title.setFont(title_font)
         layout.addWidget(title)
-        
+
         add_button = QPushButton("+ Add Filter")
         add_button.clicked.connect(self.open_filter_creator)
-        
+
         add_compound_button = QPushButton("+ Add Compound Filter")
         add_compound_button.clicked.connect(self.open_compound_filter_creator)
-        
+
         button_layout = QHBoxLayout()
         button_layout.addWidget(add_button)
         button_layout.addWidget(add_compound_button)
@@ -371,34 +383,44 @@ class DWLWFilteringWidget(QWidget):
                 data = self.file_controller.load_trajectories_data(self.source_data_file)
             else:
                 data = self.file_controller.load_particles_data(self.source_data_file)
-            
+
             if not data.empty:
                 numeric_cols = data.select_dtypes(include=["number"]).columns.tolist()
                 if numeric_cols:
                     self.available_parameters = numeric_cols
                 else:
-                    self.available_parameters = [] # No numeric columns found
+                    self.available_parameters = []  # No numeric columns found
             else:
-                self.available_parameters = [] # Empty DataFrame
+                self.available_parameters = []  # Empty DataFrame
         except pd.errors.EmptyDataError:
-            self.available_parameters = [] # Handle empty file
-            print(f"Error updating available parameters: No columns to parse from file (empty data).")
+            self.available_parameters = []  # Handle empty file
+            print(
+                f"Error updating available parameters: No columns to parse from file (empty data)."
+            )
         except Exception as e:
             print(f"Error updating available parameters: {e}")
 
     def open_filter_creator(self):
         self.update_available_parameters()
         if not self.available_parameters:
-            QMessageBox.warning(self, "No Parameters Available", "No numeric parameters found. Please load particle data first.")
+            QMessageBox.warning(
+                self,
+                "No Parameters Available",
+                "No numeric parameters found. Please load particle data first.",
+            )
             return
         dialog = FilterCreatorDialog(self.available_parameters, self)
         if dialog.exec() == QDialog.Accepted and dialog.created_filter:
             self.add_filter(dialog.created_filter)
-    
+
     def open_compound_filter_creator(self):
         self.update_available_parameters()
         if not self.available_parameters:
-            QMessageBox.warning(self, "No Parameters Available", "No numeric parameters found. Please load particle data first.")
+            QMessageBox.warning(
+                self,
+                "No Parameters Available",
+                "No numeric parameters found. Please load particle data first.",
+            )
             return
         dialog = CompoundFilterCreatorDialog(self.available_parameters, self)
         if dialog.exec() == QDialog.Accepted and dialog.created_compound_filter:
@@ -409,7 +431,7 @@ class DWLWFilteringWidget(QWidget):
         self.update_filter_cards_ui()
         self.save_filters_to_disk()
         self.apply_filters_and_notify()
-    
+
     def add_compound_filter(self, compound_filter_obj: CompoundFilter):
         self.compound_filters.append(compound_filter_obj)
         self.update_filter_cards_ui()
@@ -421,7 +443,7 @@ class DWLWFilteringWidget(QWidget):
         self.update_filter_cards_ui()
         self.save_filters_to_disk()
         self.apply_filters_and_notify()
-    
+
     def remove_compound_filter(self, filter_id: str):
         self.compound_filters = [f for f in self.compound_filters if f.filter_id != filter_id]
         self.update_filter_cards_ui()
@@ -440,7 +462,9 @@ class DWLWFilteringWidget(QWidget):
             card = CompoundFilterCard(compound_filter_obj, self.remove_compound_filter, self)
             self.cards_layout.insertWidget(self.cards_layout.count() - 1, card)
         total_filters = len(self.filters) + len(self.compound_filters)
-        self.status_label.setText(f"{total_filters} filter(s) active" if total_filters > 0 else "No filters active")
+        self.status_label.setText(
+            f"{total_filters} filter(s) active" if total_filters > 0 else "No filters active"
+        )
 
     def get_filters_ini_path(self) -> str:
         """Get the path to the filters.ini file in the project root."""
@@ -454,20 +478,20 @@ class DWLWFilteringWidget(QWidget):
             return
         config = configparser.ConfigParser()
         # Create sections for filters and compound filters
-        config['filters'] = {}
+        config["filters"] = {}
         for filter_obj in self.filters:
             # Storing as a list of strings, e.g., "mass,>,100.0"
             value_str = f"{filter_obj.parameter},{filter_obj.operator},{filter_obj.value}"
-            config['filters'][filter_obj.filter_id] = value_str
-        
-        config['compound_filters'] = {}
+            config["filters"][filter_obj.filter_id] = value_str
+
+        config["compound_filters"] = {}
         for compound_filter_obj in self.compound_filters:
             f1 = compound_filter_obj.filter1
             f2 = compound_filter_obj.filter2
             # Store as: "param1,op1,val1|param2,op2,val2|operator"
             value_str = f"{f1.parameter},{f1.operator},{f1.value}|{f2.parameter},{f2.operator},{f2.value}|{compound_filter_obj.operator}"
-            config['compound_filters'][compound_filter_obj.filter_id] = value_str
-        
+            config["compound_filters"][compound_filter_obj.filter_id] = value_str
+
         try:
             with open(ini_path, "w") as f:
                 config.write(f)
@@ -482,52 +506,49 @@ class DWLWFilteringWidget(QWidget):
             self.update_filter_cards_ui()
             self.apply_filters_and_notify()  # Apply filters after loading (even if empty)
             return
-        
+
         config = configparser.ConfigParser()
         try:
             config.read(ini_path)
             self.filters = []
             self.compound_filters = []
-            
-            if 'filters' in config:
-                for filter_id, value_str in config['filters'].items():
-                    parts = value_str.split(',')
+
+            if "filters" in config:
+                for filter_id, value_str in config["filters"].items():
+                    parts = value_str.split(",")
                     if len(parts) == 3:
                         param, op, val = parts
                         filter_obj = Filter(
-                            parameter=param,
-                            operator=op,
-                            value=float(val),
-                            filter_id=filter_id
+                            parameter=param, operator=op, value=float(val), filter_id=filter_id
                         )
                         self.filters.append(filter_obj)
-            
-            if 'compound_filters' in config:
-                for compound_filter_id, value_str in config['compound_filters'].items():
-                    parts = value_str.split('|')
+
+            if "compound_filters" in config:
+                for compound_filter_id, value_str in config["compound_filters"].items():
+                    parts = value_str.split("|")
                     if len(parts) == 3:
                         filter1_str, filter2_str, compound_op = parts
-                        f1_parts = filter1_str.split(',')
-                        f2_parts = filter2_str.split(',')
+                        f1_parts = filter1_str.split(",")
+                        f2_parts = filter2_str.split(",")
                         if len(f1_parts) == 3 and len(f2_parts) == 3:
                             f1 = Filter(
                                 parameter=f1_parts[0],
                                 operator=f1_parts[1],
-                                value=float(f1_parts[2])
+                                value=float(f1_parts[2]),
                             )
                             f2 = Filter(
                                 parameter=f2_parts[0],
                                 operator=f2_parts[1],
-                                value=float(f2_parts[2])
+                                value=float(f2_parts[2]),
                             )
                             compound_filter_obj = CompoundFilter(
                                 filter1=f1,
                                 filter2=f2,
                                 operator=compound_op,
-                                filter_id=compound_filter_id
+                                filter_id=compound_filter_id,
                             )
                             self.compound_filters.append(compound_filter_obj)
-            
+
             self.update_filter_cards_ui()
             self.apply_filters_and_notify()  # Apply filters after loading
         except Exception as e:
@@ -539,8 +560,9 @@ class DWLWFilteringWidget(QWidget):
 
     def update_particle_labels(self, all_particle_count, filtered_particle_count):
         self.total_particles_label.setText(f"Particles Found: {all_particle_count}")
-        self.particles_after_filter_label.setText(f"Particles After Filter(s): {filtered_particle_count}")
-
+        self.particles_after_filter_label.setText(
+            f"Particles After Filter(s): {filtered_particle_count}"
+        )
 
     def apply_filters(self) -> Optional[pd.DataFrame]:
         if not self.file_controller:
@@ -555,24 +577,29 @@ class DWLWFilteringWidget(QWidget):
             # Default to particles
             data = self.file_controller.load_particles_data(self.source_data_file)
             output_filename = "filtered_particles.csv"
-        
+
         if data.empty:
             filtered_data = pd.DataFrame()
         else:
             filtered_data = apply_filters(data, self.filters, self.compound_filters)
-        
+
         # Use FileController to save filtered data
         if self.source_data_file == "trajectories.csv":
-            output_path = self.file_controller.save_trajectories_data(filtered_data, output_filename)
+            output_path = self.file_controller.save_trajectories_data(
+                filtered_data, output_filename
+            )
         else:
-            output_path = self.file_controller.save_filtered_particles_data(filtered_data, output_filename)
-        
+            output_path = self.file_controller.save_filtered_particles_data(
+                filtered_data, output_filename
+            )
+
         original_count = len(data) if not data.empty else 0
         print(f"Saved filtered data to: {output_path}")
         print(f"  Original: {original_count} particles")
         print(f"  Filtered: {len(filtered_data)} particles")
         self.update_particle_labels(original_count, len(filtered_data))
         return filtered_data
+
 
 def apply_single_filter(df: pd.DataFrame, filter_obj: Filter) -> pd.Series:
     """Apply a single filter and return a boolean mask."""
@@ -602,22 +629,25 @@ def apply_single_filter(df: pd.DataFrame, filter_obj: Filter) -> pd.Series:
         print(f"Error applying filter {parameter} {operator} {value}: {e}")
         return pd.Series([False] * len(df), index=df.index)
 
-def apply_filters(df: pd.DataFrame, filters: List[Filter], compound_filters: List[CompoundFilter] = None) -> pd.DataFrame:
+
+def apply_filters(
+    df: pd.DataFrame, filters: List[Filter], compound_filters: List[CompoundFilter] = None
+) -> pd.DataFrame:
     if not filters and (not compound_filters or len(compound_filters) == 0):
         return df.copy()
     filtered_df = df.copy()
-    
+
     # Apply simple filters (all are ANDed together)
     for filter_obj in filters:
         mask = apply_single_filter(filtered_df, filter_obj)
         filtered_df = filtered_df[mask]
-    
+
     # Apply compound filters (each compound filter is applied independently, ANDed with previous results)
     if compound_filters:
         for compound_filter_obj in compound_filters:
             mask1 = apply_single_filter(filtered_df, compound_filter_obj.filter1)
             mask2 = apply_single_filter(filtered_df, compound_filter_obj.filter2)
-            
+
             if compound_filter_obj.operator == "AND":
                 combined_mask = mask1 & mask2
             elif compound_filter_obj.operator == "OR":
@@ -625,9 +655,11 @@ def apply_filters(df: pd.DataFrame, filters: List[Filter], compound_filters: Lis
             elif compound_filter_obj.operator == "XOR":
                 combined_mask = mask1 ^ mask2
             else:
-                print(f"Warning: Unknown compound operator '{compound_filter_obj.operator}'. Skipping compound filter.")
+                print(
+                    f"Warning: Unknown compound operator '{compound_filter_obj.operator}'. Skipping compound filter."
+                )
                 continue
-            
+
             filtered_df = filtered_df[combined_mask]
-    
+
     return filtered_df

@@ -18,14 +18,13 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 import os
 from ..utils.ProjectManager import ProjectManager
+from .NPW_NewProjectWindow import NPWNewProjectWindow
 
 
 class SSWStartScreenWindow(QWidget):
     """Main start screen widget for project management."""
 
-    project_selected = Signal(
-        str
-    )  # Emits project path when project is selected
+    project_selected = Signal(str)  # Emits project path when project is selected
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -49,9 +48,7 @@ class SSWStartScreenWindow(QWidget):
         main_layout.addWidget(title_label)
 
         # Subtitle
-        subtitle_label = QLabel(
-            "Select a project to begin particle tracking analysis"
-        )
+        subtitle_label = QLabel("Select a project to begin particle tracking analysis")
         subtitle_font = QFont()
         subtitle_font.setPointSize(12)
         subtitle_label.setFont(subtitle_font)
@@ -84,8 +81,6 @@ class SSWStartScreenWindow(QWidget):
 
     def create_new_project(self):
         """Open dialog to create a new project."""
-        from .NPW_NewProjectWindow import NPWNewProjectWindow
-
         dialog = NPWNewProjectWindow(parent=self.window())
         if dialog.exec() == NPWNewProjectWindow.Accepted:
             project_path = dialog.get_project_path()

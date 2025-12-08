@@ -37,9 +37,7 @@ class ScaledLabel(QLabel):
         label_size = self.size()
 
         # Scale pixmap to fit the label, maintaining aspect ratio
-        scaled_pixmap = self._pixmap.scaled(
-            label_size, Qt.KeepAspectRatio, Qt.SmoothTransformation
-        )
+        scaled_pixmap = self._pixmap.scaled(label_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
         # Calculate coordinates to center the pixmap
         x = (label_size.width() - scaled_pixmap.width()) / 2

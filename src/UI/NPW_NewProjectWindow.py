@@ -22,6 +22,7 @@ from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont
 from ..utils import SizingUtils
 import os
+import re
 
 
 class NPWNewProjectWindow(QDialog):
@@ -42,9 +43,11 @@ class NPWNewProjectWindow(QDialog):
         """Set up the dialog UI."""
         self.setWindowTitle("Create New Project")
         self.setModal(True)
-        
+
         # Set window geometry
-        x_left, y_up, start_screen_width, start_screen_height = SizingUtils.get_start_screen_geometry()
+        x_left, y_up, start_screen_width, start_screen_height = (
+            SizingUtils.get_start_screen_geometry()
+        )
         self.setGeometry(x_left, y_up, start_screen_width, start_screen_height)
 
         # Main layout
@@ -117,9 +120,7 @@ class NPWNewProjectWindow(QDialog):
         # Project folder selection
         folder_layout = QHBoxLayout()
         self.folder_path_edit = QLineEdit()
-        self.folder_path_edit.setPlaceholderText(
-            "Select parent folder for project..."
-        )
+        self.folder_path_edit.setPlaceholderText("Select parent folder for project...")
         self.folder_path_edit.setReadOnly(True)
 
         self.browse_btn = QPushButton("Browse...")
@@ -218,23 +219,17 @@ class NPWNewProjectWindow(QDialog):
 
         # Validate inputs
         if not project_name:
-            QMessageBox.warning(
-                self, "Invalid Input", "Please enter a project name."
-            )
+            QMessageBox.warning(self, "Invalid Input", "Please enter a project name.")
             return
 
         if not parent_folder:
-            QMessageBox.warning(
-                self, "Invalid Input", "Please select a parent folder."
-            )
+            QMessageBox.warning(self, "Invalid Input", "Please select a parent folder.")
             return
 
         # Validate video file
         video_path = self.video_path_edit.text().strip()
         if not video_path:
-            QMessageBox.warning(
-                self, "Invalid Input", "Please select a video file."
-            )
+            QMessageBox.warning(self, "Invalid Input", "Please select a video file.")
             return
 
         if not os.path.exists(video_path):
@@ -246,16 +241,12 @@ class NPWNewProjectWindow(QDialog):
         # Validate scaling
         scaling = self.scaling_edit.value()
         if scaling <= 0:
-            QMessageBox.warning(
-                self, "Invalid Input", "Scaling must be greater than 0."
-            )
+            QMessageBox.warning(self, "Invalid Input", "Scaling must be greater than 0.")
             return
 
         # Check if parent folder exists and is writable
         if not os.path.exists(parent_folder):
-            QMessageBox.warning(
-                self, "Invalid Folder", "The selected folder does not exist."
-            )
+            QMessageBox.warning(self, "Invalid Folder", "The selected folder does not exist.")
             return
 
         if not os.access(parent_folder, os.W_OK):
@@ -297,8 +288,6 @@ class NPWNewProjectWindow(QDialog):
 
     def _make_filesystem_safe(self, name):
         """Make a project name safe for filesystem use."""
-        import re
-
         # Replace invalid characters with underscores
         safe_name = re.sub(r'[<>:"/\\|?*]', "_", name)
         # Remove leading/trailing spaces and dots

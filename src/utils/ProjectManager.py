@@ -7,6 +7,7 @@ Description: Handles project creation, management, and configuration.
 
 import os
 import shutil
+import configparser
 from .ConfigManager import ConfigManager
 
 
@@ -80,10 +81,10 @@ class ProjectManager:
             data_folder = os.path.join(project_folder_path, "data")
             csv_files = ["all_particles.csv", "old_all_particles.csv", "filtered_particles.csv"]
             for f in csv_files:
-                open(os.path.join(data_folder, f), 'w').close()
+                open(os.path.join(data_folder, f), "w").close()
 
             # Create empty filters file
-            open(os.path.join(project_folder_path, "filters.ini"), 'w').close()
+            open(os.path.join(project_folder_path, "filters.ini"), "w").close()
 
             # Copy video file to project videos folder if provided
             video_filename = ""
@@ -98,9 +99,7 @@ class ProjectManager:
                     print(f"Error copying video file: {e}")
 
             # Create default config for project
-            project_config_path = os.path.join(
-                project_folder_path, "config.ini"
-            )
+            project_config_path = os.path.join(project_folder_path, "config.ini")
             self._create_default_project_config(
                 project_config_path,
                 project_folder_path,
@@ -114,9 +113,7 @@ class ProjectManager:
             # Create project info file
             self._create_project_info(project_folder_path, project_name)
 
-            print(
-                f"Project '{project_name}' created successfully at: {project_folder_path}"
-            )
+            print(f"Project '{project_name}' created successfully at: {project_folder_path}")
             return True
 
         except Exception as e:
@@ -142,9 +139,7 @@ class ProjectManager:
                 print(f"Project folder does not exist: {project_folder_path}")
                 return False
 
-            project_config_path = os.path.join(
-                project_folder_path, "config.ini"
-            )
+            project_config_path = os.path.join(project_folder_path, "config.ini")
             if not os.path.exists(project_config_path):
                 print(f"Project config file not found: {project_config_path}")
                 return False
@@ -178,8 +173,6 @@ class ProjectManager:
         movie_taken_date: str = "",
     ):
         """Create a default config file for the project with absolute paths."""
-        import configparser
-
         config = configparser.ConfigParser()
 
         # Paths section with absolute paths
@@ -197,9 +190,7 @@ class ProjectManager:
                 os.path.join(project_path, "errant_distance_links")
             ),
             "data_folder": os.path.abspath(os.path.join(project_path, "data")),
-            "videos_folder": os.path.abspath(
-                os.path.join(project_path, "videos")
-            ),
+            "videos_folder": os.path.abspath(os.path.join(project_path, "videos")),
             "errant_memory_links_folder": os.path.abspath(
                 os.path.join(project_path, "errant_memory_links")
             ),

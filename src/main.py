@@ -19,6 +19,7 @@ from src.UI.LW_LinkingWindow import LWLinkingWindow
 from src.utils.ProjectManager import ProjectManager
 from src.utils.FileController import FileController
 from src.utils.ConfigManager import ConfigManager
+from src.utils import ParticleProcessing
 
 
 class ParticleTrackingAppController(QMainWindow):
@@ -31,9 +32,7 @@ class ParticleTrackingAppController(QMainWindow):
         # Initialize configuration and managers
         self.project_config = None  # Will be set when project is loaded
         self.project_manager = ProjectManager()
-        self.file_controller = (
-            None  # Will be initialized when project is loaded
-        )
+        self.file_controller = None  # Will be initialized when project is loaded
 
         # Initialize windows
         self.ssw_start_screen_window = None
@@ -63,7 +62,7 @@ class ParticleTrackingAppController(QMainWindow):
         self.ssw_start_screen_window.adjustSize()
         self.resize(self.ssw_start_screen_window.size())
         self.center()
-        
+
     def center(self):
         """Center the window on the screen."""
         screen = QGuiApplication.primaryScreen().geometry()
@@ -78,13 +77,9 @@ class ParticleTrackingAppController(QMainWindow):
             # Initialize project-specific config and file controller
             project_config_path = os.path.join(project_path, "config.ini")
             self.project_config = ConfigManager(project_config_path)
-            self.file_controller = FileController(
-                self.project_config, project_path
-            )
+            self.file_controller = FileController(self.project_config, project_path)
 
             # Set file controller in particle processing module
-            from src.utils import ParticleProcessing
-
             ParticleProcessing.set_file_controller(self.file_controller)
 
             # Start the main application workflow
@@ -115,29 +110,25 @@ class ParticleTrackingAppController(QMainWindow):
         # Create particle detection window
         self.dw_detection_window = DWDetectionWindow()
         self.dw_detection_window.set_config_manager(self.project_config)
-        self.dw_detection_window.set_file_controller(
-            self.file_controller
-        )
+        self.dw_detection_window.set_file_controller(self.file_controller)
 
         # Connect signals from particle detection window
         self.dw_detection_window.right_panel.openTrajectoryLinking.connect(
             self.on_next_to_trajectory_linking
         )
-        
+
         # Connect particle analysis to save state for undo
-        self.dw_detection_window.right_panel.allParticlesUpdated.connect(
-            self._on_particles_updated
-        )
-        
+        self.dw_detection_window.right_panel.allParticlesUpdated.connect(self._on_particles_updated)
+
         # Store reference to main controller in detection window for undo
         self.dw_detection_window.main_controller = self
 
         # Add to stacked widget
         self.stacked_widget.addWidget(self.dw_detection_window)
         self.stacked_widget.setCurrentWidget(self.dw_detection_window)
-        
+
         # Update undo button state
-        if hasattr(self.dw_detection_window, 'update_undo_button_state'):
+        if hasattr(self.dw_detection_window, "update_undo_button_state"):
             self.dw_detection_window.update_undo_button_state()
 
         # Resize the main window to a fraction of the screen
@@ -150,16 +141,14 @@ class ParticleTrackingAppController(QMainWindow):
         # Save the current window size and position before switching
         current_size = self.size()
         current_pos = self.pos()
-        
+
         # Clean up any existing windows
         self.cleanup_windows(False)
 
         # Create trajectory linking window
         self.lw_linking_window = LWLinkingWindow()
         self.lw_linking_window.set_config_manager(self.project_config)
-        self.lw_linking_window.set_file_controller(
-            self.file_controller
-        )
+        self.lw_linking_window.set_file_controller(self.file_controller)
 
         # Connect signals from trajectory linking window
         self.lw_linking_window.right_panel.goBackToDetection.connect(
@@ -185,10 +174,10 @@ class ParticleTrackingAppController(QMainWindow):
         # Save the current window size and position before switching
         current_size = self.size()
         current_pos = self.pos()
-        
+
         # Show particle detection window
         self.show_particle_detection_window()
-        
+
         # Preserve the window size and position
         self.resize(current_size)
         self.move(current_pos)
@@ -217,25 +206,25 @@ class ParticleTrackingAppController(QMainWindow):
         # Close any open windows but keep generated data on disk
         self.cleanup_windows(False)
         super().closeEvent(event)
-    
+
     def load_spreadsheet_and_config(self, spreadsheet_path: str, config_file_path: str) -> bool:
         """
         Load a spreadsheet and config file to restore GUI state.
-        
+
         This function:
         1. Loads the spreadsheet and replaces all_particles.csv
         2. Loads the config file and updates all parameters
         3. Updates all UI widgets with the new parameters
         4. Sets frame range from config
         5. Refreshes all displays
-        
+
         Parameters
         ----------
         spreadsheet_path : str
             Path to the CSV file containing particle data
         config_file_path : str
             Path to the config.ini file with parameters
-            
+
         Returns
         -------
         bool
@@ -243,62 +232,60 @@ class ParticleTrackingAppController(QMainWindow):
         """
         if not self.project_config or not self.file_controller:
             QMessageBox.warning(
-                self,
-                "No Project Loaded",
-                "Please load a project first before importing data."
+                self, "No Project Loaded", "Please load a project first before importing data."
             )
             return False
-        
+
         try:
             # 1. Load and save the spreadsheet using FileController
             if not os.path.exists(spreadsheet_path):
                 QMessageBox.warning(
-                    self,
-                    "File Not Found",
-                    f"Spreadsheet file not found: {spreadsheet_path}"
+                    self, "File Not Found", f"Spreadsheet file not found: {spreadsheet_path}"
                 )
                 return False
-            
+
             # Load particles data from external path using FileController
             particles_df = self.file_controller.load_particles_data_from_path(spreadsheet_path)
             if particles_df.empty:
                 QMessageBox.warning(
-                    self,
-                    "Empty File",
-                    "The spreadsheet file is empty or could not be loaded."
+                    self, "Empty File", "The spreadsheet file is empty or could not be loaded."
                 )
                 return False
-            
+
             # Save using FileController
             self.file_controller.save_particles_data(particles_df)
-            
+
             # 2. Load and replace the config file FIRST
             if not os.path.exists(config_file_path):
                 QMessageBox.warning(
-                    self,
-                    "File Not Found",
-                    f"Config file not found: {config_file_path}"
+                    self, "File Not Found", f"Config file not found: {config_file_path}"
                 )
                 return False
-            
+
             # Replace the project config file with the saved config file
             # This MUST happen first before any regeneration
             if self.project_config.config_path:
                 # Delete the existing config file first to ensure it's completely replaced
                 if os.path.exists(self.project_config.config_path):
                     os.remove(self.project_config.config_path)
-                
+
                 # Copy the saved config file to replace the current one
                 shutil.copy2(config_file_path, self.project_config.config_path)
-                
+
                 # Verify the file was actually copied and has content
                 if not os.path.exists(self.project_config.config_path):
-                    raise FileNotFoundError(f"Failed to replace config file at {self.project_config.config_path}")
-                
+                    raise FileNotFoundError(
+                        f"Failed to replace config file at {self.project_config.config_path}"
+                    )
+
                 # Verify file sizes match (basic check that copy worked)
-                if os.path.getsize(config_file_path) != os.path.getsize(self.project_config.config_path):
-                    raise ValueError(f"Config file sizes don't match after copy. Source: {os.path.getsize(config_file_path)}, Dest: {os.path.getsize(self.project_config.config_path)}")
-                
+                if os.path.getsize(config_file_path) != os.path.getsize(
+                    self.project_config.config_path
+                ):
+                    raise ValueError(
+                        f"Config file sizes don't match after copy. Source: {os.path.getsize(config_file_path)}, Dest: {os.path.getsize(self.project_config.config_path)}"
+                    )
+
                 # Clear the old config completely to remove any cached values
                 self.project_config.config.clear()
                 # Reload the config from the newly replaced file
@@ -309,12 +296,12 @@ class ParticleTrackingAppController(QMainWindow):
                 test_params = self.project_config.get_detection_params()
                 if not test_params:
                     raise ValueError("Config file was not properly loaded after replacement")
-            
+
             # 3. Get all parameters from the reloaded project config
             detection_params = self.project_config.get_detection_params()
             linking_params = self.project_config.get_linking_params()
             frame_range = self.project_config.get_frame_range()
-            
+
             # 4. Update all UI widgets - following the exact same flow as "Find Particles" button
             # Update detection window if it exists
             if self.dw_detection_window:
@@ -324,38 +311,36 @@ class ParticleTrackingAppController(QMainWindow):
                     particles_df=particles_df,
                     config_manager=self.project_config,
                     frame_range=frame_range,
-                    block_signals=True
+                    block_signals=True,
                 )
-            
+
             # Update linking window if it exists
             if self.lw_linking_window:
                 # Update config manager
                 self.lw_linking_window.set_config_manager(self.project_config)
-                
+
                 # Update displays
                 self.lw_linking_window._update_parameters_info()
                 self.lw_linking_window._update_metadata_display()
-            
+
             QMessageBox.information(
                 self,
                 "Import Successful",
                 "Spreadsheet and config file loaded successfully.\n"
-                "All parameters and data have been updated."
+                "All parameters and data have been updated.",
             )
             return True
-            
+
         except Exception as e:
             QMessageBox.critical(
-                self,
-                "Import Error",
-                f"Error loading spreadsheet and config:\n{str(e)}"
+                self, "Import Error", f"Error loading spreadsheet and config:\n{str(e)}"
             )
             return False
-    
+
     def save_current_state(self) -> bool:
         """
         Save the current state (spreadsheet and config) to the save folder for undo.
-        
+
         Returns
         -------
         bool
@@ -363,7 +348,7 @@ class ParticleTrackingAppController(QMainWindow):
         """
         if not self.project_config or not self.file_controller:
             return False
-        
+
         try:
             # Save all_particles.csv to save folder using FileController
             all_particles_path = self.file_controller.get_data_file_path("all_particles.csv")
@@ -374,7 +359,7 @@ class ParticleTrackingAppController(QMainWindow):
             else:
                 # Save empty DataFrame if file doesn't exist
                 self.file_controller.save_to_save_folder(pd.DataFrame(), "all_particles.csv")
-            
+
             # Save config.ini to save folder - include current frame range if detection window exists
             save_config_path = os.path.join(self.file_controller.data_folder, "save", "config.ini")
             if self.project_config.config_path:
@@ -382,36 +367,38 @@ class ParticleTrackingAppController(QMainWindow):
                 self.file_controller.copy_file_to_save_folder(
                     self.project_config.config_path, "config.ini"
                 )
-                save_config_path = os.path.join(self.file_controller.data_folder, "save", "config.ini")
+                save_config_path = os.path.join(
+                    self.file_controller.data_folder, "save", "config.ini"
+                )
             else:
                 # Save current config state
                 save_folder = os.path.join(self.file_controller.data_folder, "save")
                 os.makedirs(save_folder, exist_ok=True)
                 save_config_path = os.path.join(save_folder, "config.ini")
                 self.project_config.save(save_config_path)
-            
+
             # Update saved config with current frame range from UI if available
-            if self.dw_detection_window and hasattr(self.dw_detection_window, 'right_panel'):
+            if self.dw_detection_window and hasattr(self.dw_detection_window, "right_panel"):
                 right_panel = self.dw_detection_window.right_panel
-                if hasattr(right_panel, 'start_frame_input'):
+                if hasattr(right_panel, "start_frame_input"):
                     start_frame = right_panel.start_frame_input.value()
                     end_frame = right_panel.end_frame_input.value()
                     step_frame = right_panel.step_frame_input.value()
-                    
+
                     # Load the saved config and update frame range
                     temp_config = ConfigManager(save_config_path)
                     temp_config.save_frame_range(start_frame, end_frame, step_frame)
                     temp_config.save(save_config_path)
-            
+
             return True
         except Exception as e:
             print(f"Error saving current state: {e}")
             return False
-    
+
     def undo_last_state(self) -> bool:
         """
         Restore the previous state from the save folder.
-        
+
         Returns
         -------
         bool
@@ -419,22 +406,24 @@ class ParticleTrackingAppController(QMainWindow):
         """
         if not self.project_config or not self.file_controller:
             return False
-        
+
         # Use FileController to get save folder paths
-        save_particles_path = os.path.join(self.file_controller.data_folder, "save", "all_particles.csv")
+        save_particles_path = os.path.join(
+            self.file_controller.data_folder, "save", "all_particles.csv"
+        )
         save_config_path = os.path.join(self.file_controller.data_folder, "save", "config.ini")
-        
+
         # Check if save exists
         if not os.path.exists(save_particles_path) or not os.path.exists(save_config_path):
             return False
-        
+
         # Use the load_spreadsheet_and_config function to restore state
         return self.load_spreadsheet_and_config(save_particles_path, save_config_path)
-    
+
     def has_undo_state(self) -> bool:
         """
         Check if there is a saved state available for undo.
-        
+
         Returns
         -------
         bool
@@ -442,18 +431,22 @@ class ParticleTrackingAppController(QMainWindow):
         """
         if not self.file_controller:
             return False
-        
+
         # Use FileController to check save folder paths
-        save_particles_path = os.path.join(self.file_controller.data_folder, "save", "all_particles.csv")
+        save_particles_path = os.path.join(
+            self.file_controller.data_folder, "save", "all_particles.csv"
+        )
         save_config_path = os.path.join(self.file_controller.data_folder, "save", "config.ini")
-        
+
         return os.path.exists(save_particles_path) and os.path.exists(save_config_path)
-    
+
     def _on_particles_updated(self):
         """Handle particle analysis completion - update undo button state."""
         # Note: State is saved BEFORE analysis in find_particles()
         # This just updates the button state after analysis completes
-        if self.dw_detection_window and hasattr(self.dw_detection_window, 'update_undo_button_state'):
+        if self.dw_detection_window and hasattr(
+            self.dw_detection_window, "update_undo_button_state"
+        ):
             self.dw_detection_window.update_undo_button_state()
 
 
@@ -464,7 +457,7 @@ def main():
     # Set the application style based on operating system
     system = platform.system()
     available_styles = QtWidgets.QStyleFactory.keys()
-    
+
     if system == "Darwin":  # macOS
         # Don't set a style - let Qt use native macOS styling
         pass

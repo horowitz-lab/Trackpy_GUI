@@ -7,6 +7,7 @@ Description: Combined particle detection, tracking, and processing functions.
 
 import cv2
 import os
+import json
 import numpy as np
 import pandas as pd
 import trackpy as tp
@@ -29,9 +30,7 @@ def set_file_controller(controller):
 # =============================================================================
 
 
-def locate_particles(
-    frame, feature_size=15, min_mass=100, invert=False, threshold=0
-):
+def locate_particles(frame, feature_size=15, min_mass=100, invert=False, threshold=0):
     """
     Locates bright spots (particles) in a single grayscale frame.
 
@@ -80,7 +79,7 @@ def find_particles_in_frames(image_paths, params=None, progress_callback=None):
         Detection parameters.
     progress_callback : Signal, optional
         A signal to emit progress updates.
-    
+
     Returns
     -------
     pandas.DataFrame
@@ -136,10 +135,12 @@ def find_particles_in_frames(image_paths, params=None, progress_callback=None):
     return combined_features
 
 
-def _process_errant_particle(particle, particle_counter, particle_type, min_mass=None, min_size=None):
+def _process_errant_particle(
+    particle, particle_counter, particle_type, min_mass=None, min_size=None
+):
     """
     Process a single errant particle: crop, resize, draw crosshair, and save.
-    
+
     Parameters
     ----------
     particle : pandas.Series
@@ -152,7 +153,7 @@ def _process_errant_particle(particle, particle_counter, particle_type, min_mass
         Minimum mass value for mass-based particles
     min_size : float, optional
         Minimum size value for size-based particles
-        
+
     Returns
     -------
     dict or None
@@ -181,8 +182,20 @@ def _process_errant_particle(particle, particle_counter, particle_type, min_mass
     center_x = final_display_size // 2
     center_y = final_display_size // 2
     cross_size = 5
-    cv2.line(particle_image, (center_x - cross_size, center_y), (center_x + cross_size, center_y), (255, 255, 255), 1)
-    cv2.line(particle_image, (center_x, center_y - cross_size), (center_x, center_y + cross_size), (255, 255, 255), 1)
+    cv2.line(
+        particle_image,
+        (center_x - cross_size, center_y),
+        (center_x + cross_size, center_y),
+        (255, 255, 255),
+        1,
+    )
+    cv2.line(
+        particle_image,
+        (center_x, center_y - cross_size),
+        (center_x, center_y + cross_size),
+        (255, 255, 255),
+        1,
+    )
 
     # Save with frame number in filename
     base_filename = f"{particle_type}_particle_{particle_counter}_frame_{frame_num:05d}"
@@ -197,14 +210,14 @@ def _process_errant_particle(particle, particle_counter, particle_type, min_mass
         "x": float(f"{particle['x']:.2f}"),
         "y": float(f"{particle['y']:.2f}"),
     }
-    
+
     if particle_type == "mass" and min_mass is not None:
         particle_info["mass"] = float(f"{particle['mass']:.2f}")
         particle_info["min_mass"] = min_mass
     elif particle_type == "size" and min_size is not None:
         particle_info["size"] = float(f"{particle['size']:.2f}")
         particle_info["min_size"] = min_size
-    
+
     return particle_info
 
 
@@ -222,7 +235,7 @@ def save_errant_particle_crops_for_frame(params):
     if all_particles.empty:
         return
 
-    min_size = all_particles['size'].min()
+    min_size = all_particles["size"].min()
     min_mass = float(params.get("min_mass", 100.0))
 
     # Calculate errant scores for all particles
@@ -244,19 +257,22 @@ def save_errant_particle_crops_for_frame(params):
 
     # Process mass-based errant particles
     for idx, particle in top_5_mass_particles.iterrows():
-        particle_info = _process_errant_particle(particle, particle_counter, "mass", min_mass=min_mass)
+        particle_info = _process_errant_particle(
+            particle, particle_counter, "mass", min_mass=min_mass
+        )
         if particle_info:
             errant_particles_data.append(particle_info)
             particle_counter += 1
 
     # Process size-based errant particles
     for idx, particle in top_5_size_particles.iterrows():
-        particle_info = _process_errant_particle(particle, particle_counter, "size", min_size=min_size)
+        particle_info = _process_errant_particle(
+            particle, particle_counter, "size", min_size=min_size
+        )
         if particle_info:
             errant_particles_data.append(particle_info)
             particle_counter += 1
-    
-    import json
+
     json_path = os.path.join(file_controller.errant_particles_folder, "errant_particles.json")
     with open(json_path, "w") as f:
         json.dump(errant_particles_data, f, indent=4)
@@ -265,7 +281,7 @@ def save_errant_particle_crops_for_frame(params):
 def _apply_thresholding(gray1, gray2, threshold_percent, invert):
     """
     Apply thresholding to two grayscale images.
-    
+
     Parameters
     ----------
     gray1, gray2 : numpy array
@@ -274,7 +290,7 @@ def _apply_thresholding(gray1, gray2, threshold_percent, invert):
         Threshold percentage (0-100)
     invert : bool
         Whether particles are bright on dark background
-        
+
     Returns
     -------
     tuple
@@ -283,21 +299,21 @@ def _apply_thresholding(gray1, gray2, threshold_percent, invert):
     percentile = 100 - threshold_percent
     threshold_val1 = np.percentile(gray1.flatten(), percentile)
     threshold_val2 = np.percentile(gray2.flatten(), percentile)
-    
+
     # Both invert and non-invert cases use THRESH_BINARY_INV
     # The logic is the same regardless of invert setting
     _, thresh1 = cv2.threshold(gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV)
     _, thresh2 = cv2.threshold(gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV)
-    
+
     # Ensure background is white (255) and particles are dark (0)
     white_pixels1 = np.sum(thresh1 == 255)
     white_pixels2 = np.sum(thresh2 == 255)
-    
+
     if white_pixels1 < (thresh1.size * 0.5):
         thresh1 = cv2.bitwise_not(thresh1)
     if white_pixels2 < (thresh2.size * 0.5):
         thresh2 = cv2.bitwise_not(thresh2)
-    
+
     return thresh1, thresh2
 
 
@@ -316,14 +332,14 @@ def _get_invert_setting():
 def _create_rb_overlay_from_thresholds(thresh1, thresh2, height, width):
     """
     Create red-blue overlay from thresholded images.
-    
+
     Parameters
     ----------
     thresh1, thresh2 : numpy array
         Thresholded images (white background, dark particles)
     height, width : int
         Dimensions for the overlay
-        
+
     Returns
     -------
     numpy array
@@ -331,25 +347,25 @@ def _create_rb_overlay_from_thresholds(thresh1, thresh2, height, width):
     """
     # Create white background RGB image
     rb_overlay = np.ones((height, width, 3), dtype=np.uint8) * 255
-    
+
     # Create red image for frame 1: dark pixels (particles) become red
     red_overlay = rb_overlay.copy()
     particle_mask1 = thresh1 == 0
     red_overlay[particle_mask1, 0] = 0  # B channel
     red_overlay[particle_mask1, 1] = 0  # G channel
     red_overlay[particle_mask1, 2] = 255  # R channel (red)
-    
+
     # Create blue image for frame 2: dark pixels (particles) become blue
     blue_overlay = rb_overlay.copy()
     particle_mask2 = thresh2 == 0
     blue_overlay[particle_mask2, 0] = 255  # B channel (blue)
     blue_overlay[particle_mask2, 1] = 0  # G channel
     blue_overlay[particle_mask2, 2] = 0  # R channel
-    
+
     # Overlay at 50% opacity
     alpha = 0.5
     rb_overlay = (alpha * red_overlay + (1 - alpha) * blue_overlay).astype(np.uint8)
-    
+
     # Convert BGR to RGB
     return cv2.cvtColor(rb_overlay, cv2.COLOR_BGR2RGB)
 
@@ -392,9 +408,7 @@ def create_full_frame_rb_overlay(frame1, frame2, threshold_percent=50):
     return _create_rb_overlay_from_thresholds(thresh1, thresh2, height, width)
 
 
-def create_rb_overlay_image(
-    crop1, crop2, x1, y1, x2, y2, threshold_percent=50, crop_size=200
-):
+def create_rb_overlay_image(crop1, crop2, x1, y1, x2, y2, threshold_percent=50, crop_size=200):
     """
     Create a red-blue overlay image from two cropped frames.
 
@@ -499,9 +513,7 @@ def create_errant_distance_links_gallery(
     ):
         linking_params = file_controller.config_manager.get_linking_params()
     else:
-        linking_params = {
-            "search_range": 10, "memory": 10, "max_displays": 5
-        }
+        linking_params = {"search_range": 10, "memory": 10, "max_displays": 5}
 
     if search_range is None:
         search_range = float(linking_params.get("search_range", 10))
@@ -513,9 +525,7 @@ def create_errant_distance_links_gallery(
     worst_links_per_particle = []
 
     for particle_id in unique_particles:
-        particle_data = trajectories[
-            trajectories["particle"] == particle_id
-        ].sort_values("frame")
+        particle_data = trajectories[trajectories["particle"] == particle_id].sort_values("frame")
 
         if len(particle_data) < 2:
             continue
@@ -531,14 +541,12 @@ def create_errant_distance_links_gallery(
 
             # NEW CONDITION: only consider ordinally next frames
             if frame_i1 != (frame_i + 1):
-                continue # Skip this link if there's a frame gap
+                continue  # Skip this link if there's a frame gap
 
-            jump_dist = np.sqrt(
-                (next_p["x"] - curr["x"]) ** 2 + (next_p["y"] - curr["y"]) ** 2
-            )
+            jump_dist = np.sqrt((next_p["x"] - curr["x"]) ** 2 + (next_p["y"] - curr["y"]) ** 2)
             deviation = max(0, jump_dist - search_range)
             link_score = deviation
-            
+
             if np.isnan(link_score) or not np.isfinite(link_score):
                 continue
 
@@ -552,7 +560,7 @@ def create_errant_distance_links_gallery(
                 issues.append(
                     f"Jump distance ({jump_dist:.2f} px) is within search_range ({search_range} px)"
                 )
-            
+
             link_info = {
                 "particle_id": int(particle_id),
                 "score": link_score,
@@ -571,20 +579,19 @@ def create_errant_distance_links_gallery(
 
         if particle_links:
             # Find the worst link for this particle and add it to our list
-            worst_link = max(particle_links, key=lambda x: x['score'])
+            worst_link = max(particle_links, key=lambda x: x["score"])
             worst_links_per_particle.append(worst_link)
 
     # Sort the list of worst links from all particles to find the top overall
     worst_links_per_particle.sort(key=lambda x: x["score"], reverse=True)
     top_links = worst_links_per_particle[:max_displays]
-    
+
     if len(top_links) == 0:
         print("⚠️ No problematic trajectory links found to create a gallery.")
         return
 
     # Save the metadata for the top links to a single JSON file
     metadata_filename = os.path.join(output_folder, "rb_links.json")
-    import json
     try:
         with open(metadata_filename, "w") as f:
             json.dump(top_links, f, indent=4)
@@ -634,14 +641,10 @@ def annotate_frame(
     )
 
     # Ensure annotated frames folder exists
-    file_controller.ensure_folder_exists(
-        file_controller.annotated_frames_folder
-    )
+    file_controller.ensure_folder_exists(file_controller.annotated_frames_folder)
 
     # Filter particles for the current frame
-    frame_particles = particle_data_df[
-        particle_data_df["frame"] == frame_number
-    ]
+    frame_particles = particle_data_df[particle_data_df["frame"] == frame_number]
 
     # If particles are found for this frame, create and save the annotated image
     if not frame_particles.empty:
@@ -672,7 +675,7 @@ def annotate_frame(
 
 def annotate_memory_link_frame(image, start_pos, end_pos, crop_origin):
     """Draws crosses on a memory link frame."""
-    
+
     # Function to draw a cross at a given point
     def draw_cross(img, point, color, size, thickness):
         x, y = int(point[0]), int(point[1])
@@ -685,17 +688,17 @@ def annotate_memory_link_frame(image, start_pos, end_pos, crop_origin):
     start_y_rel = start_pos[1] - crop_origin[1]
     end_x_rel = end_pos[0] - crop_origin[0]
     end_y_rel = end_pos[1] - crop_origin[1]
-    
+
     # Draw crosses: dark yellow for disappear location, green for reappear location
     # Colors match legend: Disappears #EBC83F, Reappears #228B22 (lighter green)
     dark_yellow_color = (63, 200, 235)  # BGR for #EBC83F (Dark Yellow)
     green_color = (34, 139, 34)  # BGR for #228B22 (Green - slightly lighter than dark green)
     cross_size = 5
-    cross_thickness = 1 # Use 1 for a finer cross
+    cross_thickness = 1  # Use 1 for a finer cross
 
     draw_cross(image, (start_x_rel, start_y_rel), dark_yellow_color, cross_size, cross_thickness)
     draw_cross(image, (end_x_rel, end_y_rel), green_color, cross_size, cross_thickness)
-    
+
     return image
 
 
@@ -707,27 +710,27 @@ def find_and_save_high_memory_links(trajectories_file, memory_parameter, max_lin
     if file_controller is None:
         print("File controller not set in particle_processing.")
         return []
-    
+
     try:
         trajectories = pd.read_csv(trajectories_file)
     except Exception as e:
         print(f"Error loading trajectories: {e}")
         return []
-    
+
     if len(trajectories) == 0:
         print("No trajectory data found")
         return []
-    
+
     memory_links_found = []
-    unique_particles = trajectories['particle'].unique()
-    
+    unique_particles = trajectories["particle"].unique()
+
     for particle_id in unique_particles:
-        particle_data = trajectories[trajectories['particle'] == particle_id].sort_values('frame')
-        
+        particle_data = trajectories[trajectories["particle"] == particle_id].sort_values("frame")
+
         if len(particle_data) < 2:
             continue
-        
-        frames = particle_data['frame'].values
+
+        frames = particle_data["frame"].values
         for i in range(len(frames) - 1):
             frame_gap = frames[i + 1] - frames[i]
             if frame_gap > 1:
@@ -735,93 +738,100 @@ def find_and_save_high_memory_links(trajectories_file, memory_parameter, max_lin
                 if memory_used < memory_parameter:
                     last_frame = int(frames[i])
                     reappear_frame = int(frames[i + 1])
-                    
-                    start_pos_data = particle_data.iloc[i]
-                    end_pos_data = particle_data.iloc[i+1]
 
-                    memory_links_found.append({
-                        'particle_id': int(particle_id),
-                        'memory_used': int(memory_used),
-                        'last_frame': int(last_frame),
-                        'reappear_frame': int(reappear_frame),
-                        'frames': list(range(last_frame, reappear_frame + 1)),
-                        'start_pos': (float(start_pos_data['x']), float(start_pos_data['y'])),
-                        'end_pos': (float(end_pos_data['x']), float(end_pos_data['y'])),
-                    })
-    
-    memory_links_found.sort(key=lambda x: x['memory_used'], reverse=True)
+                    start_pos_data = particle_data.iloc[i]
+                    end_pos_data = particle_data.iloc[i + 1]
+
+                    memory_links_found.append(
+                        {
+                            "particle_id": int(particle_id),
+                            "memory_used": int(memory_used),
+                            "last_frame": int(last_frame),
+                            "reappear_frame": int(reappear_frame),
+                            "frames": list(range(last_frame, reappear_frame + 1)),
+                            "start_pos": (float(start_pos_data["x"]), float(start_pos_data["y"])),
+                            "end_pos": (float(end_pos_data["x"]), float(end_pos_data["y"])),
+                        }
+                    )
+
+    memory_links_found.sort(key=lambda x: x["memory_used"], reverse=True)
     top_links = memory_links_found[:max_links]
-    
+
     if len(top_links) == 0:
         print("No high-memory links found")
         return []
-    
+
     errant_memory_links_folder = file_controller.errant_memory_links_folder
     file_controller.ensure_folder_exists(errant_memory_links_folder)
     file_controller.delete_all_files_in_folder(errant_memory_links_folder)
-    
+
     original_frames_folder = file_controller.original_frames_folder
-    
+
     links_metadata_for_json = []
 
     for link_idx, link in enumerate(top_links):
         link_folder_name = f"memory_link_{link_idx}"
         link_folder_path = os.path.join(errant_memory_links_folder, link_folder_name)
         file_controller.ensure_folder_exists(link_folder_path)
-        
-        start_pos = link['start_pos']
-        end_pos = link['end_pos']
+
+        start_pos = link["start_pos"]
+        end_pos = link["end_pos"]
 
         center_x = (start_pos[0] + end_pos[0]) / 2
         center_y = (start_pos[1] + end_pos[1]) / 2
         crop_radius = 75
         target_dim = 150
-        
+
         crop_origin_x = int(center_x - crop_radius)
         crop_origin_y = int(center_y - crop_radius)
         crop_origin = (crop_origin_x, crop_origin_y)
 
         # Add data to the list for the final JSON file
         link_metadata = link.copy()
-        link_metadata['link_folder'] = link_folder_name
-        link_metadata['crop_origin'] = crop_origin
+        link_metadata["link_folder"] = link_folder_name
+        link_metadata["crop_origin"] = crop_origin
         links_metadata_for_json.append(link_metadata)
 
         # Crop and save annotated images
-        for frame_num in link['frames']:
+        for frame_num in link["frames"]:
             source_frame_path = os.path.join(original_frames_folder, f"frame_{frame_num:05d}.jpg")
             if os.path.exists(source_frame_path):
                 dest_frame_path = os.path.join(link_folder_path, f"frame_{frame_num:05d}.jpg")
-                
+
                 full_image = cv2.imread(source_frame_path)
                 if full_image is not None:
                     canvas = np.zeros((target_dim, target_dim, 3), dtype=np.uint8)
-                    
+
                     src_x_start = max(0, crop_origin_x)
                     src_y_start = max(0, crop_origin_y)
                     src_x_end = min(full_image.shape[1], crop_origin_x + target_dim)
                     src_y_end = min(full_image.shape[0], crop_origin_y + target_dim)
-                    
+
                     dest_x_start = max(0, -crop_origin_x)
                     dest_y_start = max(0, -crop_origin_y)
                     dest_x_end = dest_x_start + (src_x_end - src_x_start)
                     dest_y_end = dest_y_start + (src_y_end - src_y_start)
-                    
-                    canvas[dest_y_start:dest_y_end, dest_x_start:dest_x_end] = full_image[src_y_start:src_y_end, src_x_start:src_x_end]
-                    
-                    annotated_canvas = annotate_memory_link_frame(canvas, start_pos, end_pos, crop_origin)
-                    
+
+                    canvas[dest_y_start:dest_y_end, dest_x_start:dest_x_end] = full_image[
+                        src_y_start:src_y_end, src_x_start:src_x_end
+                    ]
+
+                    annotated_canvas = annotate_memory_link_frame(
+                        canvas, start_pos, end_pos, crop_origin
+                    )
+
                     cv2.imwrite(dest_frame_path, annotated_canvas)
 
     # Save the consolidated metadata to a single JSON file
     json_path = os.path.join(errant_memory_links_folder, "memory_links.json")
-    import json
     try:
-        with open(json_path, 'w') as f:
+        with open(json_path, "w") as f:
             json.dump(links_metadata_for_json, f, indent=4)
         print(f"✅ Saved memory links metadata to: {json_path}")
     except Exception as e:
         print(f"❌ Failed to save memory links metadata: {e}")
 
-    print(f"Found {len(top_links)} high-memory links and saved frames to {errant_memory_links_folder}")
+    print(
+        f"Found {len(top_links)} high-memory links and saved frames to {errant_memory_links_folder}"
+    )
     return top_links

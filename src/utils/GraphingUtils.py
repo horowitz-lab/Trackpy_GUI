@@ -25,12 +25,17 @@ from . import ParticleProcessing
 import sys
 import io
 from .ScaledLabel import ScaledLabel
+from PySide6.QtGui import QGuiApplication
+import trackpy as tp
+import cv2
+import pandas as pd
 
 # Universal graphing label sizes and figure formatting - larger fonts for better visibility
-matplotlib.rc('xtick', labelsize=18) 
-matplotlib.rc('ytick', labelsize=18)
-matplotlib.rc('axes', titlesize=22, labelsize=20)
-matplotlib.rc('figure', titlesize=26)
+matplotlib.rc("xtick", labelsize=18)
+matplotlib.rc("ytick", labelsize=18)
+matplotlib.rc("axes", titlesize=22, labelsize=20)
+matplotlib.rc("figure", titlesize=26)
+
 
 class GraphingButton(QPushButton):
     """Button for graphing controls with highlight state management."""
@@ -52,7 +57,7 @@ class GraphingButton(QPushButton):
 
     def switch_button_color(self):
         """Track which button is highlighted (using native button states)."""
-        
+
         if self.highlighted_button != None:
             # Reset previous button to normal state
             prev_button = self.highlighted_button
@@ -116,7 +121,7 @@ class GraphingPanelWidget(QWidget):
 
     def blank_plot(self):
         """Clear the plot display."""
-        if hasattr(self, 'plot_label'):
+        if hasattr(self, "plot_label"):
             self.plot_label.setPixmap(QPixmap())
 
     def check_for_empty_data(self):
@@ -158,21 +163,20 @@ class GraphingPanelWidget(QWidget):
 
         # Assign new figure and render it to a pixmap
         self.fig = new_fig
-        
+
         # Get the actual widget size to generate plot at matching resolution
         widget_width = self.plot_label.width()
         widget_height = self.plot_label.height()
-        
+
         # If widget hasn't been sized yet, use a reasonable default
         # This can happen on first plot before widget is shown
         if widget_width <= 0 or widget_height <= 0:
             widget_width = 800
             widget_height = 600
-        
+
         # Account for device pixel ratio for high-DPI displays
         # This ensures the image looks sharp on retina/high-DPI screens
         try:
-            from PySide6.QtGui import QGuiApplication
             screen = QGuiApplication.primaryScreen()
             if screen:
                 device_pixel_ratio = screen.devicePixelRatio()
@@ -180,42 +184,42 @@ class GraphingPanelWidget(QWidget):
                 device_pixel_ratio = 1.0
         except:
             device_pixel_ratio = 1.0
-        
+
         # Calculate target resolution based on actual widget size
         # Use device pixel ratio to ensure sharpness on high-DPI displays
         target_width_px = int(widget_width * device_pixel_ratio)
         target_height_px = int(widget_height * device_pixel_ratio)
-        
+
         # Use a reasonable DPI - 100 DPI is standard for screen display
         # Higher DPI would make the image larger than needed
         target_dpi = 100
-        
+
         # Calculate figure size in inches based on target resolution
         width_inches = target_width_px / target_dpi
         height_inches = target_height_px / target_dpi
-        
+
         # Resize the figure to the calculated size
         self.fig.set_size_inches(width_inches, height_inches)
-        
+
         # Improve figure formatting - better spacing and layout
         self.fig.tight_layout(pad=1.2)
-        
+
         # Generate at resolution matching widget size
         buf = io.BytesIO()
         self.fig.savefig(
-            buf, 
-            format='png', 
-            pad_inches=0.15, 
-            dpi=target_dpi, 
-            bbox_inches='tight',
-            facecolor='white',
-            edgecolor='none'
+            buf,
+            format="png",
+            pad_inches=0.15,
+            dpi=target_dpi,
+            bbox_inches="tight",
+            facecolor="white",
+            edgecolor="none",
         )
         buf.seek(0)
-        
+
         pixmap = QPixmap()
-        pixmap.loadFromData(buf.getvalue(), 'png')
-        
+        pixmap.loadFromData(buf.getvalue(), "png")
+
         self.plot_label.setPixmap(pixmap)
 
         # Switch button color
@@ -236,41 +240,23 @@ class GraphingPanelWidget(QWidget):
         self.filter_label = QLabel("Filtering")
         self.filter_layout.addWidget(self.filter_label, alignment=Qt.AlignTop)
 
-        self.mass_ecc_button = GraphingButton(
-            text="Mass vs Eccentricity", parent=self
-        )
+        self.mass_ecc_button = GraphingButton(text="Mass vs Eccentricity", parent=self)
         self.mass_ecc_button.clicked.connect(
-            lambda: self.self_plot(
-                self.get_mass_ecc, self.mass_ecc_button, page
-            )
+            lambda: self.self_plot(self.get_mass_ecc, self.mass_ecc_button, page)
         )
-        self.filter_layout.addWidget(
-            self.mass_ecc_button, alignment=Qt.AlignTop
-        )
+        self.filter_layout.addWidget(self.mass_ecc_button, alignment=Qt.AlignTop)
 
-        self.mass_size_button = GraphingButton(
-            text="Mass vs Size", parent=self
-        )
+        self.mass_size_button = GraphingButton(text="Mass vs Size", parent=self)
         self.mass_size_button.clicked.connect(
-            lambda: self.self_plot(
-                self.get_mass_size, self.mass_size_button, page
-            )
+            lambda: self.self_plot(self.get_mass_size, self.mass_size_button, page)
         )
-        self.filter_layout.addWidget(
-            self.mass_size_button, alignment=Qt.AlignTop
-        )
+        self.filter_layout.addWidget(self.mass_size_button, alignment=Qt.AlignTop)
 
-        self.size_ecc_button = GraphingButton(
-            text="Size vs Eccentricity", parent=self
-        )
+        self.size_ecc_button = GraphingButton(text="Size vs Eccentricity", parent=self)
         self.size_ecc_button.clicked.connect(
-            lambda: self.self_plot(
-                self.get_size_ecc, self.size_ecc_button, page
-            )
+            lambda: self.self_plot(self.get_size_ecc, self.size_ecc_button, page)
         )
-        self.filter_layout.addWidget(
-            self.size_ecc_button, alignment=Qt.AlignTop
-        )
+        self.filter_layout.addWidget(self.size_ecc_button, alignment=Qt.AlignTop)
 
         self.button_layout.addWidget(self.filter)
         self.filter_layout.addStretch(1)
@@ -289,10 +275,6 @@ class GraphingPanelWidget(QWidget):
             Matplotlib figure or None on error
         """
         try:
-            import trackpy as tp
-            import cv2
-            import pandas as pd
-
             # Check if particles were found before plotting
             self.check_for_empty_data()
 
@@ -330,10 +312,6 @@ class GraphingPanelWidget(QWidget):
             Matplotlib figure or None on error
         """
         try:
-            import trackpy as tp
-            import cv2
-            import pandas as pd
-
             # Check if particles were found before plotting
             self.check_for_empty_data()
 
@@ -371,10 +349,6 @@ class GraphingPanelWidget(QWidget):
             Matplotlib figure or None on error
         """
         try:
-            import trackpy as tp
-            import cv2
-            import pandas as pd
-
             # Check if particles were found before plotting
             self.check_for_empty_data()
 
@@ -384,9 +358,7 @@ class GraphingPanelWidget(QWidget):
                 ax.plot(self.data["size"], self.data["ecc"], "ko", alpha=0.1)
             else:
                 grouped_data = self.data.groupby(["particle"]).mean()
-                ax.plot(
-                    grouped_data["size"], grouped_data["ecc"], "ko", alpha=0.1
-                )
+                ax.plot(grouped_data["size"], grouped_data["ecc"], "ko", alpha=0.1)
 
             ax.set_xlabel("Size")
             ax.set_ylabel("Eccentricity")

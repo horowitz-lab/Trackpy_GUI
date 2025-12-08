@@ -1,7 +1,7 @@
 """
 Trajectory Plotting Widget
 
-Description: GUI widget for displaying trajectory plots, filtering plots, and 
+Description: GUI widget for displaying trajectory plots, filtering plots, and
              drift for all trajectories found.
 
 """
@@ -23,6 +23,9 @@ import pandas as pd
 
 from ..utils import GraphingUtils
 from .DW_LW_FilteringWidget import DWLWFilteringWidget
+import trackpy as tp
+import cv2
+import pandas as pd
 
 
 class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
@@ -41,21 +44,13 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
         self.trajectories = QWidget()
         self.trajectory_layout = QVBoxLayout(self.trajectories)
         self.trajectory_label = QLabel("Trajectories")
-        self.trajectory_layout.addWidget(
-            self.trajectory_label, alignment=Qt.AlignTop
-        )
+        self.trajectory_layout.addWidget(self.trajectory_label, alignment=Qt.AlignTop)
 
-        self.trajectory_button = GraphingUtils.GraphingButton(
-            text="Trajectories", parent=self
-        )
+        self.trajectory_button = GraphingUtils.GraphingButton(text="Trajectories", parent=self)
         self.trajectory_button.clicked.connect(
-            lambda: self.self_plot(
-                self.get_trajectories, self.trajectory_button
-            )
+            lambda: self.self_plot(self.get_trajectories, self.trajectory_button)
         )
-        self.trajectory_layout.addWidget(
-            self.trajectory_button, alignment=Qt.AlignTop
-        )
+        self.trajectory_layout.addWidget(self.trajectory_button, alignment=Qt.AlignTop)
 
         self.button_layout.addWidget(self.trajectories)
         self.trajectory_layout.addStretch(1)
@@ -70,22 +65,22 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
         self.drift_layout.addWidget(self.drift_label, alignment=Qt.AlignTop)
 
         self.drift_button = GraphingUtils.GraphingButton(text="Drift", parent=self)
-        self.drift_button.clicked.connect(
-            lambda: self.self_plot(self.get_drift, self.drift_button)
-        )
+        self.drift_button.clicked.connect(lambda: self.self_plot(self.get_drift, self.drift_button))
         self.drift_layout.addWidget(self.drift_button, alignment=Qt.AlignTop)
 
         self.button_layout.addWidget(self.drift)
         self.drift_layout.addStretch(1)
 
         self.layout.addWidget(self.graphing_buttons)
-        
+
         # Add filtering widget below the graphs
         # Use all_particles.csv to match particle detection window
         self.filtering_widget = DWLWFilteringWidget(source_data_file="all_particles.csv")
-        self.filtering_widget.filteredParticlesUpdated.connect(self.filteredTrajectoriesUpdated.emit)
+        self.filtering_widget.filteredParticlesUpdated.connect(
+            self.filteredTrajectoriesUpdated.emit
+        )
         self.layout.addWidget(self.filtering_widget)
-        
+
         # Add stretch below the buttons
         self.layout.addStretch(1)
 
@@ -97,13 +92,13 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
     def set_file_controller(self, file_controller):
         """Override to also set file controller for filtering widget."""
         super().set_file_controller(file_controller)
-        if hasattr(self, 'filtering_widget'):
+        if hasattr(self, "filtering_widget"):
             self.filtering_widget.set_file_controller(file_controller)
-            if file_controller and hasattr(file_controller, 'project_path'):
+            if file_controller and hasattr(file_controller, "project_path"):
                 self.filtering_widget.project_path = file_controller.project_path
         # Load particle data when file controller is set (to match particle detection window)
         self.load_particle_data()
-    
+
     def load_particle_data(self):
         """Load particle data from file controller if available."""
         if self.file_controller:
@@ -115,15 +110,11 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
     def get_drift(self, page=None):
         """Creates a plot of all particles drift"""
         try:
-            import trackpy as tp
-            import cv2
-            import pandas as pd
-
             self.check_for_empty_data()
 
             # Create the plot
             scaling = self.config_manager.get_detection_params().get("scaling", 1.0)
-            drift = tp.compute_drift(self.data, smoothing=15)*scaling
+            drift = tp.compute_drift(self.data, smoothing=15) * scaling
             ax = drift.plot()
 
             ax.set_xlabel("Frame")
@@ -141,10 +132,6 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
     def get_trajectories(self, page=None):
         """Creates a plot of all particle trajectories."""
         try:
-            import trackpy as tp
-            import cv2
-            import pandas as pd
-
             self.check_for_empty_data()
 
             params = self.config_manager.get_detection_params()
@@ -152,7 +139,7 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
 
             # Create the plot
             fig, ax = plt.subplots()
-            tp.plot_traj(self.data, mpp = scaling, ax=ax)
+            tp.plot_traj(self.data, mpp=scaling, ax=ax)
 
             ax.set_xlabel("X [microns per px]")
             ax.set_ylabel("Y [microns per px]")

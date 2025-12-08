@@ -11,7 +11,7 @@ from PySide6.QtGui import QFont
 def create_label_with_info(label_text, tooltip_text, add_stretch=True):
     """
     Create a label widget with an info icon and tooltip.
-    
+
     Parameters
     ----------
     label_text : str
@@ -20,7 +20,7 @@ def create_label_with_info(label_text, tooltip_text, add_stretch=True):
         The tooltip text for the info icon
     add_stretch : bool, optional
         Whether to add a stretch at the end (default: True)
-        
+
     Returns
     -------
     QWidget
@@ -42,4 +42,3 @@ def create_label_with_info(label_text, tooltip_text, add_stretch=True):
     if add_stretch:
         label_layout.addStretch()
     return label_widget
-
