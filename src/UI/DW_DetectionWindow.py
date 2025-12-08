@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QGroupBox,
     QPushButton,
+    QApplication,
 )
 from PySide6 import QtWidgets
 
@@ -124,6 +125,14 @@ class DWDetectionWindow(QMainWindow):
         self.right_panel = DWParametersWidget(self.left_panel)
         right_panel_layout.addWidget(self.right_panel)
         
+        # Add Undo button to the same row as "All frames" and "Find Particles"
+        self.undo_button = QPushButton("Undo")
+        self.undo_button.setToolTip("Restore previous particle analysis state")
+        self.undo_button.clicked.connect(self.undo_last_state)
+        # Add to the buttons row layout in the parameters widget
+        if hasattr(self.right_panel, 'buttons_row_layout'):
+            self.right_panel.buttons_row_layout.addWidget(self.undo_button)
+        
         # Parameters info box (shows parameters used for current results)
         self.parameters_info_widget = self._create_parameters_info_widget()
         right_panel_layout.addWidget(self.parameters_info_widget)
@@ -132,13 +141,7 @@ class DWDetectionWindow(QMainWindow):
         self.metadata_widget = self._create_metadata_widget()
         right_panel_layout.addWidget(self.metadata_widget)
         
-        # Undo button
-        self.undo_button = QPushButton("Undo")
-        self.undo_button.setToolTip("Restore previous particle analysis state")
-        self.undo_button.clicked.connect(self.undo_last_state)
-        right_panel_layout.addWidget(self.undo_button, alignment=Qt.AlignRight)
-        
-        # Next button below metadata
+        # Next button at bottom corner
         right_panel_layout.addStretch()
         right_panel_layout.addWidget(self.right_panel.next_button, alignment=Qt.AlignRight)
         
@@ -198,6 +201,79 @@ class DWDetectionWindow(QMainWindow):
         self.update_undo_button_state()
 
 
+    def refresh_detection_ui(self, particles_df, config_manager=None, frame_range=None, block_signals=False):
+        """
+        Centralized function to refresh all UI elements after loading new particle data.
+        
+        This is used by:
+        - Undo functionality (load_spreadsheet_and_config)
+        - Find Particles (on_find_finished)
+        - Filter application (when filters change)
+        
+        Parameters
+        ----------
+        particles_df : pd.DataFrame
+            The particle data to display
+        config_manager : ConfigManager, optional
+            Config manager to use. If None, uses existing config_manager.
+        frame_range : dict, optional
+            Dictionary with 'start_frame', 'end_frame', 'step_frame' keys
+        block_signals : bool, default False
+            If True, blocks parameter input widget signals to prevent saving config
+        """
+        # Block signals if requested (for undo scenarios)
+        if block_signals and hasattr(self, 'right_panel'):
+            right_panel = self.right_panel
+            right_panel.feature_size_input.blockSignals(True)
+            right_panel.min_mass_input.blockSignals(True)
+            right_panel.threshold_input.blockSignals(True)
+            right_panel.invert_input.blockSignals(True)
+        
+        try:
+            # Update config manager if provided
+            if config_manager:
+                self.set_config_manager(config_manager)
+                QApplication.processEvents()
+            
+            # Update frame range inputs if provided
+            if frame_range and hasattr(self, 'right_panel'):
+                self.right_panel.start_frame_input.setValue(frame_range["start_frame"])
+                self.right_panel.end_frame_input.setValue(frame_range["end_frame"])
+                self.right_panel.step_frame_input.setValue(frame_range["step_frame"])
+            
+            # 1. Set particles on the graphing panel (this loads the data)
+            if hasattr(self, 'right_panel') and hasattr(self.right_panel, 'graphing_panel'):
+                self.right_panel.graphing_panel.set_particles(particles_df)
+            
+            # 2. Emit allParticlesUpdated signal
+            if hasattr(self, 'right_panel') and hasattr(self.right_panel, 'allParticlesUpdated'):
+                self.right_panel.allParticlesUpdated.emit()
+            
+            # 3. Update frame info
+            if hasattr(self, 'right_panel') and hasattr(self.right_panel, '_update_frame_info'):
+                self.right_panel._update_frame_info()
+            
+            # 4. Apply filters and notify - this triggers filteredParticlesUpdated signal
+            # which is connected to regenerate_errant_particles() in DW_DetectionWindow
+            if hasattr(self, 'right_panel') and hasattr(self.right_panel, 'graphing_panel'):
+                if hasattr(self.right_panel.graphing_panel, 'filtering_widget'):
+                    self.right_panel.graphing_panel.filtering_widget.apply_filters_and_notify()
+            
+            # 5. Update parameters info display
+            self._update_parameters_info()
+            
+            # 6. Update metadata display LAST, after everything else is done
+            self._update_metadata_display()
+            
+        finally:
+            # Re-enable signals if they were blocked
+            if block_signals and hasattr(self, 'right_panel'):
+                right_panel = self.right_panel
+                right_panel.feature_size_input.blockSignals(False)
+                right_panel.min_mass_input.blockSignals(False)
+                right_panel.threshold_input.blockSignals(False)
+                right_panel.invert_input.blockSignals(False)
+
     def load_particle_data(self):
         if not self.file_controller:
             return
@@ -227,9 +303,8 @@ class DWDetectionWindow(QMainWindow):
                 particle_data = pd.read_csv(all_particles_path)
                 # Only apply filters if there's actual particle data
                 if not particle_data.empty:
-                    self.left_panel.filtering_widget.apply_filters_and_notify()
-                    # Update parameters info if particles exist
-                    self._update_parameters_info()
+                    # Use centralized refresh function
+                    self.refresh_detection_ui(particle_data)
             except (pd.errors.EmptyDataError, Exception):
                 # File exists but is empty or invalid, don't apply filters
                 pass
@@ -296,14 +371,14 @@ class DWDetectionWindow(QMainWindow):
         layout.setSpacing(5)
         
         # Title
-        title_label = QLabel("Detection Parameters Used")
+        title_label = QLabel("Parameters")
         title_font = title_label.font()
         title_font.setBold(True)
         title_label.setFont(title_font)
         layout.addWidget(title_label)
         
-        # Parameters display in a group box with title
-        parameters_group = QGroupBox("Parameters")
+        # Parameters display in a group box (no title to avoid redundancy)
+        parameters_group = QGroupBox()
         parameters_layout = QVBoxLayout(parameters_group)
         
         self.parameters_info_label = QLabel("No particles detected yet")

@@ -313,59 +313,14 @@ class ParticleTrackingAppController(QMainWindow):
             # 4. Update all UI widgets - following the exact same flow as "Find Particles" button
             # Update detection window if it exists
             if self.dw_detection_window:
-                # CRITICAL: Block parameter input widget signals to prevent them from saving
-                # and overwriting the restored config before errant particles are regenerated
-                right_panel = self.dw_detection_window.right_panel
-                # Block all signals from parameter input widgets
-                right_panel.feature_size_input.blockSignals(True)
-                right_panel.min_mass_input.blockSignals(True)
-                right_panel.threshold_input.blockSignals(True)
-                right_panel.invert_input.blockSignals(True)
-                
-                try:
-                    # Update config manager (this will trigger load_params in the widget)
-                    # This ensures all widgets have the fresh config reference
-                    self.dw_detection_window.set_config_manager(self.project_config)
-                    
-                    # Process events to ensure update propagates
-                    QApplication.processEvents()
-                    
-                    # Update frame range inputs
-                    if frame_range:
-                        self.dw_detection_window.right_panel.start_frame_input.setValue(frame_range["start_frame"])
-                        self.dw_detection_window.right_panel.end_frame_input.setValue(frame_range["end_frame"])
-                        self.dw_detection_window.right_panel.step_frame_input.setValue(frame_range["step_frame"])
-                    
-                    # Follow the exact same flow as on_find_finished() in DW_ParametersWidget
-                    # 1. Set particles on the graphing panel (this loads the data)
-                    self.dw_detection_window.right_panel.graphing_panel.set_particles(particles_df)
-                    
-                    # 2. Emit allParticlesUpdated signal (same as Find Particles does)
-                    self.dw_detection_window.right_panel.allParticlesUpdated.emit()
-                    
-                    # 3. Update frame info (same as Find Particles does)
-                    self.dw_detection_window.right_panel._update_frame_info()
-                    
-                    # 4. Apply filters and notify - this triggers filteredParticlesUpdated signal
-                    # which is connected to regenerate_errant_particles() in DW_DetectionWindow
-                    # This is the EXACT same code path as Find Particles uses
-                    # The errant particles will be regenerated with the restored config values
-                    # because the config_manager has the restored config and signals are blocked
-                    self.dw_detection_window.right_panel.graphing_panel.filtering_widget.apply_filters_and_notify()
-                    
-                    # Update parameters info display
-                    self.dw_detection_window._update_parameters_info()
-                    
-                    # Update metadata display LAST, after everything else is done
-                    # This ensures the config_manager has the latest values from the restored config
-                    self.dw_detection_window._update_metadata_display()
-                    
-                finally:
-                    # Re-enable signals on parameter input widgets after regeneration is complete
-                    right_panel.feature_size_input.blockSignals(False)
-                    right_panel.min_mass_input.blockSignals(False)
-                    right_panel.threshold_input.blockSignals(False)
-                    right_panel.invert_input.blockSignals(False)
+                # Use centralized refresh function to update all UI elements
+                # block_signals=True prevents parameter widgets from overwriting the restored config
+                self.dw_detection_window.refresh_detection_ui(
+                    particles_df=particles_df,
+                    config_manager=self.project_config,
+                    frame_range=frame_range,
+                    block_signals=True
+                )
             
             # Update linking window if it exists
             if self.lw_linking_window:
