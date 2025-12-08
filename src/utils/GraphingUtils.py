@@ -35,8 +35,7 @@ matplotlib.rc('figure', titlesize=26)
 class GraphingButton(QPushButton):
     """Button for graphing controls with highlight state management."""
 
-    highlighted_button = None  # Keeps track of which button is currently blue
-    highlight_style = "color: #1f77b4;"
+    highlighted_button = None  # Keeps track of which button is currently highlighted
 
     def __init__(self, text, parent=None):
         """Initialize graphing button.
@@ -48,24 +47,21 @@ class GraphingButton(QPushButton):
         parent : QWidget, optional
             Parent widget
         """
-        super(GraphingButton, self).__init__()
-        self.setText(text)
-        palette = self.palette()
-        self.default_text_color = palette.color(QPalette.Normal, QPalette.ButtonText)
+        super(GraphingButton, self).__init__(text, parent)
+        # Use native button styling - no custom stylesheets
 
     def switch_button_color(self):
-        """Track which button is highlighted (styling removed, keeping logic)."""
+        """Track which button is highlighted (using native button states)."""
         
         if self.highlighted_button != None:
-            # Change the previously highlighted button back to its original color
-            # Use the captured default color
+            # Reset previous button to normal state
             prev_button = self.highlighted_button
-            prev_button.setStyleSheet(f"color: {prev_button.default_text_color};")
-            # Note: You need to set the default color on the un-highlighted button too.
+            prev_button.setDown(False)
+            prev_button.setChecked(False)
 
-        # Updates the button that is highlighted and makes it blue
+        # Updates the button that is highlighted - use native checked state
         GraphingButton.highlighted_button = self
-        self.setStyleSheet(GraphingButton.highlight_style)
+        self.setChecked(True)
 
 
 class GraphingPanelWidget(QWidget):
