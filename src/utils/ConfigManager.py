@@ -223,3 +223,34 @@ class ConfigManager:
             "movie_taken_date": self.get("Metadata", "movie_taken_date", ""),
             "movie_filename": self.get("Metadata", "movie_filename", ""),
         }
+    
+    def load_from_file(self, config_file_path: str):
+        """
+        Load configuration from an external config file, replacing current config.
+        
+        Parameters
+        ----------
+        config_file_path : str
+            Path to the config file to load
+        """
+        if os.path.exists(config_file_path):
+            self.config.read(config_file_path)
+            # Update config_path to the new file
+            self.config_path = config_file_path
+        else:
+            raise FileNotFoundError(f"Config file not found: {config_file_path}")
+    
+    def get_frame_range(self) -> Dict[str, int]:
+        """Get frame range parameters as a dictionary."""
+        return {
+            "start_frame": int(self.get("Detection", "start_frame", 1)),
+            "end_frame": int(self.get("Detection", "end_frame", 1)),
+            "step_frame": int(self.get("Detection", "step_frame", 1)),
+        }
+    
+    def save_frame_range(self, start_frame: int, end_frame: int, step_frame: int):
+        """Save frame range parameters."""
+        self.set("Detection", "start_frame", str(start_frame))
+        self.set("Detection", "end_frame", str(end_frame))
+        self.set("Detection", "step_frame", str(step_frame))
+        self.save()
