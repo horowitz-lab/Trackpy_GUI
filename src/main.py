@@ -40,10 +40,6 @@ class ParticleTrackingAppController(QMainWindow):
         self.dw_detection_window = None
         self.lw_linking_window = None
 
-        # Initialize window sizes
-        self.win_width = None
-        self.win_height = None
-
         # Create stacked widget for different screens
         self.stacked_widget = QStackedWidget()
         self.setCentralWidget(self.stacked_widget)
@@ -254,7 +250,7 @@ class ParticleTrackingAppController(QMainWindow):
             return False
         
         try:
-            # 1. Load and save the spreadsheet
+            # 1. Load and save the spreadsheet using FileController
             if not os.path.exists(spreadsheet_path):
                 QMessageBox.warning(
                     self,
@@ -263,7 +259,17 @@ class ParticleTrackingAppController(QMainWindow):
                 )
                 return False
             
-            particles_df = pd.read_csv(spreadsheet_path)
+            # Load particles data from external path using FileController
+            particles_df = self.file_controller.load_particles_data_from_path(spreadsheet_path)
+            if particles_df.empty:
+                QMessageBox.warning(
+                    self,
+                    "Empty File",
+                    "The spreadsheet file is empty or could not be loaded."
+                )
+                return False
+            
+            # Save using FileController
             self.file_controller.save_particles_data(particles_df)
             
             # 2. Load and replace the config file FIRST
@@ -359,26 +365,29 @@ class ParticleTrackingAppController(QMainWindow):
             return False
         
         try:
-            # Create save folder in data folder
-            save_folder = os.path.join(self.file_controller.data_folder, "save")
-            os.makedirs(save_folder, exist_ok=True)
-            
-            # Save all_particles.csv
+            # Save all_particles.csv to save folder using FileController
             all_particles_path = self.file_controller.get_data_file_path("all_particles.csv")
-            save_particles_path = os.path.join(save_folder, "all_particles.csv")
             if os.path.exists(all_particles_path):
-                shutil.copy2(all_particles_path, save_particles_path)
+                # Load and save to save folder
+                particles_df = self.file_controller.load_particles_data("all_particles.csv")
+                self.file_controller.save_to_save_folder(particles_df, "all_particles.csv")
             else:
                 # Save empty DataFrame if file doesn't exist
-                pd.DataFrame().to_csv(save_particles_path, index=False)
+                self.file_controller.save_to_save_folder(pd.DataFrame(), "all_particles.csv")
             
-            # Save config.ini - include current frame range if detection window exists
-            save_config_path = os.path.join(save_folder, "config.ini")
+            # Save config.ini to save folder - include current frame range if detection window exists
+            save_config_path = os.path.join(self.file_controller.data_folder, "save", "config.ini")
             if self.project_config.config_path:
-                # Copy the current config file
-                shutil.copy2(self.project_config.config_path, save_config_path)
+                # Copy the current config file using FileController
+                self.file_controller.copy_file_to_save_folder(
+                    self.project_config.config_path, "config.ini"
+                )
+                save_config_path = os.path.join(self.file_controller.data_folder, "save", "config.ini")
             else:
                 # Save current config state
+                save_folder = os.path.join(self.file_controller.data_folder, "save")
+                os.makedirs(save_folder, exist_ok=True)
+                save_config_path = os.path.join(save_folder, "config.ini")
                 self.project_config.save(save_config_path)
             
             # Update saved config with current frame range from UI if available
@@ -411,9 +420,9 @@ class ParticleTrackingAppController(QMainWindow):
         if not self.project_config or not self.file_controller:
             return False
         
-        save_folder = os.path.join(self.file_controller.data_folder, "save")
-        save_particles_path = os.path.join(save_folder, "all_particles.csv")
-        save_config_path = os.path.join(save_folder, "config.ini")
+        # Use FileController to get save folder paths
+        save_particles_path = os.path.join(self.file_controller.data_folder, "save", "all_particles.csv")
+        save_config_path = os.path.join(self.file_controller.data_folder, "save", "config.ini")
         
         # Check if save exists
         if not os.path.exists(save_particles_path) or not os.path.exists(save_config_path):
@@ -434,9 +443,9 @@ class ParticleTrackingAppController(QMainWindow):
         if not self.file_controller:
             return False
         
-        save_folder = os.path.join(self.file_controller.data_folder, "save")
-        save_particles_path = os.path.join(save_folder, "all_particles.csv")
-        save_config_path = os.path.join(save_folder, "config.ini")
+        # Use FileController to check save folder paths
+        save_particles_path = os.path.join(self.file_controller.data_folder, "save", "all_particles.csv")
+        save_config_path = os.path.join(self.file_controller.data_folder, "save", "config.ini")
         
         return os.path.exists(save_particles_path) and os.path.exists(save_config_path)
     

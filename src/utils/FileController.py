@@ -65,6 +65,22 @@ class FileController:
         """Ensure a folder exists, create it if it doesn't."""
         os.makedirs(folder_path, exist_ok=True)
 
+    def _delete_file_if_exists(self, file_path: str) -> None:
+        """
+        Delete a file if it exists to ensure clean overwrite.
+        
+        Parameters
+        ----------
+        file_path : str
+            Path to the file to delete
+        """
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                print(f"Deleted existing file: {file_path}")
+            except Exception as e:
+                print(f"Warning: Could not delete existing file {file_path}: {e}")
+
     def delete_all_files_in_folder(self, folder_path: str) -> None:
         """Delete all files in a folder, keeping the folder structure."""
         if not os.path.exists(folder_path):
@@ -158,6 +174,8 @@ class FileController:
         """Save particles data to the data folder."""
         self.ensure_folder_exists(self.data_folder)
         file_path = os.path.join(self.data_folder, filename)
+        # Delete existing file to ensure clean overwrite
+        self._delete_file_if_exists(file_path)
         particles_df.to_csv(file_path, index=False)
         print(f"Saved particles data to: {file_path}")
         return file_path
@@ -168,6 +186,8 @@ class FileController:
         """Save trajectories data to the data folder."""
         self.ensure_folder_exists(self.data_folder)
         file_path = os.path.join(self.data_folder, filename)
+        # Delete existing file to ensure clean overwrite
+        self._delete_file_if_exists(file_path)
         trajectories_df.to_csv(file_path, index=False)
         print(f"Saved trajectories data to: {file_path}")
         return file_path
@@ -197,6 +217,156 @@ class FileController:
     def get_data_file_path(self, filename: str) -> str:
         """Get the full path to a file in the data folder."""
         return os.path.join(self.data_folder, filename)
+
+    def backup_particles_data(self, backup_filename: str = "old_all_particles.csv") -> bool:
+        """
+        Create a backup of the current particles data.
+        
+        Parameters
+        ----------
+        backup_filename : str, optional
+            Name of the backup file. Defaults to "old_all_particles.csv".
+            
+        Returns
+        -------
+        bool
+            True if backup was created successfully, False otherwise
+        """
+        try:
+            all_particles_path = self.get_data_file_path("all_particles.csv")
+            backup_path = self.get_data_file_path(backup_filename)
+            
+            if os.path.exists(all_particles_path):
+                shutil.copyfile(all_particles_path, backup_path)
+                print(f"Backed up particles data to: {backup_path}")
+                return True
+            return False
+        except Exception as e:
+            print(f"Error backing up particles data: {e}")
+            return False
+
+    def load_particles_data_from_path(self, external_path: str) -> pd.DataFrame:
+        """
+        Load particles data from an external file path (outside data folder).
+        
+        Parameters
+        ----------
+        external_path : str
+            Full path to the CSV file to load
+            
+        Returns
+        -------
+        pd.DataFrame
+            Loaded particles data, or empty DataFrame if file doesn't exist
+        """
+        if os.path.exists(external_path):
+            try:
+                return pd.read_csv(external_path)
+            except Exception as e:
+                print(f"Error loading particles data from {external_path}: {e}")
+                return pd.DataFrame()
+        else:
+            print(f"Particles file not found: {external_path}")
+            return pd.DataFrame()
+
+    def save_to_save_folder(self, data: pd.DataFrame, filename: str) -> str:
+        """
+        Save data to the save folder (used for undo functionality).
+        
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Data to save
+        filename : str
+            Name of the file to save
+            
+        Returns
+        -------
+        str
+            Path to the saved file
+        """
+        save_folder = os.path.join(self.data_folder, "save")
+        self.ensure_folder_exists(save_folder)
+        save_path = os.path.join(save_folder, filename)
+        # Delete existing file to ensure clean overwrite
+        self._delete_file_if_exists(save_path)
+        data.to_csv(save_path, index=False)
+        print(f"Saved to save folder: {save_path}")
+        return save_path
+
+    def load_from_save_folder(self, filename: str) -> pd.DataFrame:
+        """
+        Load data from the save folder (used for undo functionality).
+        
+        Parameters
+        ----------
+        filename : str
+            Name of the file to load
+            
+        Returns
+        -------
+        pd.DataFrame
+            Loaded data, or empty DataFrame if file doesn't exist
+        """
+        save_folder = os.path.join(self.data_folder, "save")
+        save_path = os.path.join(save_folder, filename)
+        if os.path.exists(save_path):
+            try:
+                return pd.read_csv(save_path)
+            except Exception as e:
+                print(f"Error loading from save folder {save_path}: {e}")
+                return pd.DataFrame()
+        else:
+            return pd.DataFrame()
+
+    def save_filtered_particles_data(
+        self, filtered_df: pd.DataFrame, filename: str = "filtered_particles.csv"
+    ) -> str:
+        """
+        Save filtered particles data to the data folder.
+        
+        Parameters
+        ----------
+        filtered_df : pd.DataFrame
+            Filtered particles data
+        filename : str, optional
+            Name of the file. Defaults to "filtered_particles.csv".
+            
+        Returns
+        -------
+        str
+            Path to the saved file
+        """
+        # save_particles_data already handles deletion, so just call it
+        return self.save_particles_data(filtered_df, filename)
+
+    def copy_file_to_save_folder(self, source_path: str, filename: str) -> str:
+        """
+        Copy a file to the save folder (used for undo functionality).
+        
+        Parameters
+        ----------
+        source_path : str
+            Path to the source file
+        filename : str
+            Name to use in the save folder
+            
+        Returns
+        -------
+        str
+            Path to the copied file
+        """
+        save_folder = os.path.join(self.data_folder, "save")
+        self.ensure_folder_exists(save_folder)
+        dest_path = os.path.join(save_folder, filename)
+        if os.path.exists(source_path):
+            # Delete existing file to ensure clean overwrite
+            self._delete_file_if_exists(dest_path)
+            shutil.copy2(source_path, dest_path)
+            print(f"Copied to save folder: {dest_path}")
+            return dest_path
+        else:
+            raise FileNotFoundError(f"Source file not found: {source_path}")
 
     def create_errant_distance_links_folder(self) -> str:
         """Create and return the errant distance links folder path."""

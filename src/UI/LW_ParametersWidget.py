@@ -182,10 +182,13 @@ class LWParametersWidget(QWidget):
         linking_params = self.config_manager.get_linking_params()
         data_folder = self.file_controller.data_folder
 
+        # Use FileController to get file paths
         all_particles_file = self.file_controller.get_data_file_path("all_particles.csv")
         filtered_particles_file = self.file_controller.get_data_file_path("filtered_particles.csv")
 
-        if not os.path.exists(filtered_particles_file):
+        # Check if filtered particles file exists using FileController
+        filtered_particles_df = self.file_controller.load_particles_data("filtered_particles.csv")
+        if filtered_particles_df.empty:
             print(f"Filtered particles file not found: {filtered_particles_file}")
             print("Please run 'Find Particles' and 'Apply Filters' first.")
             return
@@ -207,30 +210,29 @@ class LWParametersWidget(QWidget):
 
             # --- Process ALL_PARTICLES.CSV for unfiltered trajectory visualization ---
             trajectories_all = None
-            if os.path.exists(all_particles_file):
-                all_particles_df = pd.read_csv(all_particles_file)
-                if not all_particles_df.empty:
-                    print("Linking ALL particles for unfiltered visualization...")
-                    self.progress_label.setText("Working... Linking all particles...")
-                    QApplication.processEvents()
-                    trajectories_all = tp.link_df(all_particles_df, search_range=search_range, memory=memory)
-                    
-                    self.progress_label.setText("Working... Filtering trajectories...")
-                    QApplication.processEvents()
-                    trajectories_all = tp.filter_stubs(trajectories_all, min_trajectory_length)
-                    if self.sub_drift.isChecked():
-                        trajectories_all = self.calc_drift(trajectories_all)
-                    print(f"Created {trajectories_all['particle'].nunique()} unfiltered trajectories for visualization")
-                else:
-                    print("No data in all_particles.csv for unfiltered trajectory generation.")
+            # Use FileController to load all particles data
+            all_particles_df = self.file_controller.load_particles_data("all_particles.csv")
+            if not all_particles_df.empty:
+                print("Linking ALL particles for unfiltered visualization...")
+                self.progress_label.setText("Working... Linking all particles...")
+                QApplication.processEvents()
+                trajectories_all = tp.link_df(all_particles_df, search_range=search_range, memory=memory)
+                
+                self.progress_label.setText("Working... Filtering trajectories...")
+                QApplication.processEvents()
+                trajectories_all = tp.filter_stubs(trajectories_all, min_trajectory_length)
+                if self.sub_drift.isChecked():
+                    trajectories_all = self.calc_drift(trajectories_all)
+                print(f"Created {trajectories_all['particle'].nunique()} unfiltered trajectories for visualization")
             else:
-                print("all_particles.csv not found, skipping unfiltered trajectory generation.")
+                print("No data in all_particles.csv for unfiltered trajectory generation.")
 
             # --- Process FILTERED_PARTICLES.CSV for filtered trajectories ---
             print("Loading FILTERED particles for trajectory linking...")
             self.progress_label.setText("Working... Loading filtered particles...")
             QApplication.processEvents()
-            filtered_particles_df = pd.read_csv(filtered_particles_file)
+            # Use FileController to load filtered particles (already loaded above, but reload for clarity)
+            filtered_particles_df = self.file_controller.load_particles_data("filtered_particles.csv")
             print(f"Loaded {len(filtered_particles_df)} filtered particles.")
 
             print(f"Linking filtered particles with search_range={search_range}, memory={memory}")
@@ -298,11 +300,19 @@ class LWParametersWidget(QWidget):
             import matplotlib.pyplot as plt
             import numpy as np
 
-            # Get image dimensions from first frame
+            # Get image dimensions from first frame using FileController
             if self.file_controller:
                 original_frames_folder = (
                     self.file_controller.original_frames_folder
                 )
+                # Use FileController to get frame files
+                frame_files = self.file_controller.get_all_frame_paths()
+                # Filter to just image files and get first one
+                frame_files = [f for f in frame_files if f.lower().endswith(
+                    (".jpg", ".jpeg", ".png", ".tif", ".tiff")
+                )]
+                if frame_files:
+                    frame_files = [frame_files[0]]  # Just need first frame for dimensions
             else:
                 if self.config_manager:
                     original_frames_folder = self.config_manager.get_path(
@@ -310,16 +320,16 @@ class LWParametersWidget(QWidget):
                     )
                 else:
                     original_frames_folder = "original_frames/"
-
-            frame_files = []
-            for filename in sorted(os.listdir(original_frames_folder)):
-                if filename.lower().endswith(
-                    (".jpg", ".jpeg", ".png", ".tif", ".tiff")
-                ):
-                    frame_files.append(
-                        os.path.join(original_frames_folder, filename)
-                    )
-                    break  # Just need first frame for dimensions
+                # Fallback to os.listdir if no file_controller
+                frame_files = []
+                for filename in sorted(os.listdir(original_frames_folder)):
+                    if filename.lower().endswith(
+                        (".jpg", ".jpeg", ".png", ".tif", ".tiff")
+                    ):
+                        frame_files.append(
+                            os.path.join(original_frames_folder, filename)
+                        )
+                        break  # Just need first frame for dimensions
 
             if frame_files:
                 import cv2
@@ -384,10 +394,15 @@ class LWParametersWidget(QWidget):
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
 
-            # Save the visualization
-            trajectory_image_path = os.path.join(
-                output_folder, "trajectory_visualization.png"
-            )
+            # Save the visualization using FileController if available
+            if self.file_controller:
+                trajectory_image_path = os.path.join(
+                    self.file_controller.data_folder, "trajectory_visualization.png"
+                )
+            else:
+                trajectory_image_path = os.path.join(
+                    output_folder, "trajectory_visualization.png"
+                )
             plt.savefig(
                 trajectory_image_path,
                 dpi=150,
@@ -436,10 +451,11 @@ class LWParametersWidget(QWidget):
                 print(f"   Frames folder: {original_frames_folder}")
                 print(f"   RB gallery folder: {errant_distance_links_folder}")
 
-            # Verify trajectories file exists
-            if not os.path.exists(trajectories_file):
+            # Verify trajectories file exists using FileController
+            trajectories_df = self.file_controller.load_trajectories_data("trajectories.csv")
+            if trajectories_df.empty:
                 print(
-                    f"❌ ERROR: Trajectories file does not exist: {trajectories_file}"
+                    f"❌ ERROR: Trajectories file does not exist or is empty: {trajectories_file}"
                 )
                 return
 

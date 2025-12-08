@@ -20,8 +20,6 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt, Signal, QThread, QTimer
 import pandas as pd
-import os
-import shutil
 from ..utils import ParticleProcessing
 from ..utils.UIUtils import create_label_with_info
 
@@ -340,15 +338,12 @@ class DWParametersWidget(QWidget):
         QTimer.singleShot(2000, lambda: self.progress_display.setText(""))
 
     def _backup_and_clear_particles_data(self):
-        """Backs up all_particles.csv and then clears it."""
-        all_particles_path = self.file_controller.get_data_file_path("all_particles.csv")
-        old_all_particles_path = self.file_controller.get_data_file_path("old_all_particles.csv")
-
-        if os.path.exists(all_particles_path):
-            shutil.copyfile(all_particles_path, old_all_particles_path)
-
-        # Clear all_particles.csv by writing an empty DataFrame
-        pd.DataFrame().to_csv(all_particles_path, index=False)
+        """Backs up all_particles.csv and then clears it using FileController."""
+        # Use FileController to backup particles data
+        self.file_controller.backup_particles_data("old_all_particles.csv")
+        
+        # Clear all_particles.csv by saving an empty DataFrame using FileController
+        self.file_controller.save_particles_data(pd.DataFrame(), "all_particles.csv")
 
     def _save_all_particles_df(self, df):
         self.file_controller.save_particles_data(df)
@@ -360,40 +355,39 @@ class DWParametersWidget(QWidget):
             self.frame_info_label.setText("")
             return
         
-        all_particles_path = self.file_controller.get_data_file_path("all_particles.csv")
-        if os.path.exists(all_particles_path):
-            try:
-                particle_data = pd.read_csv(all_particles_path)
-                if not particle_data.empty and "frame" in particle_data.columns:
-                    frames = sorted(particle_data["frame"].unique())
-                    if len(frames) > 0:
-                        # Convert to 1-indexed
-                        frames_1indexed = [f + 1 for f in frames]
-                        total_frames_processed = len(frames_1indexed)
-                        min_frame = frames_1indexed[0]
-                        max_frame = frames_1indexed[-1]
-                        total_particles = len(particle_data)
-                        
-                        # Format frame range
-                        if len(frames_1indexed) == 1:
-                            frame_range_text = f"Frame {min_frame}"
-                        elif max_frame - min_frame == len(frames_1indexed) - 1:
-                            # Consecutive frames
-                            frame_range_text = f"Frames {min_frame}-{max_frame}"
-                        else:
-                            # Non-consecutive frames
-                            frame_range_text = f"Frames {min_frame}-{max_frame} (non-consecutive)"
-                        
-                        # Create comprehensive info text
-                        frame_text = (
-                            f"Frames processed: {total_frames_processed} | "
-                            f"Range: {frame_range_text} | "
-                            f"Total particles: {total_particles}"
-                        )
-                        self.frame_info_label.setText(frame_text)
-                        return
-            except Exception as e:
-                print(f"Error reading frame info from particles: {e}")
+        # Use FileController to load particles data
+        try:
+            particle_data = self.file_controller.load_particles_data("all_particles.csv")
+            if not particle_data.empty and "frame" in particle_data.columns:
+                frames = sorted(particle_data["frame"].unique())
+                if len(frames) > 0:
+                    # Convert to 1-indexed
+                    frames_1indexed = [f + 1 for f in frames]
+                    total_frames_processed = len(frames_1indexed)
+                    min_frame = frames_1indexed[0]
+                    max_frame = frames_1indexed[-1]
+                    total_particles = len(particle_data)
+                    
+                    # Format frame range
+                    if len(frames_1indexed) == 1:
+                        frame_range_text = f"Frame {min_frame}"
+                    elif max_frame - min_frame == len(frames_1indexed) - 1:
+                        # Consecutive frames
+                        frame_range_text = f"Frames {min_frame}-{max_frame}"
+                    else:
+                        # Non-consecutive frames
+                        frame_range_text = f"Frames {min_frame}-{max_frame} (non-consecutive)"
+                    
+                    # Create comprehensive info text
+                    frame_text = (
+                        f"Frames processed: {total_frames_processed} | "
+                        f"Range: {frame_range_text} | "
+                        f"Total particles: {total_particles}"
+                    )
+                    self.frame_info_label.setText(frame_text)
+                    return
+        except Exception as e:
+            print(f"Error reading frame info from particles: {e}")
         
         # No particles detected yet
         self.frame_info_label.setText("")

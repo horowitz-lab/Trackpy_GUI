@@ -561,8 +561,11 @@ class DWLWFilteringWidget(QWidget):
         else:
             filtered_data = apply_filters(data, self.filters, self.compound_filters)
         
-        output_path = os.path.join(self.file_controller.data_folder, output_filename)
-        filtered_data.to_csv(output_path, index=False)
+        # Use FileController to save filtered data
+        if self.source_data_file == "trajectories.csv":
+            output_path = self.file_controller.save_trajectories_data(filtered_data, output_filename)
+        else:
+            output_path = self.file_controller.save_filtered_particles_data(filtered_data, output_filename)
         
         original_count = len(data) if not data.empty else 0
         print(f"Saved filtered data to: {output_path}")

@@ -294,18 +294,16 @@ class DWDetectionWindow(QMainWindow):
         self.left_panel.blank_plot()
         
         # Only apply filters if particle data actually exists
-        # Check if all_particles.csv exists and has data before applying filters
-        all_particles_path = self.file_controller.get_data_file_path("all_particles.csv")
-        if os.path.exists(all_particles_path):
-            try:
-                particle_data = pd.read_csv(all_particles_path)
-                # Only apply filters if there's actual particle data
-                if not particle_data.empty:
-                    # Use centralized refresh function
-                    self.refresh_detection_ui(particle_data)
-            except (pd.errors.EmptyDataError, Exception):
-                # File exists but is empty or invalid, don't apply filters
-                pass
+        # Use FileController to load particles data
+        try:
+            particle_data = self.file_controller.load_particles_data("all_particles.csv")
+            # Only apply filters if there's actual particle data
+            if not particle_data.empty:
+                # Use centralized refresh function
+                self.refresh_detection_ui(particle_data)
+        except Exception:
+            # File exists but is empty or invalid, don't apply filters
+            pass
 
     def clear_processed_data(self):
         print(

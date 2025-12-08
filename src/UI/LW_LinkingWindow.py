@@ -203,15 +203,23 @@ class LWLinkingWindow(QMainWindow):
         }
 
         for name, filename in data_sources.items():
-            source_path = os.path.join(
-                self.file_controller.data_folder, filename
-            )
-            if not os.path.exists(source_path):
-                print(f"Source file not found, skipping: {filename}")
-                continue
-
+            # Use FileController to load data
             try:
-                df = pd.read_csv(source_path)
+                if filename == "all_particles.csv":
+                    df = self.file_controller.load_particles_data(filename)
+                elif filename == "trajectories.csv":
+                    df = self.file_controller.load_trajectories_data(filename)
+                else:
+                    # Fallback for other files
+                    source_path = self.file_controller.get_data_file_path(filename)
+                    if not os.path.exists(source_path):
+                        print(f"Source file not found, skipping: {filename}")
+                        continue
+                    df = pd.read_csv(source_path)
+                
+                if df.empty:
+                    print(f"Source file is empty, skipping: {filename}")
+                    continue
 
                 # Export to CSV
                 csv_path = os.path.join(directory, f"{name}.csv")
@@ -361,16 +369,12 @@ class LWLinkingWindow(QMainWindow):
             if hasattr(self.right_panel, 'linked_trajectories') and self.right_panel.linked_trajectories is not None:
                 trajectories_df = self.right_panel.linked_trajectories
         
-        # Load trajectories from file if still not available
+        # Load trajectories from file if still not available using FileController
         if trajectories_df is None and self.file_controller:
-            trajectories_path = os.path.join(self.file_controller.data_folder, "trajectories.csv")
-            if os.path.exists(trajectories_path):
-                try:
-                    trajectories_df = pd.read_csv(trajectories_path)
-                except Exception as e:
-                    print(f"Error loading trajectories: {e}")
-                    trajectories_df = pd.DataFrame()
-            else:
+            try:
+                trajectories_df = self.file_controller.load_trajectories_data("trajectories.csv")
+            except Exception as e:
+                print(f"Error loading trajectories: {e}")
                 trajectories_df = pd.DataFrame()
         
         # Update trajectory plots if requested
@@ -415,7 +419,7 @@ class LWLinkingWindow(QMainWindow):
                 # Trajectories exist, so automatically re-run find_trajectories
                 if hasattr(self, 'right_panel') and hasattr(self.right_panel, 'find_trajectories'):
                     self.right_panel.find_trajectories()
-    
+
     def _update_parameters_info(self):
         """Update the parameters info display with current linking parameters and detection parameters."""
         if not self.config_manager or not self.file_controller:
@@ -459,15 +463,12 @@ class LWLinkingWindow(QMainWindow):
             self.frame_range_label.setText("")
             return
         
-        # Only show frame range if trajectories exist
-        trajectories_file = os.path.join(self.file_controller.data_folder, "trajectories.csv")
-        
-        if not os.path.exists(trajectories_file):
-            self.frame_range_label.setText("")
-            return
-        
+        # Only show frame range if trajectories exist - use FileController
         try:
-            df = pd.read_csv(trajectories_file)
+            df = self.file_controller.load_trajectories_data("trajectories.csv")
+            if df.empty:
+                self.frame_range_label.setText("")
+                return
             if df is not None and not df.empty and "frame" in df.columns:
                 # Calculate statistics
                 frames = sorted(df["frame"].unique())
