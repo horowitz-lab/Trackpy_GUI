@@ -125,6 +125,14 @@ class DWDetectionWindow(QMainWindow):
         self.right_panel = DWParametersWidget(self.left_panel)
         right_panel_layout.addWidget(self.right_panel)
         
+        # Add Undo button to the same row as "All frames" and "Find Particles"
+        self.undo_button = QPushButton("Undo")
+        self.undo_button.setToolTip("Restore previous particle analysis state")
+        self.undo_button.clicked.connect(self.undo_last_state)
+        # Add to the buttons row layout in the parameters widget
+        if hasattr(self.right_panel, 'buttons_row_layout'):
+            self.right_panel.buttons_row_layout.addWidget(self.undo_button)
+        
         # Parameters info box (shows parameters used for current results)
         self.parameters_info_widget = self._create_parameters_info_widget()
         right_panel_layout.addWidget(self.parameters_info_widget)
@@ -133,13 +141,7 @@ class DWDetectionWindow(QMainWindow):
         self.metadata_widget = self._create_metadata_widget()
         right_panel_layout.addWidget(self.metadata_widget)
         
-        # Undo button
-        self.undo_button = QPushButton("Undo")
-        self.undo_button.setToolTip("Restore previous particle analysis state")
-        self.undo_button.clicked.connect(self.undo_last_state)
-        right_panel_layout.addWidget(self.undo_button, alignment=Qt.AlignRight)
-        
-        # Next button below metadata
+        # Next button at bottom corner
         right_panel_layout.addStretch()
         right_panel_layout.addWidget(self.right_panel.next_button, alignment=Qt.AlignRight)
         

@@ -110,22 +110,26 @@ class LWLinkingWindow(QMainWindow):
         self.right_panel = LWParametersWidget(self.left_panel)
         right_panel_layout.addWidget(self.right_panel)
         
-        # Frame range info widget (shows frames links were found between)
-        self.frame_range_widget = self._create_frame_range_widget()
-        right_panel_layout.addWidget(self.frame_range_widget)
+        # All action buttons right after parameters widget
+        # Find Trajectories button
+        find_trajectories_button = self.right_panel.find_trajectories_button
+        find_trajectories_button.setParent(None)
+        right_panel_layout.addWidget(find_trajectories_button, alignment=Qt.AlignRight)
         
         # Parameters info box (shows parameters used for current results)
         self.parameters_info_widget = self._create_parameters_info_widget()
         right_panel_layout.addWidget(self.parameters_info_widget)
         
+        # Frame range info widget (shows frames links were found between)
+        self.frame_range_widget = self._create_frame_range_widget()
+        right_panel_layout.addWidget(self.frame_range_widget)
+        
         # Metadata display widget
         self.metadata_widget = self._create_metadata_widget()
         right_panel_layout.addWidget(self.metadata_widget)
         
-        # Add stretch to push buttons to bottom
+        # Navigation buttons (Back and Export/Close) at bottom corner
         right_panel_layout.addStretch()
-        
-        # Extract buttons from parameters widget and add them at the bottom
         self._move_buttons_to_bottom(right_panel_layout)
         
         splitter.addWidget(right_panel_container)
@@ -140,7 +144,7 @@ class LWLinkingWindow(QMainWindow):
         splitter.setStretchFactor(2, 1)
         
         # Make splitter handle thinner and elegant black line for easy clicking
-        splitter.setHandleWidth(8)
+        splitter.setHandleWidth(4)
         splitter.setStyleSheet("""
             QSplitter::handle {
                 background-color: black;
@@ -516,9 +520,8 @@ class LWLinkingWindow(QMainWindow):
         self.movie_filename_label.setText(f"Movie Filename: {movie_filename}")
 
     def _move_buttons_to_bottom(self, layout):
-        """Extract buttons from parameters widget and add them to the bottom of the layout."""
-        # Get buttons from the parameters widget
-        find_trajectories_button = self.right_panel.find_trajectories_button
+        """Extract remaining buttons from parameters widget and add them to the bottom of the layout."""
+        # Get remaining buttons from the parameters widget (Find Trajectories is already placed above)
         back_button = self.right_panel.back_button
         export_close_button = self.right_panel.export_close_button
         
@@ -528,8 +531,7 @@ class LWLinkingWindow(QMainWindow):
         buttons_layout.setContentsMargins(10, 10, 10, 10)
         buttons_layout.setSpacing(5)
         
-        # Add buttons to the new layout
-        buttons_layout.addWidget(find_trajectories_button, alignment=Qt.AlignRight)
+        # Add remaining buttons to the new layout
         buttons_layout.addWidget(back_button, alignment=Qt.AlignRight)
         buttons_layout.addWidget(export_close_button, alignment=Qt.AlignRight)
         

@@ -175,6 +175,9 @@ class DWParametersWidget(QWidget):
         buttons_row_layout.addWidget(self.all_frames_button)
         buttons_row_layout.addStretch()
         buttons_row_layout.addWidget(self.save_button)
+        # Undo button will be added here by detection window
+        # Store reference to layout for detection window to use
+        self.buttons_row_layout = buttons_row_layout
         bottom_controls_layout.addLayout(buttons_row_layout)
         
         # Frame info display (shows which frames particles were detected in)
