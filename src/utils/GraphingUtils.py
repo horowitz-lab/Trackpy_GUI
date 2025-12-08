@@ -36,7 +36,7 @@ class GraphingButton(QPushButton):
     """Button for graphing controls with highlight state management."""
 
     highlighted_button = None  # Keeps track of which button is currently blue
-    # default_text_color = None
+    highlight_style = "color: #1f77b4;"
 
     def __init__(self, text, parent=None):
         """Initialize graphing button.
@@ -52,60 +52,20 @@ class GraphingButton(QPushButton):
         self.setText(text)
         palette = self.palette()
         self.default_text_color = palette.color(QPalette.Normal, QPalette.ButtonText)
-        # self.default_text_color = palette.color(QPalette.Normal, QPalette.ButtonText).name()
-
-    def change_text_color(self, button, color_obj):
-        """Changes the QPushButton's text color using QPalette."""
-    
-        # # 1. Get the current palette of the button
-        # palette = button.palette()
-        
-        # # 2. Define the new color
-        # new_color = QColor(color_name)
-        
-        # # 3. Set the new color for the QPalette.ButtonText role
-        # # We use QPalette.Normal for the default, unpressed state.
-        # palette.setColor(QPalette.Normal, QPalette.ButtonText, new_color)
-        
-        # # You may also want to set it for the active/hover state
-        # palette.setColor(QPalette.Active, QPalette.ButtonText, new_color)
-
-        # # 4. Apply the modified palette back to the button
-        # button.setPalette(palette)
-        palette = button.palette()
-        
-        # Define color groups to target (Normal is default, Active is when focused/pressed)
-        groups = [QPalette.Normal, QPalette.Active]
-        
-        # Define text roles to target (ButtonText is most specific, Text is fallback)
-        roles = [QPalette.ButtonText, QPalette.Text]
-
-        for group in groups:
-            for role in roles:
-                # Set the color for both text and button text roles
-                palette.setColor(group, role, color_obj)
-            
-            # CRITICAL FOR OVERRIDE: Set HighlightedText as well.
-            # This role is often used for focused/active elements.
-            palette.setColor(group, QPalette.HighlightedText, color_obj)
-
-        # Apply the modified palette back to the button
-        button.setPalette(palette)
 
     def switch_button_color(self):
         """Track which button is highlighted (styling removed, keeping logic)."""
+        
         if self.highlighted_button != None:
-            prev_button = GraphingButton.highlighted_button
-            # Use the instance's stored QColor object for the reset
-            self.change_text_color(prev_button, prev_button.default_text_color)
-            # Change the previously higlighted button back to its original color
-            # self.change_text_color(self.highlighted_button, self.default_text_color)
+            # Change the previously highlighted button back to its original color
+            # Use the captured default color
+            prev_button = self.highlighted_button
+            prev_button.setStyleSheet(f"color: {prev_button.default_text_color};")
+            # Note: You need to set the default color on the un-highlighted button too.
 
         # Updates the button that is highlighted and makes it blue
         GraphingButton.highlighted_button = self
-        # self.change_text_color(self, "#1f77b4")
-        blue_color = QColor("#1f77b4")
-        self.change_text_color(self, blue_color)
+        self.setStyleSheet(GraphingButton.highlight_style)
 
 
 class GraphingPanelWidget(QWidget):
