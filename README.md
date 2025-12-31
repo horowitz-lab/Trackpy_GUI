@@ -38,7 +38,7 @@ We recommend `conda` for managing and building the required environment for this
 
 2.  **Navigate to the top level of the repository.**
     ```bash
-    cd particle_tracking_gui
+    cd Trackpy_GUI
     ```
 
 3.  **Ensure your conda environment is active.**
