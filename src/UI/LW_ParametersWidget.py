@@ -55,6 +55,9 @@ class LWParametersWidget(QWidget):
         # Store detected particles and linked trajectories
         self.detected_particles = None
         self.linked_trajectories = None
+        # Linked trajectories before drift correction (needed to toggle drift without re-linking)
+        self.linked_trajectories_raw = None
+        self.trajectories_all_raw = None
 
         self.layout = QVBoxLayout(self)
 
@@ -143,7 +146,7 @@ class LWParametersWidget(QWidget):
         self.search_range_input.editingFinished.connect(self.save_params)
         self.memory_input.editingFinished.connect(self.save_params)
         self.min_trajectory_length_input.editingFinished.connect(self.save_params)
-        self.sub_drift.stateChanged.connect(self.save_params)
+        self.sub_drift.stateChanged.connect(self._on_sub_drift_changed)
         # Also catch Return in the embedded line edits
         self.search_range_input.lineEdit().returnPressed.connect(self.save_params)
         self.memory_input.lineEdit().returnPressed.connect(self.save_params)
@@ -158,6 +161,9 @@ class LWParametersWidget(QWidget):
     def set_file_controller(self, file_controller):
         """Set the file controller for this widget."""
         self.file_controller = file_controller
+        raw = self._load_raw_trajectories_from_disk()
+        if raw is not None:
+            self.linked_trajectories_raw = raw
 
     def load_params(self):
         if not self.config_manager:
@@ -166,7 +172,9 @@ class LWParametersWidget(QWidget):
         self.search_range_input.setValue(int(params.get("search_range", 10)))
         self.memory_input.setValue(int(params.get("memory", 10)))
         self.min_trajectory_length_input.setValue(int(params.get("min_trajectory_length", 10)))
+        self.sub_drift.blockSignals(True)
         self.sub_drift.setChecked(bool(params.get("drift", False)))
+        self.sub_drift.blockSignals(False)
 
     def save_params(self):
         if not self.config_manager:
@@ -189,8 +197,55 @@ class LWParametersWidget(QWidget):
             particle_data = particle_data.reset_index(drop=True)
             return particle_data
         except Exception as e:
-            print(f"Error linking trajectories: {e}")
-            self.linked_trajectories = None
+            print(f"Error subtracting drift: {e}")
+            return None
+
+    def _apply_drift_if_enabled(self, trajectories_df):
+        """Return a copy of trajectories with drift subtracted when the checkbox is on."""
+        if trajectories_df is None or trajectories_df.empty:
+            return trajectories_df
+        if self.sub_drift.isChecked():
+            corrected = self.calc_drift(trajectories_df)
+            return corrected if corrected is not None else trajectories_df.copy()
+        return trajectories_df.copy()
+
+    def _load_raw_trajectories_from_disk(self):
+        """Load linked (non-drift-corrected) trajectories if they were saved previously."""
+        if not self.file_controller:
+            return None
+        raw = self.file_controller.load_trajectories_data("trajectories_linked.csv")
+        if raw.empty:
+            raw = self.file_controller.load_trajectories_data("trajectories.csv")
+        return raw if not raw.empty else None
+
+    def _on_sub_drift_changed(self):
+        """Save preference and update existing trajectories without re-linking."""
+        self.save_params()
+        self.update_drift_on_trajectories()
+
+    def update_drift_on_trajectories(self):
+        """Apply or remove drift correction on already-linked trajectories."""
+        if not self.file_controller:
+            return
+        if self.linked_trajectories_raw is None:
+            self.linked_trajectories_raw = self._load_raw_trajectories_from_disk()
+        if self.linked_trajectories_raw is None:
+            return
+
+        self.linked_trajectories = self._apply_drift_if_enabled(self.linked_trajectories_raw)
+        self.file_controller.save_trajectories_data(self.linked_trajectories)
+        self.file_controller.save_trajectories_data(
+            self.linked_trajectories_raw, filename="trajectories_linked.csv"
+        )
+
+        if self.trajectories_all_raw is not None and self.file_controller:
+            trajectories_all = self._apply_drift_if_enabled(self.trajectories_all_raw)
+            data_folder = self.file_controller.data_folder
+            self.create_trajectory_visualization(
+                trajectories_all, data_folder, "trajectory_visualization.png"
+            )
+
+        self.trajectoriesLinked.emit()
 
     def find_trajectories(self):
         """Load detected particles and link them into trajectories."""
@@ -239,8 +294,8 @@ class LWParametersWidget(QWidget):
                 self.progress_label.setText("Working... Filtering trajectories...")
                 QApplication.processEvents()
                 trajectories_all = tp.filter_stubs(trajectories_all, min_trajectory_length)
-                if self.sub_drift.isChecked():
-                    trajectories_all = self.calc_drift(trajectories_all)
+                self.trajectories_all_raw = trajectories_all.copy()
+                trajectories_all = self._apply_drift_if_enabled(trajectories_all)
                 print(
                     f"Created {trajectories_all['particle'].nunique()} unfiltered trajectories for visualization"
                 )
@@ -273,13 +328,16 @@ class LWParametersWidget(QWidget):
                 f"After filtering: {trajectories_filtered['particle'].nunique()} filtered trajectories"
             )
 
-            if self.sub_drift.isChecked():
-                trajectories_filtered = self.calc_drift(trajectories_filtered)
+            self.linked_trajectories_raw = trajectories_filtered.copy()
+            trajectories_filtered = self._apply_drift_if_enabled(trajectories_filtered)
 
-            # Store the filtered linked trajectories
+            # Store the filtered linked trajectories (display/export version)
             self.linked_trajectories = trajectories_filtered
 
-            # Save filtered trajectories.csv
+            # Save linked trajectories without drift, then the display version
+            self.file_controller.save_trajectories_data(
+                self.linked_trajectories_raw, filename="trajectories_linked.csv"
+            )
             trajectories_file = self.file_controller.get_data_file_path("trajectories.csv")
             self.file_controller.save_trajectories_data(trajectories_filtered)
             print(f"Saved FILTERED trajectories to: {trajectories_file}")
@@ -318,6 +376,8 @@ class LWParametersWidget(QWidget):
         except Exception as e:
             print(f"Error linking trajectories: {e}")
             self.linked_trajectories = None
+            self.linked_trajectories_raw = None
+            self.trajectories_all_raw = None
             # Hide progress indicator and re-enable button on error
             self.progress_label.setText(f"Error: {str(e)}")
             self.progress_bar.setVisible(False)
