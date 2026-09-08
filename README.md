@@ -33,7 +33,7 @@ We recommend `conda` for managing and building the required environment for this
 
 1.  **Clone the repository.**
     ```bash
-    git clone https://github.com/bakir/Trackpy_GUI.git
+    git clone https://github.com/horowitz-lab/Trackpy_GUI.git
     ```
 
 2.  **Navigate to the top level of the repository.**
